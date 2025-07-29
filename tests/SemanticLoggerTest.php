@@ -57,7 +57,7 @@ final class SemanticLoggerTest extends TestCase
 
         $logJson = $this->logger->flush();
 
-        $this->assertSame('https://koriym.github.io/semantic-logger/schemas/semantic-log.json', $logJson->schemaUrl);
+        $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json', $logJson->schemaUrl);
 
         // Open - check ID
         $this->assertSame('process_start_1', $logJson->open->id);
@@ -222,10 +222,142 @@ final class SemanticLoggerTest extends TestCase
         $logJson = $this->logger->flush();
 
         // Relations should be empty when not provided
-        $this->assertEmpty($logJson->relations);
+        $this->assertEmpty($logJson->links);
 
         $logArray = $logJson->toArray();
-        $this->assertArrayNotHasKey('relations', $logArray);
+        $this->assertArrayNotHasKey('links', $logArray);
+    }
+
+    public function testJsonOutputDoesNotContainNullFields(): void
+    {
+        // Test single operation (no nesting)
+        $openContext = new FakeContext('simple operation', 1);
+        $openId = $this->logger->open($openContext);
+
+        $closeContext = new FakeContext('operation complete', 2);
+        $this->logger->close($closeContext, $openId);
+
+        $jsonString = json_encode($this->logger, JSON_PRETTY_PRINT);
+        $nullFieldCount = substr_count($jsonString, ': null');
+        $this->assertSame(0, $nullFieldCount, 'JSON should not contain null fields in simple operations');
+
+        // Test nested operations
+        $logger2 = new SemanticLogger();
+        $outerOpenId = $logger2->open(new FakeContext('outer operation', 10));
+        $innerOpenId = $logger2->open(new FakeContext('inner operation', 20));
+        $logger2->close(new FakeContext('inner complete', 30), $innerOpenId);
+        $logger2->close(new FakeContext('outer complete', 40), $outerOpenId);
+
+        $nestedJsonString = json_encode($logger2, JSON_PRETTY_PRINT);
+        $nestedNullFieldCount = substr_count($nestedJsonString, ': null');
+        $this->assertSame(0, $nestedNullFieldCount, 'JSON should not contain null fields in nested operations');
+    }
+
+    public function testJsonStringOutput(): void
+    {
+        // Test simple operation JSON string format
+        $openContext = new FakeContext('test message', 123);
+        $openId = $this->logger->open($openContext);
+
+        $closeContext = new FakeContext('test complete', 456);
+        $this->logger->close($closeContext, $openId);
+
+        $actualJson = json_encode($this->logger, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        
+        $expectedJson = <<<'JSON'
+{
+    "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+    "open": {
+        "id": "example_event_1",
+        "type": "example_event",
+        "$schema": "https://example.com/schemas/example.json",
+        "context": {
+            "message": "test message",
+            "value": 123
+        }
+    },
+    "close": {
+        "id": "example_event_2",
+        "type": "example_event",
+        "$schema": "https://example.com/schemas/example.json",
+        "context": {
+            "message": "test complete",
+            "value": 456
+        },
+        "openId": "example_event_1"
+    }
+}
+JSON;
+        
+        $this->assertSame($expectedJson, $actualJson);
+        
+        // Verify no null fields exist in the string
+        $this->assertStringNotContainsString(': null', $actualJson);
+        $this->assertStringNotContainsString('"open": null', $actualJson);
+        $this->assertStringNotContainsString('"close": null', $actualJson);
+    }
+
+    public function testNestedJsonStringOutput(): void
+    {
+        // Test nested operation JSON string format
+        $logger = new SemanticLogger();
+        $outerOpenId = $logger->open(new FakeContext('outer task', 100));
+        $innerOpenId = $logger->open(new FakeContext('inner task', 200));
+        $logger->close(new FakeContext('inner done', 300), $innerOpenId);
+        $logger->close(new FakeContext('outer done', 400), $outerOpenId);
+
+        $actualJson = json_encode($logger, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        
+        $expectedJson = <<<'JSON'
+{
+    "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+    "open": {
+        "id": "example_event_1",
+        "type": "example_event",
+        "$schema": "https://example.com/schemas/example.json",
+        "context": {
+            "message": "outer task",
+            "value": 100
+        },
+        "open": {
+            "id": "example_event_2",
+            "type": "example_event",
+            "$schema": "https://example.com/schemas/example.json",
+            "context": {
+                "message": "inner task",
+                "value": 200
+            }
+        }
+    },
+    "close": {
+        "id": "example_event_4",
+        "type": "example_event",
+        "$schema": "https://example.com/schemas/example.json",
+        "context": {
+            "message": "outer done",
+            "value": 400
+        },
+        "openId": "example_event_1",
+        "close": {
+            "id": "example_event_3",
+            "type": "example_event",
+            "$schema": "https://example.com/schemas/example.json",
+            "context": {
+                "message": "inner done",
+                "value": 300
+            },
+            "openId": "example_event_2"
+        }
+    }
+}
+JSON;
+        
+        $this->assertSame($expectedJson, $actualJson);
+        
+        // Verify no null fields exist anywhere in nested structure
+        $this->assertStringNotContainsString(': null', $actualJson);
+        $this->assertStringNotContainsString('"open": null', $actualJson);
+        $this->assertStringNotContainsString('"close": null', $actualJson);
     }
 
     public function testFlushWithRelations(): void
@@ -236,7 +368,7 @@ final class SemanticLoggerTest extends TestCase
         $closeContext = new FakeContext('operation complete', 456);
         $this->logger->close($closeContext, $openId);
 
-        $relations = [
+        $links = [
             [
                 'rel' => 'schema',
                 'href' => 'https://example.com/db/schema/users.sql',
@@ -257,27 +389,27 @@ final class SemanticLoggerTest extends TestCase
             ],
         ];
 
-        $logJson = $this->logger->flush($relations);
+        $logJson = $this->logger->flush($links);
 
         // Relations should be present
-        $this->assertCount(3, $logJson->relations);
-        $this->assertSame('schema', $logJson->relations[0]['rel']);
-        $this->assertSame('https://example.com/db/schema/users.sql', $logJson->relations[0]['href']);
+        $this->assertCount(3, $logJson->links);
+        $this->assertSame('schema', $logJson->links[0]['rel']);
+        $this->assertSame('https://example.com/db/schema/users.sql', $logJson->links[0]['href']);
 
         $logArray = $logJson->toArray();
-        $this->assertArrayHasKey('relations', $logArray);
-        /** @var list<array{rel: string, href: string, title?: string, type?: string}> $relations */
-        $relations = $logArray['relations'];
-        $this->assertCount(3, $relations);
+        $this->assertArrayHasKey('links', $logArray);
+        /** @var list<array{rel: string, href: string, title?: string, type?: string}> $links */
+        $links = $logArray['links'];
+        $this->assertCount(3, $links);
 
         // Verify specific relation content
-        $relation = $relations[1];
-        $this->assertSame('source', $relation['rel']);
-        $this->assertArrayHasKey('title', $relation);
-        $this->assertArrayHasKey('type', $relation);
-        /** @var array{rel: string, href: string, title: string, type: string} $relation */
-        $this->assertSame('Source Code Location', $relation['title']);
-        $this->assertSame('text/x-php', $relation['type']);
+        $link = $links[1];
+        $this->assertSame('source', $link['rel']);
+        $this->assertArrayHasKey('title', $link);
+        $this->assertArrayHasKey('type', $link);
+        /** @var array{rel: string, href: string, title: string, type: string} $link */
+        $this->assertSame('Source Code Location', $link['title']);
+        $this->assertSame('text/x-php', $link['type']);
     }
 
     public function testFlushWithEmptyRelationsArray(): void
@@ -290,11 +422,11 @@ final class SemanticLoggerTest extends TestCase
 
         $logJson = $this->logger->flush([]);
 
-        // Empty relations array should not appear in output
-        $this->assertEmpty($logJson->relations);
+        // Empty links array should not appear in output
+        $this->assertEmpty($logJson->links);
 
         $logArray = $logJson->toArray();
-        $this->assertArrayNotHasKey('relations', $logArray);
+        $this->assertArrayNotHasKey('links', $logArray);
     }
 
     public function testRelationsWithComplexStructure(): void
@@ -308,7 +440,7 @@ final class SemanticLoggerTest extends TestCase
         $closeContext = new FakeContext('operation finished', 789);
         $this->logger->close($closeContext, $openId);
 
-        $relations = [
+        $links = [
             [
                 'rel' => 'profile',
                 'href' => 'https://xhprof.example.com/run/5f3a2b1c',
@@ -323,22 +455,22 @@ final class SemanticLoggerTest extends TestCase
             ],
         ];
 
-        $logJson = $this->logger->flush($relations);
+        $logJson = $this->logger->flush($links);
 
-        // Verify relations work with events
+        // Verify links work with events
         $this->assertCount(1, $logJson->events);
-        $this->assertCount(2, $logJson->relations);
+        $this->assertCount(2, $logJson->links);
 
         $logArray = $logJson->toArray();
         $this->assertArrayHasKey('events', $logArray);
-        $this->assertArrayHasKey('relations', $logArray);
+        $this->assertArrayHasKey('links', $logArray);
 
         // Verify trace relation
-        /** @var list<array{rel: string, href: string, title?: string, type?: string}> $relations */
-        $relations = $logArray['relations'];
-        $traceRelation = $relations[1];
-        $this->assertSame('trace', $traceRelation['rel']);
-        $this->assertSame('https://jaeger.example.com/trace/5f3a2b1c8d9e', $traceRelation['href']);
+        /** @var list<array{rel: string, href: string, title?: string, type?: string}> $links */
+        $links = $logArray['links'];
+        $traceLink = $links[1];
+        $this->assertSame('trace', $traceLink['rel']);
+        $this->assertSame('https://jaeger.example.com/trace/5f3a2b1c8d9e', $traceLink['href']);
     }
 
     public function testUnclosedOperationThrowsException(): void

@@ -48,7 +48,7 @@ interface SemanticLoggerInterface
      * the internal state for the next logging session. This implements the
      * flush pattern for one-time log consumption.
      *
-     * @param list<array{rel: string, href: string, title?: string, type?: string}> $relations Optional relations for complete system transparency
+     * @param list<array{rel: string, href: string, title?: string, type?: string}> $links Optional links for complete system transparency
      */
-    public function flush(array $relations = []): LogJson;
+    public function flush(array $links = []): LogJson;
 }

@@ -67,7 +67,7 @@ final class ErrorHandlingTest extends TestCase
         $logJson = $logger->flush();
 
         // Verify structure
-        $this->assertSame('https://koriym.github.io/semantic-logger/schemas/semantic-log.json', $logJson->schemaUrl);
+        $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json', $logJson->schemaUrl);
 
         // Test nested structure
         $this->assertSame('outer', $logJson->open->context['message']);

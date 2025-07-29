@@ -1,8 +1,36 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://koriym.github.io/semantic-logger/schemas/semantic-log.json",
+  "$id": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
   "title": "Semantic Logger Format",
   "description": "Universal schema for structured logging with complete type safety and semantic meaning. Transforms logging from strings to stories.",
+  "links": [
+    {
+      "rel": "describedby",
+      "href": "https://github.com/koriym/Koriym.SemanticLogger/blob/main/README.md",
+      "title": "Implementation Documentation",
+      "type": "text/markdown"
+    },
+    {
+      "rel": "related",
+      "href": "https://github.com/koriym/Koriym.SemanticLogger",
+      "title": "Source Code Repository"
+    },
+    {
+      "rel": "author",
+      "href": "https://github.com/koriym",
+      "title": "Akihito Koriyama"
+    },
+    {
+      "rel": "license",
+      "href": "https://github.com/koriym/Koriym.SemanticLogger/blob/main/LICENSE",
+      "title": "MIT License"
+    },
+    {
+      "rel": "self",
+      "href": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+      "title": "This JSON Schema"
+    }
+  ],
   "type": "object",
   "properties": {
     "$schema": {
@@ -26,9 +54,9 @@
     "close": {
       "$ref": "#/definitions/CloseEntry"
     },
-    "relations": {
+    "links": {
       "type": "array",
-      "description": "RFC 8288 compliant link relations for system transparency and debugging context",
+      "description": "RFC 8288 compliant links for system transparency and debugging context",
       "items": {
         "$ref": "#/definitions/LinkRelation"
       }
@@ -36,9 +64,9 @@
   },
   "required": ["$schema", "open"],
   "additionalProperties": false,
-  
+
   "definitions": {
-    
+
     "OpenEntry": {
       "type": "object",
       "description": "Session opening - the beginning of the story with complete type safety",
@@ -67,9 +95,9 @@
       "required": ["id", "type", "$schema", "context"],
       "additionalProperties": false
     },
-    
+
     "EventEntry": {
-      "type": "object", 
+      "type": "object",
       "description": "Individual event within a session - a scene in the story",
       "properties": {
         "type": {
@@ -77,7 +105,7 @@
           "description": "Type identifier for this event (e.g., 'sql_query', 'api_call', 'validation_check')"
         },
         "$schema": {
-          "type": "string", 
+          "type": "string",
           "description": "JSON Schema URI that defines the meaning and structure of the context data"
         },
         "context": {
@@ -88,13 +116,13 @@
       "required": ["type", "$schema", "context"],
       "additionalProperties": false
     },
-    
+
     "CloseEntry": {
       "type": "object",
       "description": "Session closing - the end of the story with typed results",
       "properties": {
         "type": {
-          "type": "string", 
+          "type": "string",
           "description": "Type identifier for the result (e.g., 'success', 'error', 'accept', 'reject')"
         },
         "$schema": {
@@ -108,7 +136,7 @@
       },
       "additionalProperties": false
     },
-    
+
     "LinkRelation": {
       "type": "object",
       "description": "RFC 8288 compliant link relation for resource discovery and debugging context",
@@ -120,19 +148,19 @@
             {
               "description": "IANA registered relation types (RFC 8288 Section 2.1.1)",
               "enum": [
-                "about", "alternate", "appendix", "archives", "author", "bookmark", "canonical", "chapter", 
-                "collection", "contents", "copyright", "create-form", "current", "describedby", "describes", 
-                "disclosure", "duplicate", "edit", "edit-form", "edit-media", "enclosure", "first", "glossary", 
-                "help", "hosts", "hub", "icon", "index", "item", "last", "latest-version", "license", "lrdd", 
-                "memento", "monitor", "next", "next-archive", "nofollow", "noreferrer", "original", "payment", 
-                "predecessor-version", "prefetch", "prev", "preview", "previous", "prev-archive", "privacy-policy", 
-                "profile", "related", "replies", "search", "section", "self", "service", "start", "stylesheet", 
-                "subsection", "successor-version", "tag", "terms-of-service", "timegate", "timemap", "type", 
+                "about", "alternate", "appendix", "archives", "author", "bookmark", "canonical", "chapter",
+                "collection", "contents", "copyright", "create-form", "current", "describedby", "describes",
+                "disclosure", "duplicate", "edit", "edit-form", "edit-media", "enclosure", "first", "glossary",
+                "help", "hosts", "hub", "icon", "index", "item", "last", "latest-version", "license", "lrdd",
+                "memento", "monitor", "next", "next-archive", "nofollow", "noreferrer", "original", "payment",
+                "predecessor-version", "prefetch", "prev", "preview", "previous", "prev-archive", "privacy-policy",
+                "profile", "related", "replies", "search", "section", "self", "service", "start", "stylesheet",
+                "subsection", "successor-version", "tag", "terms-of-service", "timegate", "timemap", "type",
                 "up", "version-history", "via", "working-copy", "working-copy-of"
               ]
             },
             {
-              "description": "Extension relation types must be URIs (RFC 8288 Section 2.1.2)", 
+              "description": "Extension relation types must be URIs (RFC 8288 Section 2.1.2)",
               "type": "string",
               "pattern": "^https?://"
             },
@@ -160,10 +188,10 @@
       "additionalProperties": false
     }
   },
-  
+
   "examples": [
     {
-      "$schema": "https://koriym.github.io/semantic-logger/schemas/semantic-log.json",
+      "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
       "title": "Hotel Booking Request Processing",
       "open": {
         "type": "booking_request",
@@ -194,22 +222,32 @@
           "total_amount": 16500
         }
       },
-      "relations": [
+      "links": [
+        {
+          "rel": "self",
+          "href": "https://api.example.com/bookings/BK-2025-001234",
+          "title": "This Booking Resource"
+        },
         {
           "rel": "related",
-          "href": "https://github.com/example/booking-service",
-          "title": "Source Code Repository"
+          "href": "https://github.com/koriym/Koriym.SemanticLogger",
+          "title": "Logging Library Used"
         },
         {
           "rel": "describedby",
-          "href": "https://example.com/db/schema/bookings.sql",
-          "title": "Database Schema",
-          "type": "application/sql"
+          "href": "https://github.com/example/booking-service/blob/main/docs/api.md",
+          "title": "API Documentation",
+          "type": "text/markdown"
+        },
+        {
+          "rel": "monitor",
+          "href": "https://monitoring.example.com/services/booking-service",
+          "title": "Service Health Dashboard"
         }
       ]
     },
     {
-      "$schema": "https://koriym.github.io/semantic-logger/schemas/semantic-log.json",
+      "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
       "title": "Nested API Call with Database Query",
       "open": {
         "type": "api_request",
@@ -244,7 +282,35 @@
           "user_id": 123,
           "response_time_ms": 45
         }
-      }
+      },
+      "links": [
+        {
+          "rel": "self",
+          "href": "https://api.example.com/users/123",
+          "title": "User Resource"
+        },
+        {
+          "rel": "related",
+          "href": "https://github.com/koriym/Koriym.SemanticLogger",
+          "title": "Logging Library"
+        },
+        {
+          "rel": "describedby",
+          "href": "https://github.com/example/user-service/blob/main/docs/database.md",
+          "title": "Database Schema Documentation",
+          "type": "text/markdown"
+        },
+        {
+          "rel": "monitor",
+          "href": "https://monitoring.example.com/services/user-service/performance",
+          "title": "Performance Metrics"
+        },
+        {
+          "rel": "edit",
+          "href": "https://api.example.com/users/123",
+          "title": "Update User Resource"
+        }
+      ]
     }
   ]
 }

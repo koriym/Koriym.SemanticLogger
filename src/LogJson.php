@@ -10,7 +10,7 @@ final class LogJson
 {
     /**
      * @param list<EventEntry>                                                      $events
-     * @param list<array{rel: string, href: string, title?: string, type?: string}> $relations
+     * @param list<array{rel: string, href: string, title?: string, type?: string}> $links
      */
     public function __construct(
         public readonly string $schemaUrl,
@@ -19,7 +19,7 @@ final class LogJson
         /** @var list<EventEntry> */
         public readonly array $events = [],
         /** @var list<array{rel: string, href: string, title?: string, type?: string}> */
-        public readonly array $relations = [],
+        public readonly array $links = [],
     ) {
     }
 
@@ -37,8 +37,8 @@ final class LogJson
 
         $result['close'] = $this->close->toArray();
 
-        if (! empty($this->relations)) {
-            $result['relations'] = $this->relations;
+        if (! empty($this->links)) {
+            $result['links'] = $this->links;
         }
 
         return $result;

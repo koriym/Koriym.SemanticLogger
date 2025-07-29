@@ -19,7 +19,7 @@ use function is_string;
 
 final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 {
-    private const SEMANTIC_LOG_SCHEMA_URL = 'https://koriym.github.io/semantic-logger/schemas/semantic-log.json';
+    private const SEMANTIC_LOG_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json';
 
     /** @var list<EventEntry> */
     private array $events = [];
@@ -138,9 +138,9 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         return $this->createLogJson()->toArray();
     }
 
-    /** @param list<array{rel: string, href: string, title?: string, type?: string}> $relations */
+    /** @param list<array{rel: string, href: string, title?: string, type?: string}> $links */
     #[Override]
-    public function flush(array $relations = []): LogJson
+    public function flush(array $links = []): LogJson
     {
         // Check for any operations at all
         if (empty($this->completedOperations) && $this->openStack->isEmpty()) {
@@ -163,7 +163,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             $this->buildNestedOpen(),
             $this->buildNestedClose(),
             $this->events,
-            $relations,
+            $links,
         );
 
         // Clear internal state
