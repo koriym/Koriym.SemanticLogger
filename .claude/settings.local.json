@@ -8,7 +8,10 @@
       "Bash(composer cs:*)",
       "Bash(composer test:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:tools.ietf.org)",
+      "WebFetch(domain:datatracker.ietf.org)"
     ],
     "deny": []
   }

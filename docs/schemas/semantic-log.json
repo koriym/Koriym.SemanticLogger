@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://koriym.github.io/semantic-logger/schemas/structured-log.json",
+  "$id": "https://koriym.github.io/semantic-logger/schemas/semantic-log.json",
   "title": "Semantic Logger Format",
   "description": "Universal schema for structured logging with complete type safety and semantic meaning. Transforms logging from strings to stories.",
   "type": "object",
@@ -26,9 +26,16 @@
     },
     "close": {
       "$ref": "#/definitions/CloseEntry"
+    },
+    "relations": {
+      "type": "array",
+      "description": "RFC 8288 compliant link relations for system transparency and debugging context",
+      "items": {
+        "$ref": "#/definitions/LinkRelation"
+      }
     }
   },
-  "required": ["$schema", "title", "open"],
+  "required": ["$schema", "open"],
   "additionalProperties": false,
   
   "definitions": {
@@ -100,12 +107,59 @@
         }
       },
       "additionalProperties": false
+    },
+    
+    "LinkRelation": {
+      "type": "object",
+      "description": "RFC 8288 compliant link relation for resource discovery and debugging context",
+      "properties": {
+        "rel": {
+          "type": "string",
+          "description": "Relation type - either a registered IANA relation type or an extension URI",
+          "oneOf": [
+            {
+              "description": "IANA registered relation types (RFC 8288 Section 2.1.1)",
+              "enum": [
+                "about", "alternate", "appendix", "archives", "author", "bookmark", "canonical", "chapter", 
+                "collection", "contents", "copyright", "create-form", "current", "describedby", "describes", 
+                "disclosure", "duplicate", "edit", "edit-form", "edit-media", "enclosure", "first", "glossary", 
+                "help", "hosts", "hub", "icon", "index", "item", "last", "latest-version", "license", "lrdd", 
+                "memento", "monitor", "next", "next-archive", "nofollow", "noreferrer", "original", "payment", 
+                "predecessor-version", "prefetch", "prev", "preview", "previous", "prev-archive", "privacy-policy", 
+                "profile", "related", "replies", "search", "section", "self", "service", "start", "stylesheet", 
+                "subsection", "successor-version", "tag", "terms-of-service", "timegate", "timemap", "type", 
+                "up", "version-history", "via", "working-copy", "working-copy-of"
+              ]
+            },
+            {
+              "description": "Extension relation types must be URIs (RFC 8288 Section 2.1.2)", 
+              "type": "string",
+              "format": "uri"
+            }
+          ]
+        },
+        "href": {
+          "type": "string",
+          "format": "uri",
+          "description": "Target URI of the relation"
+        },
+        "title": {
+          "type": "string",
+          "description": "Human-readable title for the relation target"
+        },
+        "type": {
+          "type": "string",
+          "description": "Media type hint for the relation target"
+        }
+      },
+      "required": ["rel", "href"],
+      "additionalProperties": false
     }
   },
   
   "examples": [
     {
-      "$schema": "https://koriym.github.io/semantic-logger/schemas/structured-log.json",
+      "$schema": "https://koriym.github.io/semantic-logger/schemas/semantic-log.json",
       "title": "Hotel Booking Request Processing",
       "open": {
         "type": "booking_request",
@@ -135,10 +189,23 @@
           "confirmation_code": "ABC123XYZ",
           "total_amount": 16500
         }
-      }
+      },
+      "relations": [
+        {
+          "rel": "related",
+          "href": "https://github.com/example/booking-service",
+          "title": "Source Code Repository"
+        },
+        {
+          "rel": "describedby",
+          "href": "https://example.com/db/schema/bookings.sql",
+          "title": "Database Schema",
+          "type": "application/sql"
+        }
+      ]
     },
     {
-      "$schema": "https://koriym.github.io/semantic-logger/schemas/structured-log.json",
+      "$schema": "https://koriym.github.io/semantic-logger/schemas/semantic-log.json",
       "title": "Nested API Call with Database Query",
       "open": {
         "type": "api_request",

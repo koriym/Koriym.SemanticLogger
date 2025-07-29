@@ -107,8 +107,8 @@ $logger->close(new ResultContext('success'), $processId);
 
 // Optional: Add relations for debugging context
 $relations = [
-    ['rel' => 'source', 'href' => 'https://github.com/example/my-app'],
-    ['rel' => 'schema', 'href' => 'https://example.com/db/schema/processes.sql']
+    ['rel' => 'related', 'href' => 'https://github.com/example/my-app', 'title' => 'Source Code Repository'],
+    ['rel' => 'describedby', 'href' => 'https://example.com/db/schema/processes.sql', 'title' => 'Database Schema']
 ];
 
 // Get structured log with complete intent→result mapping
@@ -151,12 +151,14 @@ The semantic structure captures the complete intent→result flow with **openId 
   },
   "relations": [
     {
-      "rel": "source",
-      "href": "https://github.com/example/my-app"
+      "rel": "related",
+      "href": "https://github.com/example/my-app",
+      "title": "Source Code Repository"
     },
     {
-      "rel": "schema", 
-      "href": "https://example.com/db/schema/processes.sql"
+      "rel": "describedby", 
+      "href": "https://example.com/db/schema/processes.sql",
+      "title": "Database Schema"
     }
   ]
 }
@@ -168,7 +170,7 @@ The semantic structure captures the complete intent→result flow with **openId 
 - **close**: Actual results and outcomes (matches open hierarchy) - linked via `openId` to corresponding open operation
 - **openId**: Correlation field that links events and close entries to their originating open operation
 - **schemaUrl**: JSON Schema URL for validation and documentation
-- **relations**: Optional links for debugging context (source code, database schema, etc.)
+- **relations**: Optional RFC 8288 compliant links (related resources, schemas, etc.)
 
 **OpenId Correlation Benefits:**
 - **Request Tracing**: Easily identify which events belong to which operation in complex nested workflows

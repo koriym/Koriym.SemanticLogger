@@ -1,139 +1,89 @@
-# Semantic Logger Schemas
+# Semantic Logger JSON Schema
 
 ## Overview
 
-Semantic Logger uses JSON Schema to define the structure and meaning of log data. This enables:
+JSON Schema for validating semantic log entries with RFC 8288 compliant link relations.
 
-- **Complete Type Safety**: All log data is validated against schemas
-- **Semantic Meaning**: AI and tools understand what each field means
-- **Documentation**: Schemas serve as living documentation
-- **Validation**: Automatic validation of log structure
+## Schema File
 
-## Core Schema
+### `semantic-log.json`
 
-### `structured-log.json`
+Complete semantic log format with hierarchical logging and RFC 8288 link relations support.
 
-The main schema that defines the overall structure of semantic logs.
+**Schema URL**: `https://koriym.github.io/semantic-logger/schemas/semantic-log.json`
 
-**Key Components:**
+## Features
 
-- **stream**: Array of log sessions (stories)
-- **open**: Beginning of a story with typed context
-- **events**: Array of events that occurred (plot points)
-- **close**: End of the story with typed results
+- **RFC 8288 Compliance**: Link relations follow IANA registered relation types
+- **Extension Support**: Custom relation types via URI format  
+- **Type Safety**: Full validation of open/event/close hierarchical structures
+- **Debugging Context**: Relations provide source code, schema, and monitoring links
 
-**Schema URL**: `https://koriym.github.io/semantic-logger/schemas/structured-log.json`
-
-## Schema Structure
+## Structure
 
 ```json
 {
-  "$schema": "https://koriym.github.io/semantic-logger/schemas/structured-log.json",
-  "title": "My Application Log",
-  "stream": [
+  "$schema": "https://koriym.github.io/semantic-logger/schemas/semantic-log.json",
+  "open": {
+    "id": "process_1",
+    "type": "process",
+    "$schema": "https://example.com/schemas/process.json",
+    "context": { "name": "data processing" }
+  },
+  "events": [
     {
-      "open": {
-        "type": "user_registration",
-        "$schema": "https://myapp.com/schemas/user_registration.json",
-        "context": {
-          "email": "user@example.com",
-          "source": "web"
-        }
-      },
-      "events": [
-        {
-          "type": "email_validation",
-          "$schema": "https://myapp.com/schemas/email_validation.json", 
-          "context": {
-            "email": "user@example.com",
-            "valid": true,
-            "check_duration_ms": 45
-          }
-        }
-      ],
-      "close": {
-        "type": "registration_success",
-        "$schema": "https://myapp.com/schemas/registration_success.json",
-        "context": {
-          "user_id": "usr_12345",
-          "welcome_email_sent": true
-        }
-      }
+      "id": "event_1", 
+      "type": "event",
+      "$schema": "https://example.com/schemas/event.json",
+      "context": { "message": "processing started" },
+      "openId": "process_1"
+    }
+  ],
+  "close": {
+    "id": "result_1",
+    "type": "result", 
+    "$schema": "https://example.com/schemas/result.json",
+    "context": { "status": "success" },
+    "openId": "process_1"
+  },
+  "relations": [
+    {
+      "rel": "related",
+      "href": "https://github.com/example/my-app",
+      "title": "Source Code Repository"
+    },
+    {
+      "rel": "describedby",
+      "href": "https://example.com/db/schema/processes.sql",
+      "title": "Database Schema"
     }
   ]
 }
 ```
 
-## Domain-Specific Schemas
+## Link Relations (RFC 8288)
 
-Each `type` should have a corresponding JSON Schema that defines:
+Supported IANA registered relation types:
 
-1. **Structure**: What fields are required/optional
-2. **Types**: Data types for each field
-3. **Validation**: Constraints and formats
-4. **Documentation**: Description of what each field means
+- `related` - Related resources (source code, repositories)
+- `describedby` - Schemas, documentation that describe the resource
+- `help` - Help documentation  
+- `monitor` - Monitoring and metrics
+- `self` - Self-reference
+- And all other [IANA Link Relations](https://www.iana.org/assignments/link-relations/link-relations.xhtml)
 
-### Example Domain Schema
-
+Extension relations must be URIs:
 ```json
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://myapp.com/schemas/user_registration.json",
-  "title": "User Registration Context",
-  "description": "Context data for user registration process",
-  "type": "object",
-  "properties": {
-    "email": {
-      "type": "string",
-      "format": "email",
-      "description": "User's email address"
-    },
-    "source": {
-      "type": "string",
-      "enum": ["web", "mobile", "api"],
-      "description": "Registration source channel"
-    },
-    "referrer": {
-      "type": "string",
-      "format": "uri",
-      "description": "Referrer URL (optional)"
-    }
-  },
-  "required": ["email", "source"],
-  "additionalProperties": false
+  "rel": "https://example.com/rels/xhprof-profile",
+  "href": "https://xhprof.example.com/run/abc123"
 }
 ```
 
-## Hierarchical Logging
+## Validation
 
-For nested operations (like embed in BEAR.Resource), use nested `open` entries:
-
-```json
-{
-  "open": {
-    "type": "page_render",
-    "$schema": "https://myapp.com/schemas/page_render.json",
-    "context": {"page": "/user/profile"},
-    "open": {
-      "type": "user_data_fetch",
-      "$schema": "https://myapp.com/schemas/user_data_fetch.json", 
-      "context": {"user_id": "usr_123"}
-    }
-  }
-}
+```bash
+# Using ajv-cli
+npm install -g ajv-cli
+ajv validate -s semantic-log.json -d your-log.json
 ```
-
-## Best Practices
-
-1. **Always provide schemas**: Every `type` should have a corresponding schema
-2. **Use meaningful types**: `user_login` not `process_start`
-3. **Document everything**: Schemas serve as API documentation
-4. **Version your schemas**: Use versioned URLs for schema evolution
-5. **Validate early**: Validate context data before logging
-
-## Tools
-
-- **JSON Schema Validators**: Validate log files against schemas
-- **Code Generators**: Generate context classes from schemas
-- **Documentation**: Auto-generate docs from schemas
-- **AI Analysis**: AI can understand log meaning through schemas
