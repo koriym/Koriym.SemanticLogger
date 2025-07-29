@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
-final class EventEntry
+use JsonSerializable;
+use Override;
+
+final class EventEntry implements JsonSerializable
 {
     /** @param array<string, mixed> $context */
     public function __construct(
@@ -36,5 +39,11 @@ final class EventEntry
         }
 
         return $result;
+    }
+
+    #[Override]
+    public function jsonSerialize(): mixed
+    {
+        return $this->toArray();
     }
 }

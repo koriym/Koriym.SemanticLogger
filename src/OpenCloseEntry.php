@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
-final class OpenCloseEntry
+use JsonSerializable;
+use Override;
+
+final class OpenCloseEntry implements JsonSerializable
 {
     /** @param array<string, mixed> $context */
     public function __construct(
@@ -31,5 +34,11 @@ final class OpenCloseEntry
         }
 
         return $result;
+    }
+
+    #[Override]
+    public function jsonSerialize(): mixed
+    {
+        return $this->toArray();
     }
 }
