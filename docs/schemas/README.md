@@ -10,7 +10,7 @@ JSON Schema for validating semantic log entries with RFC 8288 compliant link rel
 
 Complete semantic log format with hierarchical logging and RFC 8288 link relations support.
 
-**Schema URL**: `https://koriym.github.io/semantic-logger/schemas/semantic-log.json`
+**Schema URL**: `https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json`
 
 ## Features
 
@@ -23,7 +23,7 @@ Complete semantic log format with hierarchical logging and RFC 8288 link relatio
 
 ```json
 {
-  "$schema": "https://koriym.github.io/semantic-logger/schemas/semantic-log.json",
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
   "open": {
     "id": "process_1",
     "type": "process",

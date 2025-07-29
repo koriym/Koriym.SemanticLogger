@@ -124,7 +124,7 @@ The semantic structure captures the complete intent→result flow with **openId 
 
 ```json
 {
-  "$schema": "https://koriym.github.io/semantic-logger/schemas/semantic-log.json",
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
   "open": {
     "id": "process_1",
     "type": "process",
