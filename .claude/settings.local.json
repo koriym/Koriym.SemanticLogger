@@ -12,7 +12,8 @@
       "Bash(git push:*)",
       "WebFetch(domain:tools.ietf.org)",
       "WebFetch(domain:datatracker.ietf.org)",
-      "Bash(ajv compile:*)"
+      "Bash(ajv compile:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

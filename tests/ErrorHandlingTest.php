@@ -80,7 +80,6 @@ final class ErrorHandlingTest extends TestCase
         $this->assertSame('event2', $logJson->events[1]->context['message']);
 
         // Test close (should be outer close since it's the root operation)
-        $this->assertNotNull($logJson->close);
         $this->assertSame('outer_finished', $logJson->close->context['message']);
 
         // Test that logger is cleared after flush

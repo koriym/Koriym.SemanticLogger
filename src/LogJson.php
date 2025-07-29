@@ -15,9 +15,9 @@ final class LogJson
     public function __construct(
         public readonly string $schemaUrl,
         public readonly OpenCloseEntry $open,
+        public readonly EventEntry $close,
         /** @var list<EventEntry> */
         public readonly array $events = [],
-        public readonly EventEntry $close,
         /** @var list<array{rel: string, href: string, title?: string, type?: string}> */
         public readonly array $relations = [],
     ) {

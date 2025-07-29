@@ -15,8 +15,8 @@ final class LogSessionTest extends TestCase
         $session = new LogJson(
             'https://schema.example.com/log.json',
             $open,
-            [],
             $close,
+            [],
         );
 
         $this->assertSame('https://schema.example.com/log.json', $session->schemaUrl);
@@ -44,8 +44,8 @@ final class LogSessionTest extends TestCase
         $session = new LogJson(
             'https://schema.example.com/complete.json',
             $open,
-            $events,
             $close,
+            $events,
         );
 
         $this->assertSame('https://schema.example.com/complete.json', $session->schemaUrl);
@@ -57,7 +57,6 @@ final class LogSessionTest extends TestCase
         $this->assertSame('event1', $session->events[0]->type);
         $this->assertSame('event2_1', $session->events[1]->id);
         $this->assertSame('event2', $session->events[1]->type);
-        $this->assertNotNull($session->close);
         $this->assertSame('end_1', $session->close->id);
         $this->assertSame('end', $session->close->type);
     }

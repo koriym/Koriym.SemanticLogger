@@ -75,7 +75,6 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame(42, $logJson->events[0]->context['value']);
 
         // Close - check ID
-        $this->assertNotNull($logJson->close);
         $this->assertSame('process_complete_1', $logJson->close->id);
         $this->assertSame('process_complete', $logJson->close->type);
         $this->assertSame('https://example.com/schemas/process_complete.json', $logJson->close->schemaUrl);
@@ -107,7 +106,6 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame('outer process', $logJson->open->context['message']);
 
         // Close should be the root operation close
-        $this->assertNotNull($logJson->close);
         $this->assertSame('example_event', $logJson->close->type);
         $this->assertSame('outer finished', $logJson->close->context['message']);
     }
@@ -154,7 +152,6 @@ final class SemanticLoggerTest extends TestCase
         }
 
         // Verify close has openId correlation
-        $this->assertNotNull($logJson->close);
         $closeArray = $logJson->close->toArray();
         $this->assertArrayHasKey('openId', $closeArray);
         if (isset($closeArray['openId'])) {
@@ -196,7 +193,6 @@ final class SemanticLoggerTest extends TestCase
         }
 
         // Close entries should have correct openId correlation
-        $this->assertNotNull($logJson->close);
         $closeArray = $logJson->close->toArray();
         $this->assertArrayHasKey('openId', $closeArray);
         if (isset($closeArray['openId'])) {

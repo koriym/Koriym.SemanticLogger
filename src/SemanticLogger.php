@@ -143,27 +143,26 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     public function flush(array $relations = []): LogJson
     {
         // Check for any operations at all
-        if (! empty($this->completedOperations) || ! $this->openStack->isEmpty()) {
-            // Detect unclosed operations - this is a programming error
-            if (! $this->openStack->isEmpty()) {
-                $lastOpen = $this->getLastOpenContext();
-
-                throw new UnclosedLogicException(
-                    $this->openStack->count(),
-                    $lastOpen->type,
-                    $lastOpen->schemaUrl,
-                );
-            }
-        } else {
+        if (empty($this->completedOperations) && $this->openStack->isEmpty()) {
             throw new NoLogSessionException('no open entry');
         }
 
+        // Detect unclosed operations - this is a programming error
+        if (! $this->openStack->isEmpty()) {
+            $lastOpen = $this->getLastOpenContext();
+
+            throw new UnclosedLogicException(
+                $this->openStack->count(),
+                $lastOpen->type,
+                $lastOpen->schemaUrl,
+            );
+        }
 
         $logJson = new LogJson(
             self::SEMANTIC_LOG_SCHEMA_URL,
             $this->buildNestedOpen(),
-            $this->events,
             $this->buildNestedClose(),
+            $this->events,
             $relations,
         );
 
@@ -190,8 +189,8 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         return new LogJson(
             self::SEMANTIC_LOG_SCHEMA_URL,
             $this->buildNestedOpen(),
-            $this->events,
             $this->buildNestedClose(),
+            $this->events,
         );
     }
 
@@ -207,6 +206,10 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         // Rebuild the nested structure from completed operations
         $operations = array_reverse($this->completedOperations);
         $result = array_pop($operations);
+
+        if ($result === null) {
+            throw new NoLogSessionException('no completed operations');
+        }
 
         while (! empty($operations)) {
             $parent = array_pop($operations);
@@ -235,6 +238,10 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 
         // Build nested structure from outermost to innermost
         $result = array_pop($closeEntries);
+
+        if ($result === null) {
+            throw new NoLogSessionException('no close entries');
+        }
 
         while (! empty($closeEntries)) {
             $child = array_pop($closeEntries);
