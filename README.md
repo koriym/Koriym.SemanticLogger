@@ -2,7 +2,9 @@
 
 Type-safe structured logging with JSON schema validation for hierarchical application workflows.
 
-**Designed to provide equal context to both AI systems and human developers for comprehensive system understanding.**
+## Equal Context for AI and Human Developers
+
+Provides the same comprehensive system understanding to both AI systems and human developers through structured semantic logging.
 
 ## Beyond Traditional Logging: Semantic Structure
 
@@ -173,22 +175,12 @@ The semantic structure captures the complete intent→result flow with **openId 
 - **relations**: Optional RFC 8288 compliant links (related resources, schemas, etc.)
 
 **OpenId Correlation Benefits:**
-- **Request Tracing**: Easily identify which events belong to which operation in complex nested workflows
-- **Debugging**: Quickly trace the flow from intent (open) → events → result (close) for any operation
-- **Monitoring**: Track operation completion rates and identify unclosed operations in production logs
-- **Compliance**: Maintain audit trails with clear operation boundaries for regulatory requirements
+- **Request Tracing**: Identify which events belong to which operation in nested workflows
+- **Debugging**: Trace the flow from intent (open) → events → result (close)
+- **Monitoring**: Track operation completion and identify unclosed operations
+- **Compliance**: Maintain audit trails with clear operation boundaries
 
 ## Documentation
 
 📖 **[Schema Documentation](docs/schemas/README.md)** - JSON Schema validation and RFC 8288 link relations
 
-## Architecture
-
-- **AbstractContext**: Base class for type-safe context objects
-- **SemanticLogger**: Main logger with hierarchical operations
-- **LogJson**: Immutable structured log output
-- **Types.php**: Domain type definitions for static analysis
-
-## License
-
-MIT License. See LICENSE file for details.
