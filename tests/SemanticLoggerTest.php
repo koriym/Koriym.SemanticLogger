@@ -12,6 +12,10 @@ use function assert;
 use function is_string;
 use function json_decode;
 use function json_encode;
+use function substr_count;
+
+use const JSON_PRETTY_PRINT;
+use const JSON_UNESCAPED_SLASHES;
 
 final class SemanticLoggerTest extends TestCase
 {
@@ -238,6 +242,7 @@ final class SemanticLoggerTest extends TestCase
         $this->logger->close($closeContext, $openId);
 
         $jsonString = json_encode($this->logger, JSON_PRETTY_PRINT);
+        assert(is_string($jsonString));
         $nullFieldCount = substr_count($jsonString, ': null');
         $this->assertSame(0, $nullFieldCount, 'JSON should not contain null fields in simple operations');
 
@@ -249,6 +254,7 @@ final class SemanticLoggerTest extends TestCase
         $logger2->close(new FakeContext('outer complete', 40), $outerOpenId);
 
         $nestedJsonString = json_encode($logger2, JSON_PRETTY_PRINT);
+        assert(is_string($nestedJsonString));
         $nestedNullFieldCount = substr_count($nestedJsonString, ': null');
         $this->assertSame(0, $nestedNullFieldCount, 'JSON should not contain null fields in nested operations');
     }
@@ -263,7 +269,7 @@ final class SemanticLoggerTest extends TestCase
         $this->logger->close($closeContext, $openId);
 
         $actualJson = json_encode($this->logger, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-        
+
         $expectedJson = <<<'JSON'
 {
     "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
@@ -288,9 +294,9 @@ final class SemanticLoggerTest extends TestCase
     }
 }
 JSON;
-        
+
         $this->assertSame($expectedJson, $actualJson);
-        
+
         // Verify no null fields exist in the string
         $this->assertStringNotContainsString(': null', $actualJson);
         $this->assertStringNotContainsString('"open": null', $actualJson);
@@ -307,7 +313,7 @@ JSON;
         $logger->close(new FakeContext('outer done', 400), $outerOpenId);
 
         $actualJson = json_encode($logger, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-        
+
         $expectedJson = <<<'JSON'
 {
     "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
@@ -351,9 +357,9 @@ JSON;
     }
 }
 JSON;
-        
+
         $this->assertSame($expectedJson, $actualJson);
-        
+
         // Verify no null fields exist anywhere in nested structure
         $this->assertStringNotContainsString(': null', $actualJson);
         $this->assertStringNotContainsString('"open": null', $actualJson);
