@@ -2,9 +2,14 @@
 
 Type-safe structured logging with JSON schema validation for hierarchical application workflows.
 
-## Equal Context for AI and Human Developers
+## Self-Proving Responses
 
-Provides the same comprehensive system understanding to both AI systems and human developers through structured semantic logging.
+Every response becomes self-proving by logging **how** it was generated. When your API returns "restaurant menu list", the semantic log proves **why** those specific items were returned through the complete chain of web API calls, database queries, and business logic.
+
+**Response (what):** `{"menu": ["pasta", "pizza", "salad"]}`  
+**Semantic Log (how/why):** Complete proof of why these 3 items were returned
+
+Provides equal context to both AI systems and human developers for comprehensive system understanding.
 
 ## Beyond Traditional Logging: Semantic Structure
 
@@ -22,10 +27,8 @@ Semantic logging captures **data structure AND meaning structure**:
 This structure enables understanding not just *what* happened, but *why* it happened and *how* it relates to the intended operation.
 
 **Best Practice: Use alongside traditional logging**
-- Traditional logs for quick debugging messages and stack traces
-- Semantic logs for complex debugging, compliance auditing, and system analysis
-- Semantic logs excel at tracing multi-step operations and understanding system behavior
-- Combine both for comprehensive observability
+- Traditional logs for quick debugging and stack traces
+- Semantic logs for complex workflows and system analysis
 
 ## Use Cases
 
@@ -37,13 +40,10 @@ This structure enables understanding not just *what* happened, but *why* it happ
 ## Features
 
 - **Type-safe context objects** with const properties
-- **JSON Schema validation** for log entries
 - **Hierarchical logging** with open/event/close patterns
-- **OpenId correlation** for complete request-response traceability
-- **Schema relations** for debugging context via RFC 8288 compliant linking
-- **Zero configuration** - just extend AbstractContext
-- **Flush pattern** for one-time log consumption
-- **Structured output** compatible with observability tools
+- **JSON Schema validation** for log entries
+
+Structured, semantic, type-safe logging with web linking enables deep understanding for humans, AI, and data science.
 
 ## Installation
 

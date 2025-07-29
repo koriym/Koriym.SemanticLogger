@@ -1,6 +1,6 @@
 {
     "name": "koriym/semantic-logger",
-    "description": "Semantic Logger - Type-safe structured logging with schema validation and meaningful context",
+    "description": "Type-safe structured logging with schema validation and meaningful context",
     "license": "MIT",
     "authors": [
         {
