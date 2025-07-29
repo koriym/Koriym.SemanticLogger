@@ -7,7 +7,6 @@
   "properties": {
     "$schema": {
       "type": "string",
-      "format": "uri",
       "description": "JSON Schema URI for this log format"
     },
     "title": {
@@ -44,13 +43,16 @@
       "type": "object",
       "description": "Session opening - the beginning of the story with complete type safety",
       "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this operation (e.g., 'process_1', 'user_registration_1')"
+        },
         "type": {
           "type": "string",
           "description": "Type identifier for this session (e.g., 'booking_request', 'user_authentication', 'payment_process')"
         },
         "$schema": {
           "type": "string",
-          "format": "uri",
           "description": "JSON Schema URI that defines the meaning and structure of the context data"
         },
         "context": {
@@ -62,7 +64,7 @@
           "description": "Nested session for hierarchical logging (e.g., embed, subprocess calls)"
         }
       },
-      "required": ["type", "$schema", "context"],
+      "required": ["id", "type", "$schema", "context"],
       "additionalProperties": false
     },
     
@@ -75,8 +77,7 @@
           "description": "Type identifier for this event (e.g., 'sql_query', 'api_call', 'validation_check')"
         },
         "$schema": {
-          "type": "string",
-          "format": "uri", 
+          "type": "string", 
           "description": "JSON Schema URI that defines the meaning and structure of the context data"
         },
         "context": {
@@ -98,7 +99,6 @@
         },
         "$schema": {
           "type": "string",
-          "format": "uri",
           "description": "JSON Schema URI that defines the meaning and structure of the context data"
         },
         "context": {
@@ -116,7 +116,7 @@
         "rel": {
           "type": "string",
           "description": "Relation type - either a registered IANA relation type or an extension URI",
-          "oneOf": [
+          "anyOf": [
             {
               "description": "IANA registered relation types (RFC 8288 Section 2.1.1)",
               "enum": [
@@ -134,13 +134,17 @@
             {
               "description": "Extension relation types must be URIs (RFC 8288 Section 2.1.2)", 
               "type": "string",
-              "format": "uri"
+              "pattern": "^https?://"
+            },
+            {
+              "description": "Non-standard relation types (not RFC 8288 compliant but commonly used)",
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9\\-]*$"
             }
           ]
         },
         "href": {
           "type": "string",
-          "format": "uri",
           "description": "Target URI of the relation"
         },
         "title": {
