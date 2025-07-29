@@ -37,6 +37,7 @@ This meaning structure enables both AI and humans to understand not just *what* 
 - **Type-safe context objects** with const properties
 - **JSON Schema validation** for log entries
 - **Hierarchical logging** with open/event/close patterns
+- **OpenId correlation** for complete request-response traceability
 - **Schema relations** for complete system transparency via ALPS/JSON-LD style linking
 - **Zero configuration** - just extend AbstractContext
 - **Flush pattern** for one-time log consumption
@@ -57,27 +58,33 @@ Create type-safe context classes by extending `AbstractContext`:
 ```php
 use Koriym\SemanticLogger\AbstractContext;
 
-final class ApiRequestContext extends AbstractContext
+final class ProcessContext extends AbstractContext
 {
-    public const TYPE = 'api_request';
-    public const SCHEMA_URL = 'https://example.com/schemas/api_request.json';
+    public const TYPE = 'process';
+    public const SCHEMA_URL = 'https://example.com/schemas/process.json';
     
     public function __construct(
-        public readonly string $endpoint,
-        public readonly string $method,
-        public readonly array $headers = [],
+        public readonly string $name,
     ) {}
 }
 
-final class DatabaseQueryContext extends AbstractContext
+final class EventContext extends AbstractContext
 {
-    public const TYPE = 'database_query';
-    public const SCHEMA_URL = 'https://example.com/schemas/database_query.json';
+    public const TYPE = 'event';
+    public const SCHEMA_URL = 'https://example.com/schemas/event.json';
     
     public function __construct(
-        public readonly string $query,
-        public readonly array $params,
-        public readonly float $executionTime,
+        public readonly string $message,
+    ) {}
+}
+
+final class ResultContext extends AbstractContext
+{
+    public const TYPE = 'result';
+    public const SCHEMA_URL = 'https://example.com/schemas/result.json';
+    
+    public function __construct(
+        public readonly string $status,
     ) {}
 }
 ```
@@ -90,80 +97,84 @@ use Koriym\SemanticLogger\SemanticLogger;
 $logger = new SemanticLogger();
 
 // OPEN: Declare intent - what we plan to do
-$logger->open(new ApiRequestContext('/api/users/123', 'GET'));
+$processId = $logger->open(new ProcessContext('data processing'));
 
-    // OPEN: Nested operation intent
-    $logger->open(new DatabaseQueryContext(
-        'SELECT * FROM users WHERE id = ?', 
-        [123],
-        'users'  // table name
-    ));
-    
-    // EVENT: What happened during execution
-    $logger->event(new CacheHitContext('user_123'));
-    
-    // CLOSE: What actually occurred - results and metrics
-    $logger->close(new QueryResultContext(
-        rowCount: 1,
-        executionTimeMs: 12.5,
-        resultSet: [['id' => 123, 'name' => 'John']],
-        indexesUsed: ['PRIMARY']
-    ));
+// EVENT: What happened during execution
+$logger->event(new EventContext('processing started'));
 
-// CLOSE: Final result of the main operation
-$logger->close(new ApiResponseContext(200, ['user_id' => 123]));
+// CLOSE: What actually occurred - the result
+$logger->close(new ResultContext('success'), $processId);
+
+// Optional: Add relations for debugging context
+$relations = [
+    ['rel' => 'source', 'href' => 'https://github.com/example/my-app'],
+    ['rel' => 'schema', 'href' => 'https://example.com/db/schema/processes.sql']
+];
 
 // Get structured log with complete intent→result mapping
-$logJson = $logger->flush();
+$logJson = $logger->flush($relations);
 echo json_encode($logJson, JSON_PRETTY_PRINT);
 ```
 
 ### 3. Output Structure
 
-The semantic structure captures the complete intent→result flow:
+The semantic structure captures the complete intent→result flow with **openId correlation**:
 
 ```json
 {
   "$schema": "https://koriym.github.io/semantic-logger/schemas/semantic-log.json",
   "open": {
-    "type": "your_open_operation",
-    "$schema": "https://example.com/schemas/your_open.json",
+    "id": "process_1",
+    "type": "process",
+    "$schema": "https://example.com/schemas/process.json",
     "context": {
-      "your_intent_parameters": "what_we_plan_to_do"
-    },
-    "open": {
-      "type": "your_nested_operation", 
-      "$schema": "https://example.com/schemas/your_nested.json",
-      "context": {
-        "your_nested_intent": "sub_operation_plan"
-      }
+      "name": "data processing"
     }
   },
   "events": [
     {
-      "type": "your_event",
-      "$schema": "https://example.com/schemas/your_event.json", 
+      "type": "event",
+      "$schema": "https://example.com/schemas/event.json",
       "context": {
-        "your_event_data": "what_happened_during_execution"
-      }
+        "message": "processing started"
+      },
+      "openId": "process_1"
     }
   ],
   "close": {
-    "type": "your_close_result",
-    "$schema": "https://example.com/schemas/your_close.json",
+    "type": "result",
+    "$schema": "https://example.com/schemas/result.json",
     "context": {
-      "your_actual_outcome": "what_actually_occurred",
-      "your_metrics": "execution_results"
+      "status": "success"
+    },
+    "openId": "process_1"
+  },
+  "relations": [
+    {
+      "rel": "source",
+      "href": "https://github.com/example/my-app"
+    },
+    {
+      "rel": "schema", 
+      "href": "https://example.com/db/schema/processes.sql"
     }
-  }
+  ]
 }
 ```
 
 **Structure Meaning:**
-- **open**: Intent and planned operations (hierarchical)
-- **events**: Occurrences during execution (flat list)  
-- **close**: Actual results and outcomes (matches open hierarchy)
-- **$schema**: JSON Schema URL for validation and documentation
+- **open**: Intent and planned operations (hierarchical) - each has unique `id`
+- **events**: Occurrences during execution (flat list) - linked via `openId` to their operation context
+- **close**: Actual results and outcomes (matches open hierarchy) - linked via `openId` to corresponding open operation
+- **openId**: Correlation field that links events and close entries to their originating open operation
+- **schemaUrl**: JSON Schema URL for validation and documentation
+- **relations**: Optional links for debugging context (source code, database schema, etc.)
+
+**OpenId Correlation Benefits:**
+- **Request Tracing**: Easily identify which events belong to which operation in complex nested workflows
+- **Debugging**: Quickly trace the flow from intent (open) → events → result (close) for any operation
+- **Monitoring**: Track operation completion rates and identify unclosed operations in production logs
+- **Compliance**: Maintain audit trails with clear operation boundaries for regulatory requirements
 
 ## Documentation
 

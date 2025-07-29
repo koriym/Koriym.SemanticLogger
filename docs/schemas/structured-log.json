@@ -1,0 +1,179 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://koriym.github.io/semantic-logger/schemas/structured-log.json",
+  "title": "Semantic Logger Format",
+  "description": "Universal schema for structured logging with complete type safety and semantic meaning. Transforms logging from strings to stories.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "format": "uri",
+      "description": "JSON Schema URI for this log format"
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable title of the log session (e.g., 'E-commerce Order Processing', 'User Authentication Flow', 'Database Transaction')"
+    },
+    "open": {
+      "$ref": "#/definitions/OpenEntry"
+    },
+    "events": {
+      "type": "array",
+      "description": "Array of events that occurred during the session - the plot of the story",
+      "items": {
+        "$ref": "#/definitions/EventEntry"
+      }
+    },
+    "close": {
+      "$ref": "#/definitions/CloseEntry"
+    }
+  },
+  "required": ["$schema", "title", "open"],
+  "additionalProperties": false,
+  
+  "definitions": {
+    
+    "OpenEntry": {
+      "type": "object",
+      "description": "Session opening - the beginning of the story with complete type safety",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type identifier for this session (e.g., 'booking_request', 'user_authentication', 'payment_process')"
+        },
+        "$schema": {
+          "type": "string",
+          "format": "uri",
+          "description": "JSON Schema URI that defines the meaning and structure of the context data"
+        },
+        "context": {
+          "type": "object",
+          "description": "Domain-specific context data validated by the referenced schema - this gives meaning to the log"
+        },
+        "open": {
+          "$ref": "#/definitions/OpenEntry",
+          "description": "Nested session for hierarchical logging (e.g., embed, subprocess calls)"
+        }
+      },
+      "required": ["type", "$schema", "context"],
+      "additionalProperties": false
+    },
+    
+    "EventEntry": {
+      "type": "object", 
+      "description": "Individual event within a session - a scene in the story",
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type identifier for this event (e.g., 'sql_query', 'api_call', 'validation_check')"
+        },
+        "$schema": {
+          "type": "string",
+          "format": "uri", 
+          "description": "JSON Schema URI that defines the meaning and structure of the context data"
+        },
+        "context": {
+          "type": "object",
+          "description": "Domain-specific event data validated by the referenced schema"
+        }
+      },
+      "required": ["type", "$schema", "context"],
+      "additionalProperties": false
+    },
+    
+    "CloseEntry": {
+      "type": "object",
+      "description": "Session closing - the end of the story with typed results",
+      "properties": {
+        "type": {
+          "type": "string", 
+          "description": "Type identifier for the result (e.g., 'success', 'error', 'accept', 'reject')"
+        },
+        "$schema": {
+          "type": "string",
+          "format": "uri",
+          "description": "JSON Schema URI that defines the meaning and structure of the context data"
+        },
+        "context": {
+          "type": "object",
+          "description": "Domain-specific result data validated by the referenced schema"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  
+  "examples": [
+    {
+      "$schema": "https://koriym.github.io/semantic-logger/schemas/structured-log.json",
+      "title": "Hotel Booking Request Processing",
+      "open": {
+        "type": "booking_request",
+        "$schema": "https://example.com/schemas/booking_request.json",
+        "context": {
+          "hotel_id": "hotel_123",
+          "check_in": "2025-08-01",
+          "check_out": "2025-08-05",
+          "guests": 2
+        }
+      },
+      "events": [
+        {
+          "type": "availability_check",
+          "$schema": "https://example.com/schemas/availability_check.json",
+          "context": {
+            "rooms_available": 3,
+            "check_duration_ms": 50
+          }
+        }
+      ],
+      "close": {
+        "type": "accept",
+        "$schema": "https://example.com/schemas/booking_accept.json",
+        "context": {
+          "booking_id": "BK-2025-001234",
+          "confirmation_code": "ABC123XYZ",
+          "total_amount": 16500
+        }
+      }
+    },
+    {
+      "$schema": "https://koriym.github.io/semantic-logger/schemas/structured-log.json",
+      "title": "Nested API Call with Database Query",
+      "open": {
+        "type": "api_request",
+        "$schema": "https://example.com/schemas/api_request.json",
+        "context": {
+          "endpoint": "/api/users/123",
+          "method": "GET"
+        },
+        "open": {
+          "type": "database_query",
+          "$schema": "https://example.com/schemas/database_query.json",
+          "context": {
+            "query": "SELECT * FROM users WHERE id = ?",
+            "params": [123]
+          }
+        }
+      },
+      "events": [
+        {
+          "type": "cache_miss",
+          "$schema": "https://example.com/schemas/cache_miss.json",
+          "context": {
+            "key": "user_123",
+            "ttl": 3600
+          }
+        }
+      ],
+      "close": {
+        "type": "success",
+        "$schema": "https://example.com/schemas/api_success.json",
+        "context": {
+          "user_id": 123,
+          "response_time_ms": 45
+        }
+      }
+    }
+  ]
+}
