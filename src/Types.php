@@ -9,35 +9,23 @@ namespace Koriym\SemanticLogger;
  *
  * This file contains all type definitions for the semantic logger system.
  * These types ensure type safety while maintaining flexibility for dynamic log data.
- */
-final class Types
-{
-}
-
-/**
- * Core data types
  *
+ * Core data types:
  * @psalm-type ContextData = array<string, mixed>
  * @psalm-type SchemaUrl = string
  * @psalm-type LogType = string
  * @psalm-type RelationType = string
- */
-
-/**
- * Relation types for ALPS/JSON-LD style linking
  *
- * @psalm-type SchemaRelation = array{
+ * Link types for RFC 8288 compliant web linking:
+ * @psalm-type SchemaLink = array{
  *     rel: RelationType,
  *     href: SchemaUrl,
  *     title?: string,
  *     type?: string
  * }
- * @psalm-type SchemaRelations = list<SchemaRelation>
- */
-
-/**
- * Log entry types that correspond to JSON schema structure
+ * @psalm-type SchemaLinks = list<SchemaLink>
  *
+ * Log entry types that correspond to JSON schema structure:
  * @psalm-type EventEntryArray = array{
  *     type: LogType,
  *     '$schema': SchemaUrl,
@@ -50,23 +38,20 @@ final class Types
  *     open?: OpenCloseEntryArray
  * }
  * @psalm-type CloseEntryArray = EventEntryArray
- */
-
-/**
- * Complete log session structure with optional relations
  *
+ * Complete log session structure with optional links:
  * @psalm-type LogSessionArray = array{
  *     '$schema': SchemaUrl,
  *     open: OpenCloseEntryArray,
  *     events?: list<EventEntryArray>,
  *     close?: CloseEntryArray,
- *     relations?: SchemaRelations
+ *     links?: SchemaLinks
  * }
- */
-
-/**
- * Collection types for internal use
  *
+ * Collection types for internal use:
  * @psalm-type EventEntryList = list<EventEntry>
  * @psalm-type OpenCloseEntryStack = list<OpenCloseEntry>
  */
+final class Types
+{
+}
