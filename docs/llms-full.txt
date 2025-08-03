@@ -1,0 +1,340 @@
+# Koriym.SemanticLogger - Complete Technical Documentation
+
+Type-safe structured logging with JSON schema validation for hierarchical application workflows.
+
+## Project Overview
+
+**Repository:** koriym/semantic-logger  
+**License:** MIT  
+**PHP Version:** ^8.1  
+**Author:** Akihito Koriyama <akihito.koriyama@gmail.com>
+
+koriym/semantic-logger is a PHP library that provides structured logging with semantic meaning. Unlike traditional logging that captures level and message for humans, semantic logging captures both data structure AND meaning structure through a three-phase pattern: open/event/close.
+
+## Core Philosophy: Self-Proving Responses
+
+Every response becomes self-proving by logging **how** it was generated. When your API returns "restaurant menu list", the semantic log proves **why** those specific items were returned through the complete chain of web API calls, database queries, and business logic.
+
+**Traditional Response:** `{"menu": ["pasta", "pizza", "salad"]}`  
+**With Semantic Log:** Response + Complete proof of why these 3 items were returned
+
+This provides equal context to both AI systems and human developers for comprehensive system understanding.
+
+## Architecture Deep Dive
+
+### Core Classes and Interfaces
+
+**SemanticLogger** (`src/SemanticLogger.php`)
+- Main logger class implementing `SemanticLoggerInterface` and `JsonSerializable`
+- Uses `SplStack<OpenCloseEntry>` for hierarchical operation tracking
+- Uses `SplStack<EventEntry>` for close operations
+- Maintains operation correlation through OpenId system
+- Schema URL: `https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json`
+
+**AbstractContext** (`src/AbstractContext.php`)
+- Base class for all context objects
+- Enforces type safety with `const TYPE` and `const SCHEMA_URL`
+- Context data extracted via array casting: `(array) $context`
+- Ensures compile-time type checking through static analysis
+
+**LogJson** (`src/LogJson.php`)
+- Immutable value object for complete log output
+- Contains: schemaUrl, open, close, events, links
+- Implements structured JSON serialization
+- RFC 8288 compliant link relations support
+
+**Value Objects:**
+- `OpenCloseEntry` ([src/OpenCloseEntry.php](src/OpenCloseEntry.php)) - Represents open operations with optional nesting
+- `EventEntry` ([src/EventEntry.php](src/EventEntry.php)) - Represents events and close operations with openId correlation
+- `ProfileResult` ([src/ProfileResult.php](src/ProfileResult.php)) - Contains XHProf and Xdebug trace file paths
+
+**Interfaces:**
+- `SemanticLoggerInterface` ([src/SemanticLoggerInterface.php](src/SemanticLoggerInterface.php)) - Defines open/event/close/flush contract
+- `ProfilerInterface` ([src/ProfilerInterface.php](src/ProfilerInterface.php)) - For XHProf/Xdebug profiling integration (BEAR.Resource)
+
+### Exception Hierarchy
+
+**Base Exceptions:**
+- `LogicException` - Programming errors (invalid usage patterns)
+- `RuntimeException` - Runtime errors (execution failures)
+
+**Specific Exceptions:**
+- `InvalidOperationOrderException` - Close called with wrong openId
+- `NoOpenOperationsException` - Close called without open operations
+- `UnclosedLogicException` - Operations left unclosed (programming error)
+- `NoLogSessionException` - Flush called without any operations
+
+### Type System (`src/Types.php`)
+
+Comprehensive Psalm type definitions for static analysis:
+
+```php
+@psalm-type ContextData = array<string, mixed>
+@psalm-type SchemaUrl = string
+@psalm-type LogType = string
+@psalm-type SchemaLink = array{
+    rel: RelationType,
+    href: SchemaUrl,
+    title?: string,
+    type?: string
+}
+@psalm-type LogSessionArray = array{
+    '$schema': SchemaUrl,
+    open: OpenCloseEntryArray,
+    events?: list<EventEntryArray>,
+    close?: CloseEntryArray,
+    links?: SchemaLinks
+}
+```
+
+## Three-Phase Logging Pattern
+
+### 1. Open Phase - Intent Declaration
+```php
+$processId = $logger->open(new ProcessContext('data processing'));
+```
+- Creates hierarchical operation with unique ID
+- Pushes to SplStack for nesting support
+- Generates ID: `{type}_{counter}` (e.g., "process_1")
+- Returns openId for correlation
+
+### 2. Event Phase - Occurrence Logging
+```php
+$logger->event(new EventContext('processing started'));
+```
+- Logs what happens during execution
+- Automatically correlates with current open operation via openId
+- Flat list structure (not hierarchical)
+- Multiple events can belong to one operation
+
+### 3. Close Phase - Result Recording
+```php
+$logger->close(new ResultContext('success'), $processId);
+```
+- Records actual outcome/result
+- Must match corresponding open operation (LIFO order)
+- Validates openId matches stack top
+- Pops from stack and moves to completed operations
+
+### 4. Flush Phase - Log Consumption
+```php
+$logJson = $logger->flush($relations);
+```
+- One-time consumption with state reset
+- Validates all operations are closed
+- Returns immutable LogJson object
+- Clears all internal state
+
+## JSON Schema Integration
+
+### Schema Structure
+Each context class defines:
+- `const TYPE` - Identifies the context type
+- `const SCHEMA_URL` - JSON Schema URL for validation
+
+### Output Format
+```json
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "open": {
+    "id": "process_1",
+    "type": "process",
+    "$schema": "https://example.com/schemas/process.json",
+    "context": { "name": "data processing" }
+  },
+  "events": [
+    {
+      "id": "event_1",
+      "type": "event",
+      "$schema": "https://example.com/schemas/event.json",
+      "context": { "message": "processing started" },
+      "openId": "process_1"
+    }
+  ],
+  "close": {
+    "id": "result_1",
+    "type": "result",
+    "$schema": "https://example.com/schemas/result.json",
+    "context": { "status": "success" },
+    "openId": "process_1"
+  },
+  "links": [
+    {
+      "rel": "related",
+      "href": "https://github.com/example/my-app",
+      "title": "Source Code Repository"
+    }
+  ]
+}
+```
+
+## OpenId Correlation System
+
+**Purpose:** Links events and close entries to their originating open operations
+
+**Benefits:**
+- **Request Tracing:** Identify which events belong to which operation in nested workflows
+- **Debugging:** Trace the flow from intent (open) → events → result (close)
+- **Monitoring:** Track operation completion and identify unclosed operations
+- **Compliance:** Maintain audit trails with clear operation boundaries
+
+**Implementation:**
+- Generated automatically during open(): `{type}_{counter}`
+- Stored in events and close entries for correlation
+- Validated during close() to ensure proper nesting
+
+## Development Workflow
+
+### Testing Commands
+```bash
+composer test              # Run PHPUnit tests
+composer tests             # Full suite: style + tests + analysis
+composer coverage          # Coverage with Xdebug
+composer pcov              # Coverage with PCOV
+composer phpdbg            # Coverage with phpdbg
+./vendor/bin/phpunit       # Direct PHPUnit execution
+./vendor/bin/phpunit --filter MethodName  # Specific test
+```
+
+### Code Quality Commands
+```bash
+composer cs               # Check code style (PHP_CodeSniffer)
+composer cs-fix           # Fix code style violations
+composer sa               # Static analysis (Psalm + PHPStan)
+composer phpstan          # PHPStan only
+composer psalm            # Psalm only
+composer phpmd            # PHP Mess Detector
+```
+
+### Utility Commands
+```bash
+composer clean            # Clear caches
+composer build            # Complete build process
+composer baseline         # Generate analysis baselines
+composer metrics          # Generate metrics report
+composer crc              # Composer require checker
+```
+
+## Static Analysis Configuration
+
+**Psalm** (`psalm.xml`)
+- Type checking with baseline support
+- Custom types imported from Types.php
+- Strict mode for type safety
+
+**PHPStan** (`phpstan.neon`)
+- Code analysis with baseline
+- Level 8 strictness
+- Custom rules for semantic logger patterns
+
+**PHP_CodeSniffer** (`phpcs.xml`)
+- PSR-12 compliance
+- Custom rules for project conventions
+
+**PHPMD** (`phpmd.xml`)
+- Mess detection rules
+- Code complexity analysis
+
+## Advanced Features
+
+### Hierarchical Nesting
+Operations can be nested through the SplStack mechanism:
+```php
+$parentId = $logger->open(new ParentContext('parent'));
+$childId = $logger->open(new ChildContext('child'));
+$logger->close(new ChildResult('child done'), $childId);
+$logger->close(new ParentResult('parent done'), $parentId);
+```
+
+### Profiler Integration
+Designed for BEAR.Resource integration to eliminate duplicate profiling:
+```php
+namespace Koriym\SemanticLogger;
+
+interface ProfilerInterface
+{
+    public function profile(callable $callable): ProfileResult;
+}
+```
+
+ProfileResult contains:
+- Optional XHProf file path
+- Optional Xdebug trace file path
+- Used by dependency injection systems
+
+### Schema Validation Ready
+- JSON schema URLs defined in context constants
+- Compatible with external validation tools
+- Structured output follows defined schema format
+- JSON Schema Draft 2020-12 compatible
+
+## Use Cases and Applications
+
+### Development & Debugging
+- Complex workflow tracing with intent vs result analysis
+- Understanding system behavior through semantic structure
+- Debugging nested operations and their relationships
+
+### Compliance & Auditing
+- GDPR, SOX, HIPAA compliance with complete audit trails
+- Immutable log records with schema validation
+- Clear operation boundaries and data lineage
+
+### Security & Monitoring
+- Track data modifications and access patterns
+- Detect anomalous behavior through semantic patterns
+- Monitor operation success/failure rates
+
+### Business Intelligence
+- Analyze behavior patterns and optimize processes
+- Understanding user flows and system bottlenecks
+- Performance analysis through hierarchical operations
+
+### AI System Integration
+- Provide structured context for AI decision making
+- Enable AI systems to understand operation semantics
+- Self-proving responses for AI-generated content
+
+## Implementation Guidelines
+
+### Context Object Design
+```php
+final class CustomContext extends AbstractContext
+{
+    public const TYPE = 'custom';
+    public const SCHEMA_URL = 'https://example.com/schemas/custom.json';
+    
+    public function __construct(
+        public readonly string $property,
+        public readonly int $value,
+    ) {}
+}
+```
+
+### Error Handling Patterns
+```php
+try {
+    $id = $logger->open(new ProcessContext('risky operation'));
+    // ... operation logic
+    $logger->close(new SuccessContext('completed'), $id);
+} catch (Exception $e) {
+    $logger->close(new ErrorContext($e->getMessage()), $id);
+    throw $e;
+} finally {
+    // Ensure clean state
+}
+```
+
+### Type Safety Best Practices
+- Import types from Types.php using `@psalm-import-type`
+- Use typed parameters and return types consistently
+- Leverage static analysis tools for verification
+- Define specific schemas for each context type
+
+### Schema Design Guidelines
+- Create specific schemas for each context type
+- Use JSON Schema validation constraints
+- Maintain schema versioning for breaking changes
+- Document schema relationships and dependencies
+
+This comprehensive documentation provides all necessary information for understanding, implementing, and extending the Koriym.SemanticLogger system.

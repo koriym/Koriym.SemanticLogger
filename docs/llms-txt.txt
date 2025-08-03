@@ -1,0 +1,77 @@
+# Koriym.SemanticLogger
+
+Type-safe structured logging with JSON schema validation for hierarchical application workflows.
+
+## Overview
+
+koriym/semantic-logger provides structured logging that captures both data structure AND meaning structure through open/event/close patterns. It enables self-proving responses where every API response includes a complete semantic log of how it was generated.
+
+## Core Concepts
+
+### Semantic Structure vs Traditional Logging
+- Traditional: Level and message for humans ([INFO] Query executed)
+- Semantic: Data structure AND meaning structure (open/event/close pattern)
+
+### Three-Phase Logging Pattern
+- **Open**: Intent - what we plan to do (hierarchical operations with unique IDs)
+- **Event**: Occurrences - what happened during execution (linked via openId)
+- **Close**: Result - what actually occurred (linked via openId to corresponding open)
+
+## Key Features
+
+- Type-safe context objects with const TYPE and SCHEMA_URL properties
+- Hierarchical logging with SplStack-based operation tracking
+- JSON Schema validation for structured output
+- OpenId correlation for linking events to operations
+- RFC 8288 compliant link relations
+- Immutable value objects (LogJson, LogEntry, OpenEntry)
+- One-time flush pattern with state reset
+
+## Architecture
+
+### Core Classes
+- `SemanticLogger` - Main logger implementing hierarchical patterns
+- `AbstractContext` - Base class for type-safe context objects
+- `LogJson` - Immutable structured log output with JsonSerializable
+- `LogEntry/OpenEntry` - Immutable value objects for log entries
+- `ProfilerInterface` - Interface for XHProf/Xdebug profiling integration
+
+### Exception Hierarchy
+- `LogicException`, `RuntimeException` - Base exceptions
+- `InvalidOperationOrderException` - Invalid open/close sequence
+- `NoOpenOperationsException` - Close without corresponding open
+- `UnclosedLogicException` - Operations left unclosed
+
+## Usage Pattern
+
+```php
+$logger = new SemanticLogger();
+
+// Declare intent
+$processId = $logger->open(new ProcessContext('data processing'));
+
+// Log events
+$logger->event(new EventContext('processing started'));
+
+// Record result
+$logger->close(new ResultContext('success'), $processId);
+
+// Get complete log
+$logJson = $logger->flush($relations);
+```
+
+## Use Cases
+
+- Development & Debugging - Complex workflow tracing with intent vs result analysis
+- Compliance & Auditing - GDPR, SOX, HIPAA with complete audit trails
+- Security & Monitoring - Track data modifications and detect anomalous behavior
+- Business Intelligence - Analyze behavior patterns and optimize processes
+
+## Benefits
+
+- ### Key Benefits
+- **Self-Proving Responses**: Every response includes proof of how it was generated
+- **AI & Human Understanding**: Equal context for both AI systems and developers
+- **Type Safety**: Static analysis ensures correct usage patterns
+- **Schema Validation**: JSON Schema validation for structured output
+- **Correlation**: OpenId linking enables request tracing and debugging

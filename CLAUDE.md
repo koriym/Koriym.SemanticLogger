@@ -56,6 +56,16 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Implements JsonSerializable for clean JSON export
 - Contains the complete log session data
 
+**ProfilerInterface** (`src/ProfilerInterface.php`)
+- Interface for profiling operations (XHProf, Xdebug)
+- Used by BEAR.Resource for performance profiling
+- Designed for dependency injection
+
+**ProfileResult** (`src/ProfileResult.php`)
+- Immutable value object for profiling results
+- Contains optional XHProf and Xdebug trace file paths
+- Used by ProfilerInterface implementations
+
 ### Key Architectural Patterns
 
 **Hierarchical Logging Pattern**
@@ -78,6 +88,11 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - One-time log consumption with state reset
 - Prevents log pollution between operations
 - Returns immutable LogJson object
+
+**Profiler Integration Pattern**
+- ProfilerInterface provides abstraction for performance profiling
+- ProfileResult encapsulates profiling output (XHProf files, Xdebug traces)
+- Designed for BEAR.Resource DI integration to eliminate duplicate profiling code
 
 ### Testing Structure
 
@@ -130,6 +145,12 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Use appropriate exception classes from `src/Exception/`
 - Handle stack underflow in close operations
 - Validate schema URLs format
+
+### Profiler Integration (BEAR.Resource)
+- ProfilerInterface defines contract for profiling operations
+- Implement VerboseProfiler in BEAR.Resource to handle XHProf/Xdebug
+- Use dependency injection to eliminate duplicate profiling code
+- See `docs/profiler-di-implementation.md` for BEAR.Resource implementation guide
 
 ## Static Analysis Configuration
 

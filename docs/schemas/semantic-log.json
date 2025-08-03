@@ -6,24 +6,20 @@
   "links": [
     {
       "rel": "describedby",
-      "href": "https://github.com/koriym/Koriym.SemanticLogger/blob/main/README.md",
+      "href": "https://github.com/koriym/Koriym.SemanticLogger/blob/1.x/README.md",
       "title": "Implementation Documentation",
       "type": "text/markdown"
     },
     {
       "rel": "related",
+      "href": "https://github.com/koriym/Koriym.SemanticLogger/blob/1.x/docs/llms-txt.txt",
+      "title": "Semantic Logging Concepts for AI Systems",
+      "type": "text/plain"
+    },
+    {
+      "rel": "related",
       "href": "https://github.com/koriym/Koriym.SemanticLogger",
       "title": "Source Code Repository"
-    },
-    {
-      "rel": "author",
-      "href": "https://github.com/koriym",
-      "title": "Akihito Koriyama"
-    },
-    {
-      "rel": "license",
-      "href": "https://github.com/koriym/Koriym.SemanticLogger/blob/main/LICENSE",
-      "title": "MIT License"
     },
     {
       "rel": "self",
