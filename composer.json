@@ -30,6 +30,9 @@
             "Koriym\\SemanticLogger\\Experimental\\": "tests/experimental/"
         }
     },
+    "bin": [
+        "bin/server.php"
+    ],
     "scripts": {
         "bin": "echo 'bin not installed'",
         "test": "phpunit",

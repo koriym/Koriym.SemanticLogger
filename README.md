@@ -2,6 +2,62 @@
 
 Type-safe structured logging with JSON schema validation for hierarchical application workflows.
 
+## AI-Native Analysis with MCP Server
+
+**Realizing Tim Berners-Lee's Semantic Web Vision** - structured data that AI can understand and reason about autonomously.
+
+```bash
+# Install and run MCP server for Claude Code integration
+composer require koriym/semantic-logger
+php vendor/koriym/semantic-logger/bin/server.php /tmp
+```
+
+### AI-Powered Performance Analysis
+
+The included MCP Server provides two powerful tools for AI-native analysis:
+
+**`getSemanticProfile`** - Retrieve latest semantic performance profile with AI-optimized prompts  
+**`semanticAnalyze`** - Execute PHP script with profiling + automatic AI analysis in one command
+
+### Semantic Web Architecture
+
+**Everything is Linked for Machine Understanding:**
+
+1. **JSON Schema URLs** - Every context includes `$schema` for semantic validation
+2. **JSON Pointer Links** - Schema properties include `links` arrays pointing to specifications
+3. **RFC 8288 Relations** - Standard `rel` attributes (describedby, related, canonical) for semantic connections
+4. **AI Interview Process** - Regular AI feedback to minimize non-semantic noise
+
+**Example Schema with Semantic Links:**
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "method": {
+      "type": "string",
+      "enum": ["GET", "POST", "PUT", "DELETE"]
+    }
+  },
+  "links": [
+    {
+      "anchor": "#/properties/method",
+      "rel": "describedby", 
+      "href": "https://tools.ietf.org/html/rfc7231#section-4",
+      "title": "HTTP Methods (RFC 7231)"
+    }
+  ]
+}
+```
+
+**Semantic Web Mindset:**
+- **Everything is machine-readable** - No human-only documentation
+- **Links over comments** - Semantic relationships through URIs, not prose
+- **AI as quality gatekeeper** - Regular AI interviews to identify non-semantic patterns
+- **Schema-first design** - Structure meaning before implementation
+- **Minimize semantic noise** - Every field must have clear semantic purpose
+
+This approach enables AI to autonomously understand system behavior, diagnose issues, and provide architectural insights beyond basic metrics.
+
 ## Self-Proving Responses
 
 Every response becomes self-proving by logging **how** it was generated. When your API returns "restaurant menu list", the semantic log proves **why** those specific items were returned through the complete chain of web API calls, database queries, and business logic.
