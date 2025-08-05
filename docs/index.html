@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantic Logger - AI-Native Schema Portal</title>
+    <meta name="description" content="Semantic Web infrastructure for AI-native performance analysis. Realizing Tim Berners-Lee's vision through structured, machine-readable profiling data.">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6; 
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 2rem;
+            background: rgba(255,255,255,0.95);
+            margin-top: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        }
+        .hero {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 12px;
+            color: white;
+        }
+        h1 { 
+            font-size: 3rem; 
+            margin-bottom: 1rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        .vision {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 3rem;
+            border-left: 4px solid #667eea;
+        }
+        .vision-quote {
+            font-style: italic;
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 1rem;
+        }
+        .schemas {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+        .schema-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid #e9ecef;
+        }
+        .schema-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+        .schema-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 0.8rem;
+            color: #667eea;
+        }
+        .schema-desc {
+            color: #666;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+        .schema-links {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .schema-link {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: background 0.3s ease;
+        }
+        .schema-link:hover {
+            background: #5a67d8;
+        }
+        .schema-link.secondary {
+            background: #6c757d;
+        }
+        .schema-link.secondary:hover {
+            background: #5a6268;
+        }
+        .mcp-section {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 3rem;
+        }
+        .mcp-title {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+        .semantic-principles {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        .principles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .principle {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+        .principle-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+        }
+        .ai-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>Semantic Logger</h1>
+            <p class="subtitle">AI-Native Schema Portal for Semantic Web Infrastructure</p>
+        </div>
+
+        <div class="vision">
+            <div class="vision-quote">
+                "The Semantic Web is not a separate Web but an extension of the current one, 
+                in which information is given well-defined meaning, better enabling computers 
+                and people to work in cooperation."
+            </div>
+            <strong>— Tim Berners-Lee</strong>
+            <p style="margin-top: 1rem;">
+                This portal realizes that vision through AI-native structured data that machines 
+                can understand and reason about autonomously.
+            </p>
+        </div>
+
+        <div class="mcp-section">
+            <h2 class="mcp-title">MCP Server Integration</h2>
+            <p>Complete Claude Code integration for AI-powered performance analysis through structured semantic profiling.</p>
+            <div style="margin-top: 1rem;">
+                <a href="mcp-setup.md" class="schema-link">Setup Guide</a>
+                <a href="../.mcp.json.example" class="schema-link secondary">Configuration</a>
+            </div>
+        </div>
+
+        <div class="semantic-principles">
+            <h2>Semantic Web Principles</h2>
+            <div class="principles-grid">
+                <div class="principle">
+                    <div class="principle-title">Everything is Machine-Readable</div>
+                    <p>No human-only documentation. All data structures are self-describing through JSON Schema.</p>
+                </div>
+                <div class="principle">
+                    <div class="principle-title">Links Over Comments</div>
+                    <p>Semantic relationships expressed through URIs and JSON pointers, not prose.</p>
+                </div>
+                <div class="principle">
+                    <div class="principle-title">AI as Quality Gatekeeper</div>
+                    <p>Regular AI feedback loops identify and eliminate non-semantic patterns.</p>
+                </div>
+                <div class="principle">
+                    <div class="principle-title">Schema-First Design</div>
+                    <p>Structure meaning before implementation. Schemas define semantic contracts.</p>
+                </div>
+            </div>
+        </div>
+
+        <h2 style="text-align: center; margin-bottom: 2rem; font-size: 2rem; color: #333;">Schema Registry</h2>
+        
+        <div class="schemas">
+            <div class="schema-card">
+                <div class="schema-title">Semantic Log</div>
+                <div class="schema-desc">
+                    Root schema for structured semantic logging with open/close lifecycle tracking.
+                    Includes JSON pointer links for AI understanding.
+                </div>
+                <div class="schema-links">
+                    <a href="schemas/semantic-log.json" class="schema-link">Schema</a>
+                    <a href="schemas/semantic-log-prompt.txt" class="schema-link secondary">AI Prompt</a>
+                </div>
+            </div>
+
+            <div class="schema-card">
+                <div class="schema-title">Open Context</div>
+                <div class="schema-desc">
+                    Request initiation context with profiling start. Includes call field for direct code access via PSR-4.
+                </div>
+                <div class="schema-links">
+                    <a href="schemas/open-context.json" class="schema-link">Schema</a>
+                    <a href="schemas/open-context-prompt.txt" class="schema-link secondary">AI Prompt</a>
+                </div>
+            </div>
+
+            <div class="schema-card">
+                <div class="schema-title">Complete Context</div>
+                <div class="schema-desc">
+                    Successful operation completion with profiling results. Contains structured performance data for AI analysis.
+                </div>
+                <div class="schema-links">
+                    <a href="schemas/complete-context.json" class="schema-link">Schema</a>
+                    <a href="schemas/complete-context-prompt.txt" class="schema-link secondary">AI Prompt</a>
+                </div>
+            </div>
+
+            <div class="schema-card">
+                <div class="schema-title">Error Context</div>
+                <div class="schema-desc">
+                    Exception handling context with profiling data preservation. Enables AI-powered error analysis.
+                </div>
+                <div class="schema-links">
+                    <a href="schemas/error-context.json" class="schema-link">Schema</a>
+                </div>
+            </div>
+
+            <div class="schema-card">
+                <div class="schema-title">Profile Data</div>
+                <div class="schema-desc">
+                    Aggregated profiling data from XHProf, Xdebug, and PHP backtrace. Includes spec URLs for AI understanding.
+                </div>
+                <div class="schema-links">
+                    <a href="schemas/profile.json" class="schema-link">Schema</a>
+                    <a href="schemas/profile-prompt.txt" class="schema-link secondary">AI Prompt</a>
+                </div>
+            </div>
+
+            <div class="schema-card">
+                <div class="schema-title">Semantic Tags</div>
+                <div class="schema-desc">
+                    Standardized semantic tags for categorizing and linking related concepts across the semantic web.
+                </div>
+                <div class="schema-links">
+                    <a href="schemas/semantic-tags.json" class="schema-link">Schema</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Realizing Tim Berners-Lee's Semantic Web Vision Through AI-Native Infrastructure</p>
+            <div class="ai-badge">Generated with Claude Code</div>
+        </div>
+    </div>
+
+    <script>
+        // Add some semantic metadata for AI crawlers
+        const structuredData = {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "Semantic Logger",
+            "description": "AI-native semantic profiling infrastructure realizing Tim Berners-Lee's Semantic Web vision",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Cross-platform",
+            "programmingLanguage": "PHP",
+            "author": {
+                "@type": "Organization",
+                "name": "Koriym"
+            },
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+            }
+        };
+        
+        const script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.textContent = JSON.stringify(structuredData);
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>

@@ -278,5 +278,5 @@ The semantic structure captures the complete intent→result flow with **openId 
 
 ## Documentation
 
-📖 **[Schema Documentation](docs/schemas/README.md)** - JSON Schema validation and RFC 8288 link relations
+**[Schema Portal](https://koriym.github.io/Koriym.SemanticLogger/)** - AI-native semantic schema portal with comprehensive documentation
 
