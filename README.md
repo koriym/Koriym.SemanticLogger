@@ -19,6 +19,26 @@ The included MCP Server provides two powerful tools for AI-native analysis:
 **`getSemanticProfile`** - Retrieve latest semantic performance profile with AI-optimized prompts  
 **`semanticAnalyze`** - Execute PHP script with profiling + automatic AI analysis in one command
 
+### MCP Server Configuration
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "semantic-profiler": {
+      "command": "php",
+      "args": [
+        "vendor/koriym/semantic-logger/bin/server.php",
+        "/tmp"
+      ]
+    }
+  }
+}
+```
+
+See [docs/mcp-setup.md](docs/mcp-setup.md) for detailed configuration options.
+
 ### Semantic Web Architecture
 
 **Everything is Linked for Machine Understanding:**
