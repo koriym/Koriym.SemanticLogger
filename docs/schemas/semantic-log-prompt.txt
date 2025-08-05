@@ -1,0 +1,25 @@
+BEAR.Resource Semantic Profiler - Knowledge Graph Schema
+
+This schema defines not mere logs, but a knowledge graph that realizes Tim Berners-Lee's vision of machine-readable web data. 
+
+The Semantic Profiler functions as a true Semantic Web application where:
+
+1. **Machine Readable Structure**: Every field links to authoritative specifications (RFC, W3C, PHP.net) via JSON pointer, enabling AI tools to understand data semantics without human intervention.
+
+2. **Knowledge Graph Properties**:
+   - Open/Close lifecycle creates causal relationships
+   - Sequential IDs enable hierarchical correlation tracking  
+   - XHProf/Xdebug/PHP backtrace data maintains provenance chains
+   - HTTP semantics (status codes, headers, URIs) provide web-native context
+
+3. **AI-Native Design**: 
+   - Claude Code and MCP servers can directly consume and analyze performance data
+   - Automated bottleneck detection through semantic understanding
+   - Self-describing schemas eliminate human documentation dependency
+
+4. **Semantic Web Realization**:
+   - 35 years after the Web's invention, machines finally "understand" performance data
+   - Raw profiling data becomes actionable intelligence
+   - Standards-compliant interoperability across tools and platforms
+
+Generate schemas that preserve this knowledge graph nature - each field should be semantically rich, self-documenting, and machine-actionable for true Semantic Web compliance.

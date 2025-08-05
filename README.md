@@ -58,6 +58,26 @@ The included MCP Server provides two powerful tools for AI-native analysis:
 
 This approach enables AI to autonomously understand system behavior, diagnose issues, and provide architectural insights beyond basic metrics.
 
+### DevLogger for Development
+
+Development logging with AI-native analysis prompt generation:
+
+```php
+use Koriym\SemanticLogger\DevLogger;
+
+// Initialize with log directory (defaults to system temp)
+$devLogger = new DevLogger('/path/to/logs');
+
+// Output semantic logs with AI analysis prompts
+$devLogger->log($semanticLogger);
+```
+
+Creates two files:
+- `semantic-dev-*.json` - Structured semantic log data
+- `semantic-dev-*-prompt.md` - AI-optimized analysis prompt with embedded JSON
+
+Perfect for development debugging and AI-assisted performance analysis.
+
 ## Self-Proving Responses
 
 Every response becomes self-proving by logging **how** it was generated. When your API returns "restaurant menu list", the semantic log proves **why** those specific items were returned through the complete chain of web API calls, database queries, and business logic.

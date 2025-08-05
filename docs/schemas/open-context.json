@@ -1,0 +1,84 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://koriym.github.io/Koriym.SemanticLogger/schemas/open-context.json",
+  "title": "BEAR.Resource Open Context",
+  "description": "Schema for resource request initiation context with profiling start",
+  "links": [
+    {
+      "anchor": "#/type",
+      "rel": "describedby",
+      "href": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json#/definitions/contextType",
+      "title": "Context Type Definition"
+    },
+    {
+      "anchor": "#/context/uri",
+      "rel": "describedby",
+      "href": "https://tools.ietf.org/html/rfc3986",
+      "title": "URI Generic Syntax (RFC 3986)"
+    },
+    {
+      "anchor": "#/context/method",
+      "rel": "describedby",
+      "href": "https://tools.ietf.org/html/rfc7231#section-4",
+      "title": "HTTP Methods (RFC 7231)"
+    },
+    {
+      "anchor": "#/context/call",
+      "rel": "describedby",
+      "href": "https://www.php-fig.org/psr/psr-4/",
+      "title": "PSR-4 Autoloading Standard"
+    }
+  ],
+  "type": "object",
+  "required": ["id", "type", "$schema", "context"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z_]+_[0-9]+$",
+      "description": "Sequential identifier for this context in format {type}_{number}, where number indicates order of appearance for tracking open/close relationships"
+    },
+    "type": {
+      "type": "string",
+      "const": "bear_resource_request",
+      "description": "Context type identifier, same as defined in semantic-log.json#/definitions/contextType"
+    },
+    "$schema": {
+      "type": "string",
+      "format": "uri",
+      "description": "JSON Schema URL for this context"
+    },
+    "context": {
+      "type": "object",
+      "required": ["method", "uri"],
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
+          "description": "HTTP method for the resource request"
+        },
+        "uri": {
+          "type": "string",
+          "description": "Resource URI being requested"
+        },
+        "call": {
+          "type": "array",
+          "items": [
+            {
+              "type": "string",
+              "description": "Fully qualified class name of the target resource"
+            },
+            {
+              "type": "string", 
+              "description": "Method name to be invoked (e.g., onGet, onPost)"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2,
+          "description": "Target resource class and method for direct code access"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

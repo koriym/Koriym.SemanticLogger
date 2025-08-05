@@ -1,0 +1,17 @@
+Open Context Schema - Semantic Web Request Initiation Node
+
+This schema defines resource request initiation as a knowledge graph node with minimal but semantically complete context.
+
+Semantic Web Design Principles:
+
+1. **Lifecycle Semantics**: Represents the "open" edge of open/close knowledge graph pairs. Sequential ID enables correlation tracking with corresponding complete/error contexts.
+
+2. **HTTP Method Semantics**: Links directly to RFC 7231 HTTP method specifications, enabling AI to understand request intent semantically (GET = retrieval, POST = creation, etc.).
+
+3. **URI Semantic Web Foundation**: Resource URIs follow RFC 3986, creating web-native semantic identifiers that AI can process as linked data nodes.
+
+4. **Minimal Sufficient Context**: Contains only essential semantic elements for request initiation - no profiling data at open (collected at close), maintaining clean separation of concerns.
+
+5. **Knowledge Graph Anchoring**: Each open context creates a knowledge graph anchor point that completion/error contexts reference, enabling full request lifecycle semantic understanding.
+
+Generate schemas that establish semantic request initiation nodes - AI should understand this as the beginning of a traceable knowledge path through resource processing.

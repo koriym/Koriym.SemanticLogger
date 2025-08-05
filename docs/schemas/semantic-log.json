@@ -1,312 +1,70 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "title": "Semantic Logger Format",
-  "description": "Universal schema for structured logging with complete type safety and semantic meaning. Transforms logging from strings to stories.",
+  "title": "BEAR.Resource Semantic Log",
+  "description": "Schema for BEAR.Resource semantic logging - structured performance profiling data designed for AI understanding",
   "links": [
     {
       "rel": "describedby",
-      "href": "https://github.com/koriym/Koriym.SemanticLogger/blob/1.x/README.md",
-      "title": "Implementation Documentation",
-      "type": "text/markdown"
+      "href": "https://bearsunday.github.io/BEAR.Resource/llms-full.txt",
+      "title": "BEAR.Resource Framework"
     },
     {
-      "rel": "related",
-      "href": "https://github.com/koriym/Koriym.SemanticLogger/blob/1.x/docs/llms-txt.txt",
-      "title": "Semantic Logging Concepts for AI Systems",
-      "type": "text/plain"
+      "rel": "describedby",
+      "href": "https://koriym.github.io/Koriym.SemanticLogger/llms-full.txt",
+      "title": "Semantic Logger Structure"
     },
     {
-      "rel": "related",
-      "href": "https://github.com/koriym/Koriym.SemanticLogger",
-      "title": "Source Code Repository"
-    },
-    {
-      "rel": "self",
-      "href": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-      "title": "This JSON Schema"
+      "anchor": "#/schemaUrl",
+      "rel": "describedby",
+      "href": "https://tools.ietf.org/html/rfc3986",
+      "title": "URI Generic Syntax (RFC 3986)"
     }
   ],
   "type": "object",
+  "required": ["schemaUrl", "open", "close"],
   "properties": {
-    "$schema": {
+    "schemaUrl": {
       "type": "string",
-      "description": "JSON Schema URI for this log format"
-    },
-    "title": {
-      "type": "string",
-      "description": "Human-readable title of the log session (e.g., 'E-commerce Order Processing', 'User Authentication Flow', 'Database Transaction')"
+      "format": "uri",
+      "description": "URL to the semantic log schema"
     },
     "open": {
-      "$ref": "#/definitions/OpenEntry"
+      "$ref": "https://koriym.github.io/Koriym.SemanticLogger/schemas/open-context.json",
+      "description": "Resource request initiation context with profiling start"
+    },
+    "close": {
+      "oneOf": [
+        {
+          "$ref": "https://koriym.github.io/Koriym.SemanticLogger/schemas/complete-context.json"
+        },
+        {
+          "$ref": "https://koriym.github.io/Koriym.SemanticLogger/schemas/error-context.json"
+        }
+      ],
+      "description": "Resource completion or error context with profiling results"
     },
     "events": {
       "type": "array",
-      "description": "Array of events that occurred during the session - the plot of the story",
+      "description": "Additional events during resource processing",
       "items": {
-        "$ref": "#/definitions/EventEntry"
+        "type": "object"
       }
-    },
-    "close": {
-      "$ref": "#/definitions/CloseEntry"
     },
     "links": {
       "type": "array",
-      "description": "RFC 8288 compliant links for system transparency and debugging context",
+      "description": "HAL-style links for semantic relationships",
       "items": {
-        "$ref": "#/definitions/LinkRelation"
+        "type": "object"
       }
     }
   },
-  "required": ["$schema", "open"],
   "additionalProperties": false,
-
   "definitions": {
-
-    "OpenEntry": {
-      "type": "object",
-      "description": "Session opening - the beginning of the story with complete type safety",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for this operation (e.g., 'process_1', 'user_registration_1')"
-        },
-        "type": {
-          "type": "string",
-          "description": "Type identifier for this session (e.g., 'booking_request', 'user_authentication', 'payment_process')"
-        },
-        "$schema": {
-          "type": "string",
-          "description": "JSON Schema URI that defines the meaning and structure of the context data"
-        },
-        "context": {
-          "type": "object",
-          "description": "Domain-specific context data validated by the referenced schema - this gives meaning to the log"
-        },
-        "open": {
-          "$ref": "#/definitions/OpenEntry",
-          "description": "Nested session for hierarchical logging (e.g., embed, subprocess calls)"
-        }
-      },
-      "required": ["id", "type", "$schema", "context"],
-      "additionalProperties": false
-    },
-
-    "EventEntry": {
-      "type": "object",
-      "description": "Individual event within a session - a scene in the story",
-      "properties": {
-        "type": {
-          "type": "string",
-          "description": "Type identifier for this event (e.g., 'sql_query', 'api_call', 'validation_check')"
-        },
-        "$schema": {
-          "type": "string",
-          "description": "JSON Schema URI that defines the meaning and structure of the context data"
-        },
-        "context": {
-          "type": "object",
-          "description": "Domain-specific event data validated by the referenced schema"
-        }
-      },
-      "required": ["type", "$schema", "context"],
-      "additionalProperties": false
-    },
-
-    "CloseEntry": {
-      "type": "object",
-      "description": "Session closing - the end of the story with typed results",
-      "properties": {
-        "type": {
-          "type": "string",
-          "description": "Type identifier for the result (e.g., 'success', 'error', 'accept', 'reject')"
-        },
-        "$schema": {
-          "type": "string",
-          "description": "JSON Schema URI that defines the meaning and structure of the context data"
-        },
-        "context": {
-          "type": "object",
-          "description": "Domain-specific result data validated by the referenced schema"
-        }
-      },
-      "additionalProperties": false
-    },
-
-    "LinkRelation": {
-      "type": "object",
-      "description": "RFC 8288 compliant link relation for resource discovery and debugging context",
-      "properties": {
-        "rel": {
-          "type": "string",
-          "description": "Relation type - either a registered IANA relation type or an extension URI",
-          "anyOf": [
-            {
-              "description": "IANA registered relation types (RFC 8288 Section 2.1.1)",
-              "enum": [
-                "about", "alternate", "appendix", "archives", "author", "bookmark", "canonical", "chapter",
-                "collection", "contents", "copyright", "create-form", "current", "describedby", "describes",
-                "disclosure", "duplicate", "edit", "edit-form", "edit-media", "enclosure", "first", "glossary",
-                "help", "hosts", "hub", "icon", "index", "item", "last", "latest-version", "license", "lrdd",
-                "memento", "monitor", "next", "next-archive", "nofollow", "noreferrer", "original", "payment",
-                "predecessor-version", "prefetch", "prev", "preview", "previous", "prev-archive", "privacy-policy",
-                "profile", "related", "replies", "search", "section", "self", "service", "start", "stylesheet",
-                "subsection", "successor-version", "tag", "terms-of-service", "timegate", "timemap", "type",
-                "up", "version-history", "via", "working-copy", "working-copy-of"
-              ]
-            },
-            {
-              "description": "Extension relation types must be URIs (RFC 8288 Section 2.1.2)",
-              "type": "string",
-              "pattern": "^https?://"
-            },
-            {
-              "description": "Non-standard relation types (not RFC 8288 compliant but commonly used)",
-              "type": "string",
-              "pattern": "^[a-z][a-z0-9\\-]*$"
-            }
-          ]
-        },
-        "href": {
-          "type": "string",
-          "description": "Target URI of the relation"
-        },
-        "title": {
-          "type": "string",
-          "description": "Human-readable title for the relation target"
-        },
-        "type": {
-          "type": "string",
-          "description": "Media type hint for the relation target"
-        }
-      },
-      "required": ["rel", "href"],
-      "additionalProperties": false
+    "contextType": {
+      "type": "string",
+      "enum": ["bear_resource_request", "bear_resource_complete", "bear_resource_error"],
+      "description": "Context type identifier for semantic log entries. Each type is defined by its corresponding schema: open-context.json for bear_resource_request, complete-context.json for bear_resource_complete, and error-context.json for bear_resource_error"
     }
-  },
-
-  "examples": [
-    {
-      "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-      "title": "Hotel Booking Request Processing",
-      "open": {
-        "type": "booking_request",
-        "$schema": "https://example.com/schemas/booking_request.json",
-        "context": {
-          "hotel_id": "hotel_123",
-          "check_in": "2025-08-01",
-          "check_out": "2025-08-05",
-          "guests": 2
-        }
-      },
-      "events": [
-        {
-          "type": "availability_check",
-          "$schema": "https://example.com/schemas/availability_check.json",
-          "context": {
-            "rooms_available": 3,
-            "check_duration_ms": 50
-          }
-        }
-      ],
-      "close": {
-        "type": "accept",
-        "$schema": "https://example.com/schemas/booking_accept.json",
-        "context": {
-          "booking_id": "BK-2025-001234",
-          "confirmation_code": "ABC123XYZ",
-          "total_amount": 16500
-        }
-      },
-      "links": [
-        {
-          "rel": "self",
-          "href": "https://api.example.com/bookings/BK-2025-001234",
-          "title": "This Booking Resource"
-        },
-        {
-          "rel": "related",
-          "href": "https://github.com/koriym/Koriym.SemanticLogger",
-          "title": "Logging Library Used"
-        },
-        {
-          "rel": "describedby",
-          "href": "https://github.com/example/booking-service/blob/main/docs/api.md",
-          "title": "API Documentation",
-          "type": "text/markdown"
-        },
-        {
-          "rel": "monitor",
-          "href": "https://monitoring.example.com/services/booking-service",
-          "title": "Service Health Dashboard"
-        }
-      ]
-    },
-    {
-      "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-      "title": "Nested API Call with Database Query",
-      "open": {
-        "type": "api_request",
-        "$schema": "https://example.com/schemas/api_request.json",
-        "context": {
-          "endpoint": "/api/users/123",
-          "method": "GET"
-        },
-        "open": {
-          "type": "database_query",
-          "$schema": "https://example.com/schemas/database_query.json",
-          "context": {
-            "query": "SELECT * FROM users WHERE id = ?",
-            "params": [123]
-          }
-        }
-      },
-      "events": [
-        {
-          "type": "cache_miss",
-          "$schema": "https://example.com/schemas/cache_miss.json",
-          "context": {
-            "key": "user_123",
-            "ttl": 3600
-          }
-        }
-      ],
-      "close": {
-        "type": "success",
-        "$schema": "https://example.com/schemas/api_success.json",
-        "context": {
-          "user_id": 123,
-          "response_time_ms": 45
-        }
-      },
-      "links": [
-        {
-          "rel": "self",
-          "href": "https://api.example.com/users/123",
-          "title": "User Resource"
-        },
-        {
-          "rel": "related",
-          "href": "https://github.com/koriym/Koriym.SemanticLogger",
-          "title": "Logging Library"
-        },
-        {
-          "rel": "describedby",
-          "href": "https://github.com/example/user-service/blob/main/docs/database.md",
-          "title": "Database Schema Documentation",
-          "type": "text/markdown"
-        },
-        {
-          "rel": "monitor",
-          "href": "https://monitoring.example.com/services/user-service/performance",
-          "title": "Performance Metrics"
-        },
-        {
-          "rel": "edit",
-          "href": "https://api.example.com/users/123",
-          "title": "Update User Resource"
-        }
-      ]
-    }
-  ]
+  }
 }

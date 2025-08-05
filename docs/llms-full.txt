@@ -1,340 +1,582 @@
-# Koriym.SemanticLogger - Complete Technical Documentation
+# BEAR.Resource - Complete Documentation
 
-Type-safe structured logging with JSON schema validation for hierarchical application workflows.
+BEAR.Resource is a PHP hypermedia framework that implements REST resource-oriented architecture (ROA) with "object as a service" patterns. It enables objects to behave as REST resources with client-server architecture, uniform interfaces, statelessness, and hypermedia connectivity.
 
-## Project Overview
+## Core Architecture
 
-**Repository:** koriym/semantic-logger  
-**License:** MIT  
-**PHP Version:** ^8.1  
-**Author:** Akihito Koriyama <akihito.koriyama@gmail.com>
-
-koriym/semantic-logger is a PHP library that provides structured logging with semantic meaning. Unlike traditional logging that captures level and message for humans, semantic logging captures both data structure AND meaning structure through a three-phase pattern: open/event/close.
-
-## Core Philosophy: Self-Proving Responses
-
-Every response becomes self-proving by logging **how** it was generated. When your API returns "restaurant menu list", the semantic log proves **why** those specific items were returned through the complete chain of web API calls, database queries, and business logic.
-
-**Traditional Response:** `{"menu": ["pasta", "pizza", "salad"]}`  
-**With Semantic Log:** Response + Complete proof of why these 3 items were returned
-
-This provides equal context to both AI systems and human developers for comprehensive system understanding.
-
-## Architecture Deep Dive
-
-### Core Classes and Interfaces
-
-**SemanticLogger** (`src/SemanticLogger.php`)
-- Main logger class implementing `SemanticLoggerInterface` and `JsonSerializable`
-- Uses `SplStack<OpenCloseEntry>` for hierarchical operation tracking
-- Uses `SplStack<EventEntry>` for close operations
-- Maintains operation correlation through OpenId system
-- Schema URL: `https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json`
-
-**AbstractContext** (`src/AbstractContext.php`)
-- Base class for all context objects
-- Enforces type safety with `const TYPE` and `const SCHEMA_URL`
-- Context data extracted via array casting: `(array) $context`
-- Ensures compile-time type checking through static analysis
-
-**LogJson** (`src/LogJson.php`)
-- Immutable value object for complete log output
-- Contains: schemaUrl, open, close, events, links
-- Implements structured JSON serialization
-- RFC 8288 compliant link relations support
-
-**Value Objects:**
-- `OpenCloseEntry` ([src/OpenCloseEntry.php](src/OpenCloseEntry.php)) - Represents open operations with optional nesting
-- `EventEntry` ([src/EventEntry.php](src/EventEntry.php)) - Represents events and close operations with openId correlation
-- `ProfileResult` ([src/ProfileResult.php](src/ProfileResult.php)) - Contains XHProf and Xdebug trace file paths
-
-**Interfaces:**
-- `SemanticLoggerInterface` ([src/SemanticLoggerInterface.php](src/SemanticLoggerInterface.php)) - Defines open/event/close/flush contract
-- `ProfilerInterface` ([src/ProfilerInterface.php](src/ProfilerInterface.php)) - For XHProf/Xdebug profiling integration (BEAR.Resource)
-
-### Exception Hierarchy
-
-**Base Exceptions:**
-- `LogicException` - Programming errors (invalid usage patterns)
-- `RuntimeException` - Runtime errors (execution failures)
-
-**Specific Exceptions:**
-- `InvalidOperationOrderException` - Close called with wrong openId
-- `NoOpenOperationsException` - Close called without open operations
-- `UnclosedLogicException` - Operations left unclosed (programming error)
-- `NoLogSessionException` - Flush called without any operations
-
-### Type System (`src/Types.php`)
-
-Comprehensive Psalm type definitions for static analysis:
+### Resource Object Pattern
+Every resource extends `ResourceObject` and implements HTTP methods as PHP methods:
 
 ```php
-@psalm-type ContextData = array<string, mixed>
-@psalm-type SchemaUrl = string
-@psalm-type LogType = string
-@psalm-type SchemaLink = array{
-    rel: RelationType,
-    href: SchemaUrl,
-    title?: string,
-    type?: string
-}
-@psalm-type LogSessionArray = array{
-    '$schema': SchemaUrl,
-    open: OpenCloseEntryArray,
-    events?: list<EventEntryArray>,
-    close?: CloseEntryArray,
-    links?: SchemaLinks
+class Author extends ResourceObject
+{
+    public $code = 200;
+    public $headers = ['Content-Type' => 'application/json'];
+    public $body = ['id' => 1, 'name' => 'koriym'];
+
+    public function onGet(int $id): static
+    {
+        // Handle GET request
+        return $this;
+    }
+
+    public function onPost(string $name): static
+    {
+        $this->code = 201; // Created
+        return $this;
+    }
+
+    public function onPut(int $id, string $name): static
+    {
+        $this->code = 204; // No Content
+        return $this;
+    }
+
+    public function onDelete(int $id): static
+    {
+        $this->code = 204; // No Content
+        return $this;
+    }
 }
 ```
 
-## Three-Phase Logging Pattern
+### URI Scheme Mapping
+Resources are accessed via URI schemes that map to PSR-4 classes:
+- `app://self/user/123` → `App\Resource\User` class
+- `http://api.example.com/user/123` → External HTTP resource
+- `page://self/user` → Page resource
 
-### 1. Open Phase - Intent Declaration
+### Resource Properties
+All resources have four core properties:
+- `$code`: HTTP status code (200, 201, 404, etc.)
+- `$headers`: Array of HTTP headers
+- `$body`: Resource data/payload
+- `$view`: Rendered representation
+
+## Dependency Injection System
+
+Uses Ray.Di for comprehensive dependency injection:
+
 ```php
-$processId = $logger->open(new ProcessContext('data processing'));
-```
-- Creates hierarchical operation with unique ID
-- Pushes to SplStack for nesting support
-- Generates ID: `{type}_{counter}` (e.g., "process_1")
-- Returns openId for correlation
+use BEAR\Resource\ResourceInterface;
 
-### 2. Event Phase - Occurrence Logging
+$resource = (new Injector(new ResourceModule('MyApp')))->getInstance(ResourceInterface::class);
+```
+
+### Method Parameter Injection
+Resource methods support automatic parameter injection:
+
 ```php
-$logger->event(new EventContext('processing started'));
+public function onGet(int $id, UserRepository $repo, LoggerInterface $logger): ResourceObject
+{
+    $user = $repo->findById($id);
+    $logger->info("User {$id} retrieved", ['user' => $user]);
+    $this->body = $user;
+    return $this;
+}
 ```
-- Logs what happens during execution
-- Automatically correlates with current open operation via openId
-- Flat list structure (not hierarchical)
-- Multiple events can belong to one operation
 
-### 3. Close Phase - Result Recording
+## Request Patterns
+
+### Eager Request (Immediate Execution)
 ```php
-$logger->close(new ResultContext('success'), $processId);
+$user = $resource->get('app://self/user', ['id' => 1]);
+// Alternative syntaxes:
+$user = $resource->get->uri('app://self/user')->withQuery(['id' => 1])->eager->request();
+$user = $resource->get->uri('app://self/user')(['id' => 1]);
+$user = $resource->uri('app://self/user')(['id' => 1]); // GET is default
 ```
-- Records actual outcome/result
-- Must match corresponding open operation (LIFO order)
-- Validates openId matches stack top
-- Pops from stack and moves to completed operations
 
-### 4. Flush Phase - Log Consumption
+### Lazy Request (Deferred Execution)
 ```php
-$logJson = $logger->flush($relations);
+$userRequest = $resource->get->uri('app://self/user')->withQuery(['id' => 1]);
+// Executed when accessed:
+echo "User: {$userRequest}"; // Triggers execution and rendering
+// Or invoke with different parameters:
+$user1 = $userRequest();
+$user2 = $userRequest(['id' => 2]);
 ```
-- One-time consumption with state reset
-- Validates all operations are closed
-- Returns immutable LogJson object
-- Clears all internal state
 
-## JSON Schema Integration
+## Hypermedia & HATEOAS
 
-### Schema Structure
-Each context class defines:
-- `const TYPE` - Identifies the context type
-- `const SCHEMA_URL` - JSON Schema URL for validation
+### Link Annotations
+Resources define hyperlinks using `#[Link]` attributes:
 
-### Output Format
+```php
+#[Link(rel: 'blog', href: 'app://self/blog?author_id={id}')]
+#[Link(rel: 'profile', href: 'app://self/user/profile?user_id={id}')]
+public function onGet(int $id): static
+{
+    // Link templates use current resource values
+    $this->body = ['id' => $id, 'name' => 'John'];
+    return $this;
+}
+```
+
+### Link Navigation
+
+**linkSelf**: Replace current resource with linked resource
+```php
+$blog = $resource->get->uri('app://self/user')->withQuery(['id' => 1])
+    ->linkSelf('blog')->eager->request();
+```
+
+**linkNew**: Add linked resource to current response
+```php
+$user = $resource->get->uri('app://self/user')->withQuery(['id' => 1])
+    ->linkNew('blog')->eager->request();
+$blog = $user['blog']; // Linked resource available
+```
+
+**linkCrawl**: Build complex resource graphs
+```php
+// Author → Posts → Meta + Tags → Tag Names
+#[Link(crawl: 'post-tree', rel: 'post', href: 'app://self/post?author_id={id}')]
+public function onGet($id) {} // Author
+
+#[Link(crawl: 'post-tree', rel: 'meta', href: 'app://self/meta?post_id={id}')]
+#[Link(crawl: 'post-tree', rel: 'tag', href: 'app://self/tag?post_id={id}')]
+public function onGet($author_id) {} // Post
+
+$graph = $resource->get->uri('app://self/author')->linkCrawl('post-tree')->eager->request();
+```
+
+### HATEOAS Workflow
+```php
+// Order resource with payment link
+#[Link(rel: 'payment', href: 'app://self/payment{?order_id,amount}', method: 'put')]
+public function onPost($drink) {} // Order
+
+// Client follows hyperlink for state transition
+$order = $resource->post('app://self/order', ['drink' => 'latte']);
+$payment = $resource->href('payment', ['amount' => '4.00']); // Follow hyperlink
+```
+
+## Parameter Binding
+
+### Web Context Parameters
+Bind HTTP context values to method parameters:
+
+```php
+use Ray\WebContextParam\Annotation\QueryParam;
+use Ray\WebContextParam\Annotation\CookieParam;
+use Ray\WebContextParam\Annotation\FormParam;
+use Ray\WebContextParam\Annotation\ServerParam;
+
+public function onGet(
+    #[QueryParam('user_id')] string $userId,    // $_GET['user_id']
+    #[CookieParam('token')] string $token,      // $_COOKIE['token']
+    #[FormParam('data')] string $data,          // $_POST['data']
+    #[ServerParam('HTTP_HOST')] string $host    // $_SERVER['HTTP_HOST']
+): ResourceObject {}
+```
+
+### Resource Parameters
+Bind another resource's state to parameters:
+
+```php
+use BEAR\Resource\Annotation\ResourceParam;
+
+/**
+ * @ResourceParam(param="userName", uri="app://self/login#nickname")
+ */
+public function onGet(string $userName): ResourceObject
+{
+    // $userName contains the 'nickname' property from app://self/login resource
+}
+```
+
+## Input Handling (Ray.InputQuery Integration)
+
+### Input Objects
+Convert flat query data to structured, type-safe objects:
+
+```php
+use Ray\InputQuery\Attribute\Input;
+
+class ArticleInput
+{
+    public function __construct(
+        public readonly string $title,
+        public readonly string $content,
+        public readonly AuthorInput $author
+    ) {}
+}
+
+class ArticleResource extends ResourceObject
+{
+    public function onPost(#[Input] ArticleInput $article): static
+    {
+        $this->body = [
+            'title' => $article->title,
+            'author_name' => $article->author->name
+        ];
+        return $this;
+    }
+}
+```
+
+### File Upload Processing
+Type-safe file upload with validation:
+
+```php
+use Ray\InputQuery\Attribute\InputFile;
+use Koriym\FileUpload\FileUpload;
+use Koriym\FileUpload\ErrorFileUpload;
+
+public function onPost(
+    #[InputFile(
+        maxSize: 1024 * 1024, // 1MB
+        allowedTypes: ['image/jpeg', 'image/png'],
+        allowedExtensions: ['jpg', 'png']
+    )]
+    FileUpload|ErrorFileUpload $image,
+    string $title = 'Default'
+): static {
+    if ($image instanceof ErrorFileUpload) {
+        $this->code = 400;
+        $this->body = ['error' => $image->message];
+        return $this;
+    }
+
+    $filename = uniqid() . '_' . $image->name;
+    $image->move('/uploads/' . $filename);
+    
+    $this->body = [
+        'filename' => $image->name,
+        'size' => $image->size,
+        'type' => $image->type
+    ];
+    return $this;
+}
+```
+
+## Resource Embedding
+
+Embed external resources using `#[Embed]`:
+
+```php
+class News extends ResourceObject
+{
+    #[Embed(rel: 'weather', src: 'app://self/weather/today')]
+    #[Embed(rel: 'stocks', src: 'app://self/stocks/quotes')]
+    public function onGet(): static
+    {
+        $this->body = [
+            'headline' => 'Breaking News',
+            'content' => 'Article content...'
+        ];
+        return $this;
+    }
+}
+```
+
+## Representation & Rendering
+
+### JSON Rendering
+```php
+$modules = [new ResourceModule('MyApp'), new JsonModule()];
+$resource = (new Injector($modules))->getInstance(ResourceInterface::class);
+$user = $resource->get('app://self/user', ['id' => 1]);
+echo $user; // JSON output
+```
+
+### HAL (Hypertext Application Language) Rendering
+```php
+$modules = [new ResourceModule('MyApp'), new HalModule()];
+$resource = (new Injector($modules))->getInstance(ResourceInterface::class);
+echo $resource->get('app://self/news'); 
+// HAL format with _links and _embedded sections
+```
+
+### Custom Renderers
+```php
+class User extends ResourceObject
+{
+    public function __construct()
+    {
+        $this->setRenderer(new class implements RenderInterface {
+            public function render(ResourceObject $ro): string
+            {
+                $ro->headers['content-type'] = 'application/xml';
+                $ro->view = $this->toXml($ro->body);
+                return $ro->view;
+            }
+        });
+    }
+}
+```
+
+## Transfer & Output
+
+Transfer resource state to client:
+
+```php
+$user = $resource->get('app://self/user', ['id' => 1]);
+$user->transfer(new class implements TransferInterface {
+    public function __invoke(ResourceObject $ro, array $server): void
+    {
+        foreach ($ro->headers as $label => $value) {
+            header("{$label}: {$value}", false);
+        }
+        http_response_code($ro->code);
+        echo $ro->view;
+    }
+});
+```
+
+## Module System
+
+### Core Modules
+- `ResourceModule`: Basic resource functionality
+- `JsonModule`: JSON representation
+- `HalModule`: HAL representation  
+- `HttpClientModule`: HTTP resource client
+- `EmbedResourceModule`: Resource embedding
+
+### Module Configuration
+```php
+class AppModule extends AbstractModule
+{
+    protected function configure(): void
+    {
+        $this->install(new ResourceModule('MyApp'));
+        $this->install(new JsonModule());
+        $this->install(new HalModule());
+    }
+}
+```
+
+## Semantic Logging Integration
+
+BEAR.Resource includes comprehensive semantic logging for observability:
+
+### Semantic Logger Components
+- `SemanticLogger`: Main logging interface with structured JSON output
+- `SemanticInvoker`: Wraps resource invocation with automatic logging
+- `OpenContext`: Request initiation context
+- `CompleteContext`: Request completion with profiling data
+- `ErrorContext`: Exception and error contexts
+
+### Profile Integration
+- **XHProf**: Lightweight performance profiling
+- **Xdebug**: Detailed function call tracing
+- Automatic profile file generation and linking
+
+### Structured Log Output
 ```json
 {
-  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "open": {
-    "id": "process_1",
-    "type": "process",
-    "$schema": "https://example.com/schemas/process.json",
-    "context": { "name": "data processing" }
-  },
-  "events": [
-    {
-      "id": "event_1",
-      "type": "event",
-      "$schema": "https://example.com/schemas/event.json",
-      "context": { "message": "processing started" },
-      "openId": "process_1"
+    "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+    "open": {
+        "id": "bear_resource_request_1",
+        "type": "bear_resource_request",
+        "context": {
+            "method": "GET",
+            "uri": "app://self/user?id=123"
+        }
+    },
+    "close": {
+        "id": "bear_resource_complete_1", 
+        "type": "bear_resource_complete",
+        "context": {
+            "code": 200,
+            "body": {"id": 123, "name": "John"},
+            "xhprofFile": "/tmp/profile_123.xhprof",
+            "xdebugTraceFile": "/tmp/trace_123.xt"
+        }
     }
-  ],
-  "close": {
-    "id": "result_1",
-    "type": "result",
-    "$schema": "https://example.com/schemas/result.json",
-    "context": { "status": "success" },
-    "openId": "process_1"
-  },
-  "links": [
-    {
-      "rel": "related",
-      "href": "https://github.com/example/my-app",
-      "title": "Source Code Repository"
-    }
-  ]
 }
 ```
 
-## OpenId Correlation System
+## Namespace Code Classification
 
-**Purpose:** Links events and close entries to their originating open operations
+### Framework vs Application Code
 
-**Benefits:**
-- **Request Tracing:** Identify which events belong to which operation in nested workflows
-- **Debugging:** Trace the flow from intent (open) → events → result (close)
-- **Monitoring:** Track operation completion and identify unclosed operations
-- **Compliance:** Maintain audit trails with clear operation boundaries
+When analyzing profiling data or semantic logs, distinguish code types by namespace patterns:
 
-**Implementation:**
-- Generated automatically during open(): `{type}_{counter}`
-- Stored in events and close entries for correlation
-- Validated during close() to ensure proper nesting
+**Framework/Library Code (NOT application code):**
+- `BEAR\*` - BEAR.Resource framework components
+- `Koriym\*` - Koriym library components  
+- `Ray\*` - Ray.Di dependency injection framework
+- `Doctrine\*` - Doctrine components
+- `Composer\*` - Composer autoloader
+- `vendor\*` path - Third-party vendor libraries
 
-## Development Workflow
+**Application Code:**
+- `App\*` - Primary application namespace
+- `FakeVendor\*` - Test/demo application namespace
+- Any custom namespace outside vendor directory
 
-### Testing Commands
-```bash
-composer test              # Run PHPUnit tests
-composer tests             # Full suite: style + tests + analysis
-composer coverage          # Coverage with Xdebug
-composer pcov              # Coverage with PCOV
-composer phpdbg            # Coverage with phpdbg
-./vendor/bin/phpunit       # Direct PHPUnit execution
-./vendor/bin/phpunit --filter MethodName  # Specific test
+**Examples:**
+```
+Framework: BEAR\Resource\Invoker::invoke
+Framework: Ray\Di\Container::getInstance  
+Framework: Koriym\SemanticLogger\SemanticLogger::open
+Application: App\Resource\User::onGet
+Application: FakeVendor\Sandbox\Resource\App\Bird\Canary::onGet
 ```
 
-### Code Quality Commands
-```bash
-composer cs               # Check code style (PHP_CodeSniffer)
-composer cs-fix           # Fix code style violations
-composer sa               # Static analysis (Psalm + PHPStan)
-composer phpstan          # PHPStan only
-composer psalm            # Psalm only
-composer phpmd            # PHP Mess Detector
+When providing performance analysis, focus on application code performance issues. Framework overhead is expected and should be excluded from optimization recommendations unless specifically requested.
+
+## Performance Optimization
+
+### Resource Client Serialization
+Cache compiled resource clients for significant performance gains:
+
+```php
+// Build and cache
+$resource = (new Injector(new ResourceModule('MyApp')))->getInstance(ResourceInterface::class);
+file_put_contents('resource.cache', serialize($resource));
+
+// Load from cache
+$resource = unserialize(file_get_contents('resource.cache'));
+$user = $resource->get('app://self/user', ['id' => 1]);
 ```
 
-### Utility Commands
-```bash
-composer clean            # Clear caches
-composer build            # Complete build process
-composer baseline         # Generate analysis baselines
-composer metrics          # Generate metrics report
-composer crc              # Composer require checker
+### Lazy Loading Benefits
+- Assign request objects to templates instead of executed results
+- Execution deferred until actually needed
+- Better memory usage and performance
+
+## Testing Patterns
+
+### Integration Testing Approach
+BEAR.Resource emphasizes integration testing over unit testing:
+
+```php
+class UserResourceTest extends TestCase
+{
+    private ResourceInterface $resource;
+
+    protected function setUp(): void
+    {
+        $this->resource = (new Injector(new TestModule()))->getInstance(ResourceInterface::class);
+    }
+
+    public function testGetUser(): void
+    {
+        $user = $this->resource->get('app://self/user', ['id' => 1]);
+        
+        $this->assertSame(200, $user->code);
+        $this->assertSame('John', $user->body['name']);
+    }
+
+    public function testFileUpload(): void
+    {
+        $upload = FileUpload::fromFile(__DIR__ . '/fixtures/test.jpg');
+        $result = $this->resource->post('app://self/upload', ['image' => $upload]);
+        
+        $this->assertSame(200, $result->code);
+        $this->assertTrue($result->body['success']);
+    }
+}
 ```
 
-## Static Analysis Configuration
+### Key Testing Principles
+- Use real ResourceInterface instances, never mocks
+- Use actual Request/Uri objects for contexts
+- Use real Exception instances for error scenarios
+- Leverage existing fake resources in tests/Fake/ directory
+- Test integration behavior, not isolated units
 
-**Psalm** (`psalm.xml`)
-- Type checking with baseline support
-- Custom types imported from Types.php
-- Strict mode for type safety
+## Error Handling
 
-**PHPStan** (`phpstan.neon`)
-- Code analysis with baseline
-- Level 8 strictness
-- Custom rules for semantic logger patterns
+### Exception Types
+- `ResourceNotFoundException`: Resource class not found
+- `MethodException`: HTTP method not supported
+- `BadRequestException`: Invalid request parameters
+- `ParameterException`: Parameter binding failures
 
-**PHP_CodeSniffer** (`phpcs.xml`)
-- PSR-12 compliance
-- Custom rules for project conventions
-
-**PHPMD** (`phpmd.xml`)
-- Mess detection rules
-- Code complexity analysis
+### Error Resource Pattern
+```php
+public function onGet(int $id): static
+{
+    try {
+        $user = $this->userRepo->findById($id);
+        $this->body = $user;
+    } catch (UserNotFoundException $e) {
+        $this->code = 404;
+        $this->body = ['error' => 'User not found', 'id' => $id];
+    }
+    return $this;
+}
+```
 
 ## Advanced Features
 
-### Hierarchical Nesting
-Operations can be nested through the SplStack mechanism:
-```php
-$parentId = $logger->open(new ParentContext('parent'));
-$childId = $logger->open(new ChildContext('child'));
-$logger->close(new ChildResult('child done'), $childId);
-$logger->close(new ParentResult('parent done'), $parentId);
-```
+### JSON Schema Validation
+Validate resource schemas automatically:
 
-### Profiler Integration
-Designed for BEAR.Resource integration to eliminate duplicate profiling:
 ```php
-namespace Koriym\SemanticLogger;
+use BEAR\Resource\JsonSchema\Annotation\JsonSchema;
 
-interface ProfilerInterface
+class User extends ResourceObject
 {
-    public function profile(callable $callable): ProfileResult;
+    #[JsonSchema('user.json')]
+    public function onGet(): static
+    {
+        // Response automatically validated against JSON schema
+    }
 }
 ```
 
-ProfileResult contains:
-- Optional XHProf file path
-- Optional Xdebug trace file path
-- Used by dependency injection systems
+### Options Method Support
+Automatic OPTIONS method handling for CORS:
 
-### Schema Validation Ready
-- JSON schema URLs defined in context constants
-- Compatible with external validation tools
-- Structured output follows defined schema format
-- JSON Schema Draft 2020-12 compatible
-
-## Use Cases and Applications
-
-### Development & Debugging
-- Complex workflow tracing with intent vs result analysis
-- Understanding system behavior through semantic structure
-- Debugging nested operations and their relationships
-
-### Compliance & Auditing
-- GDPR, SOX, HIPAA compliance with complete audit trails
-- Immutable log records with schema validation
-- Clear operation boundaries and data lineage
-
-### Security & Monitoring
-- Track data modifications and access patterns
-- Detect anomalous behavior through semantic patterns
-- Monitor operation success/failure rates
-
-### Business Intelligence
-- Analyze behavior patterns and optimize processes
-- Understanding user flows and system bottlenecks
-- Performance analysis through hierarchical operations
-
-### AI System Integration
-- Provide structured context for AI decision making
-- Enable AI systems to understand operation semantics
-- Self-proving responses for AI-generated content
-
-## Implementation Guidelines
-
-### Context Object Design
 ```php
-final class CustomContext extends AbstractContext
-{
-    public const TYPE = 'custom';
-    public const SCHEMA_URL = 'https://example.com/schemas/custom.json';
-    
-    public function __construct(
-        public readonly string $property,
-        public readonly int $value,
-    ) {}
-}
+$modules = [
+    new ResourceModule('MyApp'),
+    new OptionsMethodModule(),
+    new OptionsMethodHeaderModule()
+];
 ```
 
-### Error Handling Patterns
+### URI Template Support
+Advanced URI templating following RFC 6570:
+
 ```php
-try {
-    $id = $logger->open(new ProcessContext('risky operation'));
-    // ... operation logic
-    $logger->close(new SuccessContext('completed'), $id);
-} catch (Exception $e) {
-    $logger->close(new ErrorContext($e->getMessage()), $id);
-    throw $e;
-} finally {
-    // Ensure clean state
-}
+#[Link(rel: 'search', href: 'app://self/search{?q,page,limit}')]
+#[Link(rel: 'user', href: 'app://self/user/{id}{/profile*}')]
 ```
 
-### Type Safety Best Practices
-- Import types from Types.php using `@psalm-import-type`
-- Use typed parameters and return types consistently
-- Leverage static analysis tools for verification
-- Define specific schemas for each context type
+## Common Log Patterns
 
-### Schema Design Guidelines
-- Create specific schemas for each context type
-- Use JSON Schema validation constraints
-- Maintain schema versioning for breaking changes
-- Document schema relationships and dependencies
+When analyzing semantic profiling logs, these patterns help distinguish between development overhead and actual application performance issues:
 
-This comprehensive documentation provides all necessary information for understanding, implementing, and extending the Koriym.SemanticLogger system.
+### Development Profiling Pattern
+**Indicators:**
+- Generated by: `BEAR\Resource\SemanticLog\DevSemanticInvoker`
+- Profile data: `xhprof`, `xdebug`, and/or `php` sections contain detailed profiling information
+- Trace content: Shows extensive framework initialization and dependency injection overhead
+
+**Interpretation:**
+This is a development environment log with comprehensive profiling enabled. Performance metrics include framework overhead from:
+- Dependency injection container operations  
+- Development-specific interceptors and observers
+- XHProf function call profiling (wall time, memory usage, call counts)
+- Xdebug execution trace collection
+- PHP backtrace generation and analysis
+- Schema validation and semantic logging overhead
+
+**Analysis Focus:**
+Focus on application-specific bottlenecks. **Do NOT recommend disabling profiling in development** - this is intentional development tooling that should remain enabled during development for comprehensive analysis. However, these profiling tools (XHProf, Xdebug) should be disabled in production for performance reasons. Look for:
+- N+1 query patterns in database calls
+- Inefficient algorithms in business logic
+- Resource-specific performance issues
+- Actual application bottlenecks excluding framework overhead
+
+### Standard Production Pattern  
+**Indicators:**
+- Generated by: `BEAR\Resource\Invoker`
+- Profile data: Empty arrays `[]` or minimal profiling information
+- Trace content: Minimal or absent
+
+**Interpretation:**
+This represents standard production request processing without development overhead. In production environments, XHProf and Xdebug are typically disabled for performance reasons, resulting in empty profile arrays. Performance metrics reflect actual application performance without development tooling overhead.
+
+**Analysis Focus:**
+Direct performance analysis of application code without development tooling interference. When profile data is empty in production logs, this is expected and correct behavior.
+
+---
+
+This comprehensive documentation covers BEAR.Resource's complete feature set for building robust, hypermedia-driven REST APIs with strong typing, dependency injection, and comprehensive observability.

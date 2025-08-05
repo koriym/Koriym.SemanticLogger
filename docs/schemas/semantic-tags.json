@@ -1,0 +1,63 @@
+{
+  "alps": {
+    "version": "1.0",
+    "title": "Semantic Portal Tag Definitions",
+    "doc": {
+      "value": "ALPS profile defining semantic tag categories used in semantic portal descriptors for clear separation of HTML structure and domain knowledge."
+    },
+    "link": [
+      {
+        "rel": "help",
+        "href": "https://www.ietf.org/archive/id/draft-amundsen-richardson-foster-alps-07.txt",
+        "title": "ALPS Specification"
+      },
+      {
+        "rel": "describedby",
+        "href": "https://koriym.github.io/Koriym.SemanticLogger/schemas/alps.json",
+        "title": "Main ALPS Profile Using These Tags"
+      }
+    ],
+    "descriptor": [
+      {
+        "id": "html",
+        "type": "semantic",
+        "title": "HTML Structure Semantics Tag",
+        "doc": {
+          "value": "Identifies ALPS descriptors that define the semantic meaning of HTML document structure, layout, and presentation elements. These descriptors explain how content is organized and displayed, enabling AI to understand page architecture and navigation patterns."
+        },
+        "link": [
+          {
+            "rel": "help",
+            "href": "https://www.w3.org/TR/html52/",
+            "title": "HTML 5.2 Specification"
+          },
+          {
+            "rel": "help",
+            "href": "https://developer.mozilla.org/en-US/docs/Web/HTML/Element",
+            "title": "HTML Elements Reference"
+          }
+        ]
+      },
+      {
+        "id": "domain", 
+        "type": "semantic",
+        "title": "Domain Knowledge Semantics Tag",
+        "doc": {
+          "value": "Identifies ALPS descriptors that define domain-specific concepts, terminology, and knowledge within a particular field or application area. These descriptors provide semantic meaning for specialized terms, enabling AI to understand the conceptual framework and relationships within the domain without human explanation."
+        },
+        "link": [
+          {
+            "rel": "help",
+            "href": "https://www.w3.org/2001/sw/",
+            "title": "W3C Semantic Web Activity"
+          },
+          {
+            "rel": "help",
+            "href": "https://en.wikipedia.org/wiki/Domain_knowledge",
+            "title": "Domain Knowledge - Wikipedia"
+          }
+        ]
+      }
+    ]
+  }
+}

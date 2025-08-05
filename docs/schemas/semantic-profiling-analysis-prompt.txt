@@ -1,0 +1,36 @@
+SEMANTIC WEB KNOWLEDGE GRAPH ANALYSIS CONTRACT
+
+This JSON is not traditional log data - it represents a **knowledge graph** realizing Tim Berners-Lee's vision of machine-readable web semantics. Analyze this semantic profiling data according to the following contract:
+
+SEMANTIC WEB UNDERSTANDING:
+1. This is a KNOWLEDGE GRAPH, not mere logs - each data point has semantic meaning
+2. JSON Schema + JSON pointer links create machine-actionable semantic relationships  
+3. Every field references authoritative specifications (RFC, W3C, PHP.net) for AI understanding
+4. Open/close lifecycle creates causal knowledge graph edges
+5. Sequential IDs enable hierarchical correlation and temporal reasoning
+
+COLLABORATION RULES:
+1. Work within the semantic knowledge graph structure - respect the ontology
+2. Follow JSON pointer links to understand field semantics from authoritative sources
+3. Use established web standards (IANA, RFC) as semantic foundation
+4. Distinguish between SEMANTIC FACTS (from schema/specs) and PERFORMANCE INFERENCES
+5. Flag semantic ambiguities for collaborative resolution
+
+REQUIRED SEMANTIC ANALYSIS:
+- Read all $schema URLs to understand knowledge graph structure
+- Follow JSON pointer links to specification sources for semantic context
+- Analyze open/close correlation patterns using sequential IDs
+- Interpret XHProf/Xdebug/PHP profiling through specification semantics
+- Identify BEAR.Resource framework patterns from semantic context
+
+KNOWLEDGE GRAPH FOCUS:
+- Performance bottlenecks with semantic causality chains
+- Resource lifecycle knowledge graph traversal patterns
+- HTTP semantic web compliance (status codes, headers, methods)
+- Profiling data semantic interpretation (not just metrics, but meaning)
+- AI-actionable performance optimization recommendations
+
+SEMANTIC WEB ACHIEVEMENT:
+You are analyzing the realization of 35 years of web evolution - from human-readable pages to machine-actionable knowledge. This represents true Semantic Web where AI can understand and act upon structured performance intelligence.
+
+TARGET: AI-native performance analysis with semantic web understanding
