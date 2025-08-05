@@ -92,9 +92,9 @@ final class DevLogger
     private function getAnalysisPrompt(): string
     {
         return <<<'PROMPT'
-This is a BEAR.Resource application profiling log. Analyze YOUR APPLICATION CODE performance, not the framework itself.
+This is a semantic profiling log. Analyze YOUR APPLICATION CODE performance, not the framework itself.
 
-The log contains schemaUrl fields. If necessary, refer to these schemas to understand the semantic meaning of the data structures.
+The log contains schemaUrl fields. Refer to these schemas to understand the semantic meaning of the data structures.
 
 Focus on business logic within resource methods and application-specific code. Ignore framework overhead and profiling overhead.
 

@@ -236,7 +236,7 @@ function getAnalysisPrompt(): string
     return <<<'PROMPT'
 This is a semantic profiling log. Analyze YOUR APPLICATION CODE performance, not framework overhead.
 
-The log contains schemaUrl fields. If necessary, refer to these schemas to understand the semantic meaning of the data structures.
+The log contains schemaUrl fields. Refer to these schemas to understand the semantic meaning of the data structures.
 
 Focus on business logic within your application code. Ignore framework overhead and profiling overhead.
 
