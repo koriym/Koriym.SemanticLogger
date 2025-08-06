@@ -102,7 +102,7 @@
           "age": {
             "description": "age",
             "type": "integer",
-            "default": "99"
+            "default": 99
           }
         },
         "required": ["id"]
