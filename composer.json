@@ -25,7 +25,8 @@
         "psr-4": {
             "Koriym\\SemanticLogger\\": [
                 "tests",
-                "tests/Fake"
+                "tests/Fake",
+                "demo/Contexts"
             ],
             "Koriym\\SemanticLogger\\Experimental\\": "tests/experimental/"
         }

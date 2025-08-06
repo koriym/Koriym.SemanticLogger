@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://koriym.github.io/Koriym.SemanticLogger/schemas/authentication_error.json",
+  "title": "Authentication Error Context",
+  "description": "Context for authentication failure scenarios with detailed error information",
+  "type": "object",
+  "properties": {
+    "errorData": {
+      "type": "object",
+      "properties": {
+        "errorType": {
+          "type": "string",
+          "enum": ["InvalidCredentials", "ExpiredToken", "MissingCredentials", "InsufficientPermissions", "AccountLocked", "TwoFactorRequired", "RateLimitExceeded"],
+          "description": "Type of authentication error"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "code": {
+          "type": "integer",
+          "minimum": 400,
+          "maximum": 499,
+          "description": "HTTP status code for authentication error (4xx range)"
+        },
+        "userId": {
+          "type": ["string", "null"],
+          "description": "User ID if partially authenticated, null if unknown"
+        },
+        "attemptedMethod": {
+          "type": "string",
+          "enum": ["JWT", "OAuth", "BasicAuth", "APIKey", "Session", "TwoFactor"],
+          "description": "Authentication method that failed"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "ISO 8601 timestamp of the authentication failure"
+        },
+        "ipAddress": {
+          "type": "string",
+          "format": "ipv4",
+          "description": "IP address of the failed authentication attempt"
+        },
+        "userAgent": {
+          "type": "string",
+          "description": "User agent string from the failed request"
+        },
+        "additionalInfo": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional context-specific error information"
+        }
+      },
+      "required": ["errorType", "message", "code", "attemptedMethod", "timestamp"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["errorData"],
+  "additionalProperties": false
+}
