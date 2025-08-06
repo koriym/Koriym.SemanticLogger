@@ -129,8 +129,7 @@
             },
             "required": ["function"],
             "additionalProperties": true
-          },
-          "description": "PHP backtrace information"
+          }
         }
       },
       "required": ["backtrace"]
