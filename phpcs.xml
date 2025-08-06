@@ -17,7 +17,6 @@
     <!-- Directories to be checked -->
     <file>src</file>
     <file>tests</file>
-    <file>demo</file>
     <exclude-pattern>*/tmp/*</exclude-pattern>
     <exclude-pattern>*/Fake/*</exclude-pattern>
 
