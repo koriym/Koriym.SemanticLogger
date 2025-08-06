@@ -218,36 +218,33 @@ echo json_encode($logJson, JSON_PRETTY_PRINT);
 
 ### 3. Output Structure
 
-The semantic structure captures the complete intent→result flow with **openId correlation**:
+The semantic structure captures the complete intent→result flow with **hierarchical nesting**:
 
 ```json
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
   "open": {
-    "id": "process_1",
     "type": "process",
-    "$schema": "https://example.com/schemas/process.json",
+    "schemaUrl": "https://example.com/schemas/process.json",
     "context": {
       "name": "data processing"
-    }
-  },
-  "events": [
-    {
-      "type": "event",
-      "$schema": "https://example.com/schemas/event.json",
-      "context": {
-        "message": "processing started"
-      },
-      "openId": "process_1"
-    }
-  ],
-  "close": {
-    "type": "result",
-    "$schema": "https://example.com/schemas/result.json",
-    "context": {
-      "status": "success"
     },
-    "openId": "process_1"
+    "events": [
+      {
+        "type": "event",
+        "schemaUrl": "https://example.com/schemas/event.json",
+        "context": {
+          "message": "processing started"
+        }
+      }
+    ],
+    "close": {
+      "type": "result",
+      "schemaUrl": "https://example.com/schemas/result.json",
+      "context": {
+        "status": "success"
+      }
+    }
   },
   "relations": [
     {
@@ -265,16 +262,15 @@ The semantic structure captures the complete intent→result flow with **openId 
 ```
 
 **Structure Meaning:**
-- **open**: Intent and planned operations (hierarchical) - each has unique `id`
-- **events**: Occurrences during execution (flat list) - linked via `openId` to their operation context
-- **close**: Actual results and outcomes (matches open hierarchy) - linked via `openId` to corresponding open operation
-- **openId**: Correlation field that links events and close entries to their originating open operation
+- **open**: Intent and planned operations with nested events and close results (hierarchical structure)
+- **events**: Occurrences during execution (nested within their operation context)
+- **close**: Actual results and outcomes (nested within the corresponding open operation)
 - **schemaUrl**: JSON Schema URL for validation and documentation
 - **relations**: Optional RFC 8288 compliant links (related resources, schemas, etc.)
 
-**OpenId Correlation Benefits:**
-- **Request Tracing**: Identify which events belong to which operation in nested workflows
-- **Debugging**: Trace the flow from intent (open) → events → result (close)
+**Hierarchical Nesting Benefits:**
+- **Request Tracing**: Clear operation boundaries through nested structure in complex workflows
+- **Debugging**: Trace the flow from intent (open) → events → result (close) within each operation context
 - **Monitoring**: Track operation completion and identify unclosed operations
 - **Compliance**: Maintain audit trails with clear operation boundaries
 
