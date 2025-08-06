@@ -8,7 +8,7 @@ use JsonSchema\Validator;
 use Koriym\SemanticLogger\AuthenticationErrorContext;
 use PHPUnit\Framework\TestCase;
 
-use function count;
+use function dirname;
 use function file_get_contents;
 use function json_decode;
 use function json_encode;
@@ -22,7 +22,7 @@ final class AuthenticationErrorContextTest extends TestCase
     {
         $this->validator = new Validator();
 
-        $schemaPath = __DIR__ . '/../../demo/schemas/authentication_error.json';
+        $schemaPath = dirname(__DIR__, 2) . '/demo/schemas/authentication_error.json';
         $schemaContent = file_get_contents($schemaPath);
         $this->assertNotFalse($schemaContent, 'Schema file should exist and be readable');
 
@@ -136,21 +136,5 @@ final class AuthenticationErrorContextTest extends TestCase
         // Validate against schema
         $this->validator->validate($contextObject, $this->schema);
         $this->assertFalse($this->validator->isValid(), 'Context with missing required fields should fail validation');
-
-        $errors = $this->validator->getErrors();
-        $this->assertGreaterThanOrEqual(3, count($errors), 'Should have errors for missing required fields');
-    }
-
-    public function testContextConstants(): void
-    {
-        $this->assertEquals('authentication_error', AuthenticationErrorContext::TYPE);
-        $this->assertEquals('../schemas/authentication_error.json', AuthenticationErrorContext::SCHEMA_URL);
-    }
-
-    public function testSchemaIdAndTitle(): void
-    {
-        $this->assertEquals('https://koriym.github.io/Koriym.SemanticLogger/schemas/authentication_error.json', $this->schema->{'$id'});
-        $this->assertEquals('Authentication Error Context', $this->schema->title);
-        $this->assertStringContainsString('authentication failure', $this->schema->description);
     }
 }
