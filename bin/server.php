@@ -191,9 +191,13 @@ while ($line = fgets(STDIN)) {
     };
 
     $encoded = json_encode($response);
-    if ($encoded !== false) {
-        fwrite(STDOUT, $encoded . "\n");
+    if ($encoded === false) {
+        $jsonError = json_last_error_msg();
+        fwrite(STDERR, "json_encode failed: $jsonError\n");
+        return;
     }
+    
+    fwrite(STDOUT, $encoded . "\n");
 }
 
 /**
@@ -294,9 +298,10 @@ function semanticAnalyze(array $args): array
     $beforeExecution = time();
 
     // Execute the PHP script with profiling using php-dev.ini
-    $env = "XDEBUG_MODE=$xdebugMode XDEBUG_CONFIG='compression_level=0'";
-    $phpDevIni = __DIR__ . '/php-dev.ini';
-    $command = "$env php -c " . escapeshellarg($phpDevIni) . ' ' . escapeshellarg($script) . ' 2>&1';
+    $escapedXdebugMode = escapeshellarg($xdebugMode);
+    $escapedPhpDevIni = escapeshellarg(__DIR__ . '/php-dev.ini');
+    $escapedScript = escapeshellarg($script);
+    $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG='compression_level=0' php -c $escapedPhpDevIni -d max_execution_time=30 -d memory_limit=256M $escapedScript 2>&1";
 
     /** @psalm-suppress ForbiddenCode */
     $output = shell_exec($command);
