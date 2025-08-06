@@ -37,7 +37,7 @@
           "type": "string",
           "description": "Application-defined context type (e.g., http_request, database_query, business_logic)"
         },
-        "$schema": {
+        "schemaUrl": {
           "type": "string",
           "format": "uri", 
           "description": "URL to application-defined schema for this context type"
@@ -67,7 +67,7 @@
           "type": "string",
           "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
         },
-        "$schema": {
+        "schemaUrl": {
           "type": "string",
           "format": "uri",
           "description": "URL to application-defined schema for this context type"
@@ -102,7 +102,7 @@
             "type": "string", 
             "description": "Application-defined event type (e.g., cache_operation, database_query, external_api)"
           },
-          "$schema": {
+          "schemaUrl": {
             "type": "string",
             "format": "uri",
             "description": "URL to application-defined schema for this event type"

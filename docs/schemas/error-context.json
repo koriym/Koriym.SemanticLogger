@@ -30,7 +30,7 @@
     }
   ],
   "type": "object",
-  "required": ["id", "type", "$schema", "context", "openId"],
+  "required": ["id", "type", "schemaUrl", "context", "openId"],
   "properties": {
     "id": {
       "type": "string",
@@ -42,7 +42,7 @@
       "const": "bear_resource_error",
       "description": "Context type identifier, same as defined in semantic-log.json#/definitions/contextType"
     },
-    "$schema": {
+    "schemaUrl": {
       "type": "string",
       "format": "uri",
       "description": "JSON Schema URL for this context"
