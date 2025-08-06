@@ -12,7 +12,7 @@ final class AuthenticationCompleteContext extends AbstractContext
     public const TYPE = 'authentication_response';
     public const SCHEMA_URL = '../schemas/authentication_response.json';
 
-    public function __construct(public readonly array $authResult) 
+    public function __construct(public readonly array $authResult)
     {
     }
 }

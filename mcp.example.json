@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "semantic-profiler": {
+      "command": "php",
+      "args": [
+        "bin/server.php",
+        "/tmp",
+        "Japanese"
+      ]
+    }
+  }
+}

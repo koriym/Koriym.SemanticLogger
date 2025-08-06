@@ -16,7 +16,7 @@ final class DatabaseQueryContext extends AbstractContext
         public readonly string $operation,
         public readonly string $table,
         public readonly array $conditions,
-        public readonly ?string $sql = null,
+        public readonly string|null $sql = null,
     ) {
     }
 }

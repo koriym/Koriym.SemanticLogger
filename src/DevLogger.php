@@ -7,6 +7,7 @@ namespace Koriym\SemanticLogger;
 use Throwable;
 
 use function date;
+use function error_log;
 use function file_put_contents;
 use function getmypid;
 use function json_encode;

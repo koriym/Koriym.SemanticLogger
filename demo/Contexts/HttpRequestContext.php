@@ -16,7 +16,7 @@ final class HttpRequestContext extends AbstractContext
         public readonly string $method,
         public readonly string $uri,
         public readonly array $headers,
-        public readonly ?array $body = null,
+        public readonly array|null $body = null,
         public readonly string $userAgent = '',
         public readonly string $clientIp = '',
     ) {

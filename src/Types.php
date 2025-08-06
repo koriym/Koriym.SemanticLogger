@@ -8,8 +8,7 @@ namespace Koriym\SemanticLogger;
  * Semantic Logger Domain Types
  *
  * This file contains all type definitions for the semantic logger system.
- * These types ensure type safety while maintaini
- * ng flexibility for dynamic log data.
+ * These types ensure type safety while maintaining flexibility for dynamic log data.
  *
  * Core data types:
  *
@@ -96,13 +95,13 @@ namespace Koriym\SemanticLogger;
  *     error?: McpJsonRpcError
  * }
  * @psalm-type McpJsonRpcRequest = array{
- *     jsonrpc?: string,
- *     method?: string,
+ *     jsonrpc: string,
+ *     method: string,
  *     id?: int|string|null,
  *     params?: array<string, mixed>
  * }
  * @psalm-type McpToolCallParams = array{
- *     name?: string,
+ *     name: string,
  *     arguments?: array<string, mixed>
  * }
  * @psalm-type McpSemanticAnalyzeArgs = array{

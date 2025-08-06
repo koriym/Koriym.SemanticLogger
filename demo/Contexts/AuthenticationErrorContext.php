@@ -12,7 +12,7 @@ final class AuthenticationErrorContext extends AbstractContext
     public const TYPE = 'authentication_error';
     public const SCHEMA_URL = '../schemas/authentication_error.json';
 
-    public function __construct(public readonly array $errorData) 
+    public function __construct(public readonly array $errorData)
     {
     }
 }

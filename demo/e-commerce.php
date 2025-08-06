@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
-use function basename;
 use function memory_get_peak_usage;
 use function memory_get_usage;
 use function microtime;

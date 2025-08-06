@@ -8,6 +8,11 @@ use JsonSchema\Validator;
 use Koriym\SemanticLogger\AuthenticationErrorContext;
 use PHPUnit\Framework\TestCase;
 
+use function count;
+use function file_get_contents;
+use function json_decode;
+use function json_encode;
+
 final class AuthenticationErrorContextTest extends TestCase
 {
     private Validator $validator;
@@ -16,11 +21,11 @@ final class AuthenticationErrorContextTest extends TestCase
     protected function setUp(): void
     {
         $this->validator = new Validator();
-        
+
         $schemaPath = __DIR__ . '/../../demo/schemas/authentication_error.json';
         $schemaContent = file_get_contents($schemaPath);
         $this->assertNotFalse($schemaContent, 'Schema file should exist and be readable');
-        
+
         $this->schema = json_decode($schemaContent);
         $this->assertNotNull($this->schema, 'Schema should be valid JSON');
     }
@@ -38,8 +43,8 @@ final class AuthenticationErrorContextTest extends TestCase
             'userAgent' => 'Mozilla/5.0 (compatible; Test)',
             'additionalInfo' => [
                 'attempts' => 3,
-                'lockoutDuration' => 300
-            ]
+                'lockoutDuration' => 300,
+            ],
         ];
 
         $context = new AuthenticationErrorContext($errorData);
@@ -58,7 +63,7 @@ final class AuthenticationErrorContextTest extends TestCase
             'message' => 'Authentication token has expired',
             'code' => 401,
             'attemptedMethod' => 'JWT',
-            'timestamp' => '2025-08-07T12:00:00Z'
+            'timestamp' => '2025-08-07T12:00:00Z',
         ];
 
         $context = new AuthenticationErrorContext($errorData);
@@ -77,7 +82,7 @@ final class AuthenticationErrorContextTest extends TestCase
             'message' => 'Test message',
             'code' => 401,
             'attemptedMethod' => 'JWT',
-            'timestamp' => '2025-08-07T12:00:00Z'
+            'timestamp' => '2025-08-07T12:00:00Z',
         ];
 
         $context = new AuthenticationErrorContext($errorData);
@@ -87,7 +92,7 @@ final class AuthenticationErrorContextTest extends TestCase
         // Validate against schema
         $this->validator->validate($contextObject, $this->schema);
         $this->assertFalse($this->validator->isValid(), 'Context with invalid errorType should fail validation');
-        
+
         $errors = $this->validator->getErrors();
         $this->assertCount(1, $errors);
         $this->assertStringContainsString('errorType', json_encode($errors[0]));
@@ -100,7 +105,7 @@ final class AuthenticationErrorContextTest extends TestCase
             'message' => 'Test message',
             'code' => 200, // Invalid for authentication error
             'attemptedMethod' => 'JWT',
-            'timestamp' => '2025-08-07T12:00:00Z'
+            'timestamp' => '2025-08-07T12:00:00Z',
         ];
 
         $context = new AuthenticationErrorContext($errorData);
@@ -110,7 +115,7 @@ final class AuthenticationErrorContextTest extends TestCase
         // Validate against schema
         $this->validator->validate($contextObject, $this->schema);
         $this->assertFalse($this->validator->isValid(), 'Context with non-4xx status code should fail validation');
-        
+
         $errors = $this->validator->getErrors();
         $this->assertCount(1, $errors);
         $this->assertStringContainsString('code', json_encode($errors[0]));
@@ -120,7 +125,7 @@ final class AuthenticationErrorContextTest extends TestCase
     {
         $errorData = [
             'errorType' => 'InvalidCredentials',
-            'message' => 'Test message'
+            'message' => 'Test message',
             // Missing required fields: code, attemptedMethod, timestamp
         ];
 
@@ -131,7 +136,7 @@ final class AuthenticationErrorContextTest extends TestCase
         // Validate against schema
         $this->validator->validate($contextObject, $this->schema);
         $this->assertFalse($this->validator->isValid(), 'Context with missing required fields should fail validation');
-        
+
         $errors = $this->validator->getErrors();
         $this->assertGreaterThanOrEqual(3, count($errors), 'Should have errors for missing required fields');
     }

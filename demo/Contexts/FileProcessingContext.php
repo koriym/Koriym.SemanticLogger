@@ -19,7 +19,7 @@ final class FileProcessingContext extends AbstractContext
         public readonly int $fileSize,
         public readonly float $processingTime,
         public readonly bool $success,
-        public readonly ?string $outputPath = null,
+        public readonly string|null $outputPath = null,
     ) {
     }
 }
