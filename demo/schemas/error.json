@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "../schemas/error.json",
+  "title": "Error Context",
+  "description": "Context for error and exception handling",
+  "type": "object",
+  "properties": {
+    "errorType": {
+      "type": "string",
+      "description": "Type of error (e.g., ValidationError, DatabaseError, AuthenticationError)"
+    },
+    "message": {
+      "type": "string",
+      "description": "Error message"
+    },
+    "code": {
+      "type": "integer",
+      "description": "Error code (HTTP status code or application-specific code)"
+    },
+    "file": {
+      "type": "string",
+      "description": "File where the error occurred"
+    },
+    "line": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Line number where the error occurred"
+    },
+    "trace": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Stack trace of the error"
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional context information related to the error"
+    }
+  },
+  "required": ["errorType", "message", "code", "file", "line", "trace"],
+  "additionalProperties": false
+}

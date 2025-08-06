@@ -1,0 +1,22 @@
+Profile Data Schema - Semantic Web Knowledge Graph
+
+This schema defines profiling data as a knowledge graph node, not traditional log entries.
+
+Key Semantic Web Principles:
+
+1. **Raw Data + Specification Links**: Store raw XHProf/Xdebug/PHP data with authoritative specification URLs, enabling AI tools to understand format semantics directly from source documentation.
+
+2. **Self-Contained Knowledge**: Each profile contains complete semantic context - no external dependencies for interpretation. AI can analyze performance patterns without prior training on proprietary formats.
+
+3. **Standards Compliance**: All data structures reference official specifications:
+   - XHProf: Tideways extension documentation  
+   - Xdebug: Official trace format specifications
+   - PHP: debug_backtrace() function reference
+
+4. **Machine Actionable**: JSON Schema + JSON pointer creates machine-readable semantic links. Claude Code can automatically:
+   - Identify performance bottlenecks
+   - Correlate memory usage patterns  
+   - Trace execution flows
+   - Generate optimization recommendations
+
+Generate schemas that preserve this knowledge graph nature - every profiling field should be semantically linked to its authoritative specification for true machine understanding.

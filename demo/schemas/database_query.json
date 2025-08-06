@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "../schemas/database_query.json",
+  "title": "Database Query Context",
+  "description": "Context for complex database query operations",
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": ["SELECT", "INSERT", "UPDATE", "DELETE", "UPSERT"],
+      "description": "SQL operation type"
+    },
+    "table": {
+      "type": "string",
+      "description": "Database table or collection name"
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Query conditions and parameters"
+    },
+    "affectedRows": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of rows affected by the query"
+    },
+    "queryTime": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Query execution time in seconds"
+    },
+    "resultCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of results returned"
+    },
+    "cached": {
+      "type": "boolean",
+      "description": "Whether query result was cached"
+    },
+    "cacheKey": {
+      "type": ["string", "null"],
+      "description": "Cache key used for this query"
+    }
+  },
+  "required": ["operation", "table", "conditions", "affectedRows", "queryTime"],
+  "additionalProperties": false
+}

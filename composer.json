@@ -25,11 +25,15 @@
         "psr-4": {
             "Koriym\\SemanticLogger\\": [
                 "tests",
-                "tests/Fake"
+                "tests/Fake",
+                "demo/Contexts"
             ],
             "Koriym\\SemanticLogger\\Experimental\\": "tests/experimental/"
         }
     },
+    "bin": [
+        "bin/server.php"
+    ],
     "scripts": {
         "bin": "echo 'bin not installed'",
         "test": "phpunit",
@@ -37,7 +41,7 @@
         "phpdbg": "phpdbg -qrr ./vendor/bin/phpunit --coverage-text --coverage-html ./build/coverage --coverage-clover=build/coverage.xml",
         "pcov": "php -dextension=pcov.so -d pcov.enabled=1 ./vendor/bin/phpunit --coverage-text --coverage-html=build/coverage --coverage-clover=build/coverage.xml",
         "cs": "phpcs",
-        "cs-fix": "phpcbf src tests",
+        "cs-fix": "phpcbf src tests demo",
         "phpstan": "phpstan analyse -c phpstan.neon",
         "psalm": "psalm --show-info=false",
         "phpmd": "phpmd text ./phpmd.xml",
@@ -65,6 +69,7 @@
             "@crc",
             "@metrics"
         ],
+        "demo": "php demo/run.php",
         "post-install-cmd": "@composer bin all install --ansi",
         "post-update-cmd": "@composer bin all update --ansi"
     },
@@ -85,7 +90,8 @@
         "metrics": "Build metrics report",
         "crc": "Run composer require checker",
         "tests": "Run tests and quality checks",
-        "build": "Build project"
+        "build": "Build project",
+        "demo": "Run semantic logging demonstration"
     },
     "config": {
         "allow-plugins": {

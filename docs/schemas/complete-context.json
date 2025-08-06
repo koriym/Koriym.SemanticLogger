@@ -1,0 +1,124 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://koriym.github.io/Koriym.SemanticLogger/schemas/complete-context.json",
+  "title": "BEAR.Resource Complete Context",
+  "description": "Schema for successful resource completion context with profiling results",
+  "links": [
+    {
+      "anchor": "#/type",
+      "rel": "describedby",
+      "href": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json#/definitions/contextType",
+      "title": "Context Type Definition"
+    },
+    {
+      "anchor": "#/context/uri",
+      "rel": "describedby",
+      "href": "https://tools.ietf.org/html/rfc3986",
+      "title": "URI Generic Syntax (RFC 3986)"
+    },
+    {
+      "anchor": "#/context/code",
+      "rel": "describedby",
+      "href": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Status",
+      "title": "HTTP Status Codes"
+    },
+    {
+      "anchor": "#/context/headers",
+      "rel": "describedby",
+      "href": "https://tools.ietf.org/html/rfc7231#section-5",
+      "title": "HTTP/1.1 Header Fields (RFC 7231)"
+    },
+    {
+      "anchor": "#/context/view",
+      "rel": "describedby",
+      "href": "https://bearsunday.github.io/BEAR.Resource/docs/resource-renderer",
+      "title": "BEAR.Resource View Rendering"
+    },
+    {
+      "anchor": "#/context/profile",
+      "rel": "describedby",
+      "href": "https://koriym.github.io/Koriym.SemanticLogger/schemas/profile.json",
+      "title": "Profile Data Structure"
+    }
+  ],
+  "type": "object",
+  "required": ["id", "type", "schemaUrl", "context", "openId"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z_]+_[0-9]+$",
+      "description": "Sequential identifier for this context in format {type}_{number}, where number indicates order of appearance for tracking open/close relationships"
+    },
+    "type": {
+      "type": "string",
+      "const": "bear_resource_complete",
+      "description": "Context type identifier, same as defined in semantic-log.json#/definitions/contextType"
+    },
+    "schemaUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "JSON Schema URL for this context"
+    },
+    "context": {
+      "type": "object",
+      "required": ["uri", "code", "headers", "body", "profile"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "description": "Resource URI that was processed"
+        },
+        "code": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599,
+          "description": "HTTP status code"
+        },
+        "headers": {
+          "type": "object",
+          "description": "Response headers",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "body": {
+          "description": "Response body data"
+        },
+        "view": {
+          "type": "string",
+          "description": "Rendered view output"
+        },
+        "profile": {
+          "type": "object",
+          "description": "Profiling data collected at completion",
+          "properties": {
+            "xhprof": {
+              "oneOf": [
+                {"type": "array", "maxItems": 0},
+                {"type": "object"}
+              ]
+            },
+            "xdebug": {
+              "oneOf": [
+                {"type": "array", "maxItems": 0},
+                {"type": "object"}
+              ]
+            },
+            "php": {
+              "type": "object",
+              "properties": {
+                "backtrace": {"type": "array"}
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "openId": {
+      "type": "string",
+      "pattern": "^[a-z_]+_[0-9]+$",
+      "description": "Sequential ID of the corresponding open context in format {type}_{number}, used to correlate open/close pairs"
+    }
+  },
+  "additionalProperties": false
+}

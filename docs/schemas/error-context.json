@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://koriym.github.io/Koriym.SemanticLogger/schemas/error-context.json",
+  "title": "BEAR.Resource Error Context",
+  "description": "Schema for resource error context with profiling data preservation",
+  "links": [
+    {
+      "anchor": "#/type",
+      "rel": "describedby",
+      "href": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json#/definitions/contextType",
+      "title": "Context Type Definition"
+    },
+    {
+      "anchor": "#/context/uri",
+      "rel": "describedby",
+      "href": "https://tools.ietf.org/html/rfc3986",
+      "title": "URI Generic Syntax (RFC 3986)"
+    },
+    {
+      "anchor": "#/context/exceptionAsString",
+      "rel": "describedby",
+      "href": "https://www.php.net/manual/en/exception.tostring.php",
+      "title": "PHP Exception String Format"
+    },
+    {
+      "anchor": "#/context/profile",
+      "rel": "describedby",
+      "href": "https://koriym.github.io/Koriym.SemanticLogger/schemas/profile.json",
+      "title": "Profile Data Structure"
+    }
+  ],
+  "type": "object",
+  "required": ["id", "type", "schemaUrl", "context", "openId"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z_]+_[0-9]+$",
+      "description": "Sequential identifier for this context in format {type}_{number}, where number indicates order of appearance for tracking open/close relationships"
+    },
+    "type": {
+      "type": "string",
+      "const": "bear_resource_error",
+      "description": "Context type identifier, same as defined in semantic-log.json#/definitions/contextType"
+    },
+    "schemaUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "JSON Schema URL for this context"
+    },
+    "context": {
+      "type": "object",
+      "required": ["exceptionId", "exceptionAsString", "profile"],
+      "properties": {
+        "exceptionId": {
+          "type": "string",
+          "description": "Unique identifier for this exception"
+        },
+        "exceptionAsString": {
+          "type": "string",
+          "description": "String representation of the exception including stack trace"
+        },
+        "profile": {
+          "type": "object",
+          "description": "Profiling data collected before error",
+          "properties": {
+            "xhprof": {
+              "oneOf": [
+                {"type": "array", "maxItems": 0},
+                {"type": "object"}
+              ]
+            },
+            "xdebug": {
+              "oneOf": [
+                {"type": "array", "maxItems": 0},
+                {"type": "object"}
+              ]
+            },
+            "php": {
+              "type": "object",
+              "properties": {
+                "backtrace": {"type": "array"}
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "openId": {
+      "type": "string",
+      "pattern": "^[a-z_]+_[0-9]+$",
+      "description": "Sequential ID of the corresponding open context in format {type}_{number}, used to correlate open/close pairs"
+    }
+  },
+  "additionalProperties": false
+}

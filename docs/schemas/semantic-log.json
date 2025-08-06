@@ -1,312 +1,186 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "title": "Semantic Logger Format",
-  "description": "Universal schema for structured logging with complete type safety and semantic meaning. Transforms logging from strings to stories.",
+  "title": "Universal Semantic Logger Schema",
+  "description": "Framework-agnostic semantic logging schema. Context types and their schemas are defined by applications, not by this logging framework",
   "links": [
     {
       "rel": "describedby",
-      "href": "https://github.com/koriym/Koriym.SemanticLogger/blob/1.x/README.md",
-      "title": "Implementation Documentation",
-      "type": "text/markdown"
+      "href": "https://koriym.github.io/Koriym.SemanticLogger/llms-full.txt",
+      "title": "Semantic Logger Structure"
     },
     {
-      "rel": "related",
-      "href": "https://github.com/koriym/Koriym.SemanticLogger/blob/1.x/docs/llms-txt.txt",
-      "title": "Semantic Logging Concepts for AI Systems",
-      "type": "text/plain"
-    },
-    {
-      "rel": "related",
-      "href": "https://github.com/koriym/Koriym.SemanticLogger",
-      "title": "Source Code Repository"
-    },
-    {
-      "rel": "self",
-      "href": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-      "title": "This JSON Schema"
+      "anchor": "#/schemaUrl",
+      "rel": "describedby",
+      "href": "https://tools.ietf.org/html/rfc3986",
+      "title": "URI Generic Syntax (RFC 3986)"
     }
   ],
   "type": "object",
+  "required": ["schemaUrl", "open", "close"],
   "properties": {
-    "$schema": {
+    "schemaUrl": {
       "type": "string",
-      "description": "JSON Schema URI for this log format"
-    },
-    "title": {
-      "type": "string",
-      "description": "Human-readable title of the log session (e.g., 'E-commerce Order Processing', 'User Authentication Flow', 'Database Transaction')"
+      "format": "uri",
+      "description": "URL to the semantic log schema"
     },
     "open": {
-      "$ref": "#/definitions/OpenEntry"
+      "type": "object",
+      "description": "Application-defined open context - type and schema determined by application needs",
+      "required": ["id", "type", "$schema"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/operationId",
+          "description": "Unique identifier for this operation, referenced by corresponding close/event entries via openId"
+        },
+        "type": {
+          "type": "string",
+          "description": "Application-defined context type (e.g., http_request, database_query, business_logic)"
+        },
+        "schemaUrl": {
+          "type": "string",
+          "format": "uri", 
+          "description": "URL to application-defined schema for this context type"
+        },
+        "context": {
+          "type": "object",
+          "description": "Application-specific context data conforming to the referenced schema",
+          "additionalProperties": true
+        },
+        "open": {
+          "$ref": "#/properties/open",
+          "description": "Nested child operation within this operation - enables hierarchical operation tracking"
+        }
+      },
+      "additionalProperties": true
+    },
+    "close": {
+      "type": "object",
+      "description": "Application-defined close context - type and schema determined by application needs",
+      "required": ["id", "type", "$schema", "openId"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/operationId",
+          "description": "Unique identifier for this close operation"
+        },
+        "type": {
+          "type": "string",
+          "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
+        },
+        "schemaUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to application-defined schema for this context type"
+        },
+        "openId": {
+          "$ref": "#/$defs/openIdReference"
+        },
+        "context": {
+          "type": "object",
+          "description": "Application-specific context data conforming to the referenced schema",
+          "additionalProperties": true
+        },
+        "close": {
+          "$ref": "#/properties/close",
+          "description": "Nested child operation completion within this close - enables hierarchical close tracking"
+        }
+      },
+      "additionalProperties": true
     },
     "events": {
       "type": "array",
-      "description": "Array of events that occurred during the session - the plot of the story",
+      "description": "Events that occurred within specific operations - each event's openId indicates the hierarchical scope/position where the event happened. Events are positioned within the operation hierarchy through openId references, enabling precise attribution and scope analysis for performance tracking and debugging",
       "items": {
-        "$ref": "#/definitions/EventEntry"
+        "type": "object",
+        "required": ["id", "type", "$schema", "openId"],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/operationId",
+            "description": "Unique identifier for this event"
+          },
+          "type": {
+            "type": "string", 
+            "description": "Application-defined event type (e.g., cache_operation, database_query, external_api)"
+          },
+          "schemaUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to application-defined schema for this event type"
+          },
+          "openId": {
+            "$ref": "#/$defs/openIdReference"
+          },
+          "context": {
+            "type": "object",
+            "description": "Application-specific event data conforming to the referenced schema",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
       }
-    },
-    "close": {
-      "$ref": "#/definitions/CloseEntry"
     },
     "links": {
       "type": "array",
-      "description": "RFC 8288 compliant links for system transparency and debugging context",
+      "description": "Web Links for semantic relationships - extends JSON Schema with hypermedia concepts for AI understanding. While not part of JSON Schema specification, these links provide semantic context and relationships between log entries, following RFC 8288 Web Linking principles. Enables AI to understand contextual relationships, dependencies, and semantic connections that pure data structure cannot express",
       "items": {
-        "$ref": "#/definitions/LinkRelation"
-      }
+        "type": "object",
+        "properties": {
+          "rel": {
+            "type": "string",
+            "description": "Link relationship type following RFC 8288 Web Linking"
+          },
+          "href": {
+            "type": "string",
+            "format": "uri",
+            "description": "Target URI for the relationship"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable title for the link relationship"
+          },
+          "type": {
+            "type": "string",
+            "description": "Media type hint for the linked resource"
+          }
+        },
+        "required": ["rel", "href"],
+        "additionalProperties": true
+      },
+      "examples": [
+        {
+          "rel": "related",
+          "href": "#/events/0", 
+          "title": "Cache operation within this request"
+        },
+        {
+          "rel": "caused-by",
+          "href": "semantic-log-external-api-failure.json",
+          "title": "External API failure that triggered this error"
+        }
+      ]
     }
   },
-  "required": ["$schema", "open"],
   "additionalProperties": false,
-
-  "definitions": {
-
-    "OpenEntry": {
-      "type": "object",
-      "description": "Session opening - the beginning of the story with complete type safety",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for this operation (e.g., 'process_1', 'user_registration_1')"
-        },
-        "type": {
-          "type": "string",
-          "description": "Type identifier for this session (e.g., 'booking_request', 'user_authentication', 'payment_process')"
-        },
-        "$schema": {
-          "type": "string",
-          "description": "JSON Schema URI that defines the meaning and structure of the context data"
-        },
-        "context": {
-          "type": "object",
-          "description": "Domain-specific context data validated by the referenced schema - this gives meaning to the log"
-        },
-        "open": {
-          "$ref": "#/definitions/OpenEntry",
-          "description": "Nested session for hierarchical logging (e.g., embed, subprocess calls)"
-        }
-      },
-      "required": ["id", "type", "$schema", "context"],
-      "additionalProperties": false
+  "$defs": {
+    "operationId": {
+      "type": "string",
+      "pattern": "^[a-z_]+_[0-9]+$",
+      "description": "Unique operation identifier following semantic naming convention: {type}_{sequence_number}",
+      "examples": ["http_request_1", "database_query_3", "business_logic_2"]
     },
-
-    "EventEntry": {
-      "type": "object",
-      "description": "Individual event within a session - a scene in the story",
-      "properties": {
-        "type": {
-          "type": "string",
-          "description": "Type identifier for this event (e.g., 'sql_query', 'api_call', 'validation_check')"
-        },
-        "$schema": {
-          "type": "string",
-          "description": "JSON Schema URI that defines the meaning and structure of the context data"
-        },
-        "context": {
-          "type": "object",
-          "description": "Domain-specific event data validated by the referenced schema"
-        }
-      },
-      "required": ["type", "$schema", "context"],
-      "additionalProperties": false
+    "openIdReference": {
+      "type": "string",
+      "pattern": "^[a-z_]+_[0-9]+$",
+      "description": "References a parent operation ID for hierarchical correlation - establishes position within operation tree. Creates parent-child relationships enabling complete request flow analysis and performance attribution"
     },
-
-    "CloseEntry": {
-      "type": "object",
-      "description": "Session closing - the end of the story with typed results",
-      "properties": {
-        "type": {
-          "type": "string",
-          "description": "Type identifier for the result (e.g., 'success', 'error', 'accept', 'reject')"
-        },
-        "$schema": {
-          "type": "string",
-          "description": "JSON Schema URI that defines the meaning and structure of the context data"
-        },
-        "context": {
-          "type": "object",
-          "description": "Domain-specific result data validated by the referenced schema"
-        }
-      },
-      "additionalProperties": false
-    },
-
-    "LinkRelation": {
-      "type": "object",
-      "description": "RFC 8288 compliant link relation for resource discovery and debugging context",
-      "properties": {
-        "rel": {
-          "type": "string",
-          "description": "Relation type - either a registered IANA relation type or an extension URI",
-          "anyOf": [
-            {
-              "description": "IANA registered relation types (RFC 8288 Section 2.1.1)",
-              "enum": [
-                "about", "alternate", "appendix", "archives", "author", "bookmark", "canonical", "chapter",
-                "collection", "contents", "copyright", "create-form", "current", "describedby", "describes",
-                "disclosure", "duplicate", "edit", "edit-form", "edit-media", "enclosure", "first", "glossary",
-                "help", "hosts", "hub", "icon", "index", "item", "last", "latest-version", "license", "lrdd",
-                "memento", "monitor", "next", "next-archive", "nofollow", "noreferrer", "original", "payment",
-                "predecessor-version", "prefetch", "prev", "preview", "previous", "prev-archive", "privacy-policy",
-                "profile", "related", "replies", "search", "section", "self", "service", "start", "stylesheet",
-                "subsection", "successor-version", "tag", "terms-of-service", "timegate", "timemap", "type",
-                "up", "version-history", "via", "working-copy", "working-copy-of"
-              ]
-            },
-            {
-              "description": "Extension relation types must be URIs (RFC 8288 Section 2.1.2)",
-              "type": "string",
-              "pattern": "^https?://"
-            },
-            {
-              "description": "Non-standard relation types (not RFC 8288 compliant but commonly used)",
-              "type": "string",
-              "pattern": "^[a-z][a-z0-9\\-]*$"
-            }
-          ]
-        },
-        "href": {
-          "type": "string",
-          "description": "Target URI of the relation"
-        },
-        "title": {
-          "type": "string",
-          "description": "Human-readable title for the relation target"
-        },
-        "type": {
-          "type": "string",
-          "description": "Media type hint for the relation target"
-        }
-      },
-      "required": ["rel", "href"],
-      "additionalProperties": false
+    "contextType": {
+      "type": "string",
+      "description": "Application-defined context type identifier. Applications define their own context types through individual schema files"
     }
   },
-
-  "examples": [
-    {
-      "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-      "title": "Hotel Booking Request Processing",
-      "open": {
-        "type": "booking_request",
-        "$schema": "https://example.com/schemas/booking_request.json",
-        "context": {
-          "hotel_id": "hotel_123",
-          "check_in": "2025-08-01",
-          "check_out": "2025-08-05",
-          "guests": 2
-        }
-      },
-      "events": [
-        {
-          "type": "availability_check",
-          "$schema": "https://example.com/schemas/availability_check.json",
-          "context": {
-            "rooms_available": 3,
-            "check_duration_ms": 50
-          }
-        }
-      ],
-      "close": {
-        "type": "accept",
-        "$schema": "https://example.com/schemas/booking_accept.json",
-        "context": {
-          "booking_id": "BK-2025-001234",
-          "confirmation_code": "ABC123XYZ",
-          "total_amount": 16500
-        }
-      },
-      "links": [
-        {
-          "rel": "self",
-          "href": "https://api.example.com/bookings/BK-2025-001234",
-          "title": "This Booking Resource"
-        },
-        {
-          "rel": "related",
-          "href": "https://github.com/koriym/Koriym.SemanticLogger",
-          "title": "Logging Library Used"
-        },
-        {
-          "rel": "describedby",
-          "href": "https://github.com/example/booking-service/blob/main/docs/api.md",
-          "title": "API Documentation",
-          "type": "text/markdown"
-        },
-        {
-          "rel": "monitor",
-          "href": "https://monitoring.example.com/services/booking-service",
-          "title": "Service Health Dashboard"
-        }
-      ]
-    },
-    {
-      "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-      "title": "Nested API Call with Database Query",
-      "open": {
-        "type": "api_request",
-        "$schema": "https://example.com/schemas/api_request.json",
-        "context": {
-          "endpoint": "/api/users/123",
-          "method": "GET"
-        },
-        "open": {
-          "type": "database_query",
-          "$schema": "https://example.com/schemas/database_query.json",
-          "context": {
-            "query": "SELECT * FROM users WHERE id = ?",
-            "params": [123]
-          }
-        }
-      },
-      "events": [
-        {
-          "type": "cache_miss",
-          "$schema": "https://example.com/schemas/cache_miss.json",
-          "context": {
-            "key": "user_123",
-            "ttl": 3600
-          }
-        }
-      ],
-      "close": {
-        "type": "success",
-        "$schema": "https://example.com/schemas/api_success.json",
-        "context": {
-          "user_id": 123,
-          "response_time_ms": 45
-        }
-      },
-      "links": [
-        {
-          "rel": "self",
-          "href": "https://api.example.com/users/123",
-          "title": "User Resource"
-        },
-        {
-          "rel": "related",
-          "href": "https://github.com/koriym/Koriym.SemanticLogger",
-          "title": "Logging Library"
-        },
-        {
-          "rel": "describedby",
-          "href": "https://github.com/example/user-service/blob/main/docs/database.md",
-          "title": "Database Schema Documentation",
-          "type": "text/markdown"
-        },
-        {
-          "rel": "monitor",
-          "href": "https://monitoring.example.com/services/user-service/performance",
-          "title": "Performance Metrics"
-        },
-        {
-          "rel": "edit",
-          "href": "https://api.example.com/users/123",
-          "title": "Update User Resource"
-        }
-      ]
+  "definitions": {
+    "contextType": {
+      "$ref": "#/$defs/contextType"
     }
-  ]
+  }
 }

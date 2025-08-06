@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "semantic-profiler": {
+      "command": "php",
+      "args": [
+        "vendor/koriym/semantic-logger/bin/server.php",
+        "/tmp",
+        "Japanese"
+      ]
+    }
+  }
+}

@@ -2,6 +2,10 @@
 
 # Exclude build/test files from archive
 /tests            export-ignore
+/demo             export-ignore
+/docs             export-ignore
+/scripts          export-ignore
+/build            export-ignore
 /vendor-bin       export-ignore
 /.editorconfig    export-ignore
 /.gitattributes   export-ignore
@@ -13,6 +17,10 @@
 /phpunit.xml.dist export-ignore
 /psalm.xml        export-ignore
 /composer-require-checker.json  export-ignore
+/mcp-setup-guide.md              export-ignore
+/mcp.example.json                export-ignore
+/mcp.other-project.example.json  export-ignore
+/CLAUDE.md        export-ignore
 
 # Configure diff output for .php and .phar files.
 *.php diff=php

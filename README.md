@@ -2,6 +2,104 @@
 
 Type-safe structured logging with JSON schema validation for hierarchical application workflows.
 
+## AI-Native Analysis with MCP Server
+
+**Realizing Tim Berners-Lee's Semantic Web Vision** - structured data that AI can understand and reason about autonomously.
+
+```bash
+# Install and run MCP server for Claude Code integration
+composer require koriym/semantic-logger
+php vendor/koriym/semantic-logger/bin/server.php /tmp
+```
+
+### AI-Powered Performance Analysis
+
+The included MCP Server provides two powerful tools for AI-native analysis:
+
+**`getSemanticProfile`** - Retrieve latest semantic performance profile with AI-optimized prompts  
+**`semanticAnalyze`** - Execute PHP script with profiling + automatic AI analysis in one command
+
+### MCP Server Configuration
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "semantic-profiler": {
+      "command": "php",
+      "args": [
+        "vendor/koriym/semantic-logger/bin/server.php",
+        "/tmp"
+      ]
+    }
+  }
+}
+```
+
+See [docs/mcp-setup.md](docs/mcp-setup.md) for detailed configuration options.
+
+### Semantic Web Architecture
+
+**Everything is Linked for Machine Understanding:**
+
+1. **JSON Schema URLs** - Every context includes `$schema` for semantic validation
+2. **JSON Pointer Links** - Schema properties include `links` arrays pointing to specifications
+3. **RFC 8288 Relations** - Standard `rel` attributes (describedby, related, canonical) for semantic connections
+4. **AI Interview Process** - Regular AI feedback to minimize non-semantic noise
+
+**Example Schema with Semantic Links:**
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "method": {
+      "type": "string",
+      "enum": ["GET", "POST", "PUT", "DELETE"]
+    }
+  },
+  "links": [
+    {
+      "anchor": "#/properties/method",
+      "rel": "describedby", 
+      "href": "https://tools.ietf.org/html/rfc7231#section-4",
+      "title": "HTTP Methods (RFC 7231)"
+    }
+  ]
+}
+```
+
+**Semantic Web Mindset:**
+- **Everything is machine-readable** - No human-only documentation
+- **Links over comments** - Semantic relationships through URIs, not prose
+- **AI as quality gatekeeper** - Regular AI interviews to identify non-semantic patterns
+- **Schema-first design** - Structure meaning before implementation
+- **Minimize semantic noise** - Every field must have clear semantic purpose
+
+This approach enables AI to autonomously understand system behavior, diagnose issues, and provide architectural insights beyond basic metrics.
+
+### DevLogger for Development
+
+Development logging with AI-native analysis prompt generation:
+
+```php
+use Koriym\SemanticLogger\DevLogger;
+use Koriym\SemanticLogger\SemanticLogger;
+
+// Initialize with log directory (defaults to system temp)
+$devLogger = new DevLogger('/path/to/logs');
+
+// Output semantic logs with AI analysis prompts
+$semanticLogger = new SemanticLogger();
+$devLogger->log($semanticLogger);
+```
+
+Creates two files:
+- `semantic-dev-*.json` - Structured semantic log data
+- `semantic-dev-*-prompt.md` - AI-optimized analysis prompt with embedded JSON
+
+Perfect for development debugging and AI-assisted performance analysis.
+
 ## Self-Proving Responses
 
 Every response becomes self-proving by logging **how** it was generated. When your API returns "restaurant menu list", the semantic log proves **why** those specific items were returned through the complete chain of web API calls, database queries, and business logic.
@@ -120,36 +218,33 @@ echo json_encode($logJson, JSON_PRETTY_PRINT);
 
 ### 3. Output Structure
 
-The semantic structure captures the complete intent→result flow with **openId correlation**:
+The semantic structure captures the complete intent→result flow with **hierarchical nesting**:
 
 ```json
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
   "open": {
-    "id": "process_1",
     "type": "process",
-    "$schema": "https://example.com/schemas/process.json",
+    "schemaUrl": "https://example.com/schemas/process.json",
     "context": {
       "name": "data processing"
-    }
-  },
-  "events": [
-    {
-      "type": "event",
-      "$schema": "https://example.com/schemas/event.json",
-      "context": {
-        "message": "processing started"
-      },
-      "openId": "process_1"
-    }
-  ],
-  "close": {
-    "type": "result",
-    "$schema": "https://example.com/schemas/result.json",
-    "context": {
-      "status": "success"
     },
-    "openId": "process_1"
+    "events": [
+      {
+        "type": "event",
+        "schemaUrl": "https://example.com/schemas/event.json",
+        "context": {
+          "message": "processing started"
+        }
+      }
+    ],
+    "close": {
+      "type": "result",
+      "schemaUrl": "https://example.com/schemas/result.json",
+      "context": {
+        "status": "success"
+      }
+    }
   },
   "relations": [
     {
@@ -167,20 +262,19 @@ The semantic structure captures the complete intent→result flow with **openId 
 ```
 
 **Structure Meaning:**
-- **open**: Intent and planned operations (hierarchical) - each has unique `id`
-- **events**: Occurrences during execution (flat list) - linked via `openId` to their operation context
-- **close**: Actual results and outcomes (matches open hierarchy) - linked via `openId` to corresponding open operation
-- **openId**: Correlation field that links events and close entries to their originating open operation
+- **open**: Intent and planned operations with nested events and close results (hierarchical structure)
+- **events**: Occurrences during execution (nested within their operation context)
+- **close**: Actual results and outcomes (nested within the corresponding open operation)
 - **schemaUrl**: JSON Schema URL for validation and documentation
 - **relations**: Optional RFC 8288 compliant links (related resources, schemas, etc.)
 
-**OpenId Correlation Benefits:**
-- **Request Tracing**: Identify which events belong to which operation in nested workflows
-- **Debugging**: Trace the flow from intent (open) → events → result (close)
+**Hierarchical Nesting Benefits:**
+- **Request Tracing**: Clear operation boundaries through nested structure in complex workflows
+- **Debugging**: Trace the flow from intent (open) → events → result (close) within each operation context
 - **Monitoring**: Track operation completion and identify unclosed operations
 - **Compliance**: Maintain audit trails with clear operation boundaries
 
 ## Documentation
 
-📖 **[Schema Documentation](docs/schemas/README.md)** - JSON Schema validation and RFC 8288 link relations
+**[Schema Portal](https://koriym.github.io/Koriym.SemanticLogger/)** - AI-native semantic schema portal with comprehensive documentation
 
