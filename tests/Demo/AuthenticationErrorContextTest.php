@@ -8,8 +8,10 @@ use JsonSchema\Validator;
 use Koriym\SemanticLogger\AuthenticationErrorContext;
 use PHPUnit\Framework\TestCase;
 
+use function assert;
 use function dirname;
 use function file_get_contents;
+use function is_string;
 use function json_decode;
 use function json_encode;
 

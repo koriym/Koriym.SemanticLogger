@@ -121,6 +121,22 @@ while ($line = fgets(STDIN)) {
     if (! is_array($request) || 
         ! isset($request['jsonrpc'], $request['method']) || 
         ! array_key_exists('id', $request)) {
+        // Log the malformed request
+        fwrite(STDERR, "Malformed JSON-RPC request: " . trim($line) . "\n");
+
+        // Prepare JSON-RPC error response
+        $errorResponse = [
+            'jsonrpc' => '2.0',
+            'error' => [
+                'code' => -32600,
+                'message' => 'Invalid Request',
+            ],
+            'id' => is_array($request) && array_key_exists('id', $request) ? $request['id'] : null,
+        ];
+        $encodedError = json_encode($errorResponse);
+        if ($encodedError !== false) {
+            fwrite(STDOUT, $encodedError . "\n");
+        }
         continue;
     }
 
@@ -130,7 +146,7 @@ while ($line = fgets(STDIN)) {
     /** @var McpToolCallParams $toolCallParams */
     $toolCallParams = is_array($params) ? $params : [];
     
-    /** @var McpJsonRpcResponse $response */
+    /** @var McpJsonRpcResponse|null $response */
     $response = match ($request['method'] ?? '') {
         'initialize' => [
             'jsonrpc' => '2.0',
@@ -183,21 +199,33 @@ while ($line = fgets(STDIN)) {
             'id' => $request['id'],
             'result' => handleToolCall($toolCallParams, $logFile),
         ],
-        default => [
-            'jsonrpc' => '2.0',
-            'id' => $request['id'] ?? null,
-            'error' => ['code' => -32601, 'message' => 'Method not found'],
-        ]
+        default => (
+            // If 'id' is not set or is null, it's a notification: do not return an error response
+            (!array_key_exists('id', $request) || $request['id'] === null)
+                ? null
+                : [
+                    'jsonrpc' => '2.0',
+                    'id' => $request['id'],
+                    'error' => [
+                        'code' => -32601,
+                        'message' => 'Method not found',
+                    ],
+                ]
+        )
     };
+
+    // Don't send response for notifications (null responses)
+    if ($response === null) {
+        continue;
+    }
 
     $encoded = json_encode($response);
     if ($encoded === false) {
         $jsonError = json_last_error_msg();
         fwrite(STDERR, "json_encode failed: $jsonError\n");
-        return;
+    } else {
+        fwrite(STDOUT, $encoded . "\n");
     }
-    
-    fwrite(STDOUT, $encoded . "\n");
 }
 
 /**
@@ -268,7 +296,10 @@ function handleToolCall(array $params, string $logFile): array
 function semanticAnalyze(array $args): array
 {
     $script = $args['script'] ?? '';
-    $xdebugMode = $args['xdebug_mode'] ?? 'trace';
+    // Validate and sanitize xdebug mode to prevent command injection
+    $allowedModes = ['trace', 'profile', 'debug', 'develop', 'gcstats', 'off'];
+    $requestedMode = $args['xdebug_mode'] ?? 'trace';
+    $xdebugMode = in_array($requestedMode, $allowedModes, true) ? $requestedMode : 'trace';
 
     if (! $script) {
         return [
@@ -298,10 +329,12 @@ function semanticAnalyze(array $args): array
     $beforeExecution = time();
 
     // Execute the PHP script with profiling using php-dev.ini
+    // All variables are validated and properly escaped to prevent command injection
     $escapedXdebugMode = escapeshellarg($xdebugMode);
     $escapedPhpDevIni = escapeshellarg(__DIR__ . '/php-dev.ini');
     $escapedScript = escapeshellarg($script);
-    $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG='compression_level=0' php -c $escapedPhpDevIni -d max_execution_time=30 -d memory_limit=256M $escapedScript 2>&1";
+    $escapedXdebugConfig = escapeshellarg('compression_level=0');
+    $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG=$escapedXdebugConfig php -c $escapedPhpDevIni -d max_execution_time=30 -d memory_limit=256M $escapedScript 2>&1";
 
     /** @psalm-suppress ForbiddenCode */
     $output = shell_exec($command);
