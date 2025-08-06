@@ -84,11 +84,13 @@ Development logging with AI-native analysis prompt generation:
 
 ```php
 use Koriym\SemanticLogger\DevLogger;
+use Koriym\SemanticLogger\SemanticLogger;
 
 // Initialize with log directory (defaults to system temp)
 $devLogger = new DevLogger('/path/to/logs');
 
 // Output semantic logs with AI analysis prompts
+$semanticLogger = new SemanticLogger();
 $devLogger->log($semanticLogger);
 ```
 
