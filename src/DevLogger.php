@@ -46,9 +46,9 @@ final class DevLogger
         try {
             $logData = $logger->flush();
             $this->saveToFile($logData);
-        } catch (Throwable) {
-            // Silent failure - don't break main processing
-            // In development, log persistence should never affect application flow
+        } catch (Throwable $e) {
+            // Log the error for debugging while preserving application flow
+            error_log('DevLogger: Failed to write semantic log - ' . $e->getMessage());
         }
     }
 
