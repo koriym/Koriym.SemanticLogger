@@ -347,6 +347,83 @@ class AppModule extends AbstractModule
 }
 ```
 
+## Why Hierarchical Semantic Logging Exists
+
+### What is Hierarchical vs Flat Logging?
+
+**Flat Logging (Traditional)**:
+```
+[INFO] Started order processing
+[INFO] Validating payment method  
+[INFO] Calling Stripe API
+[INFO] Payment completed
+[INFO] Order processing finished
+```
+
+**Hierarchical Semantic Logging**:
+```json
+{
+  "open": {"id": "order_1", "type": "order_processing"},
+  "open": {"id": "payment_1", "type": "payment_validation", "openId": "order_1"},  
+  "open": {"id": "stripe_1", "type": "external_api", "openId": "payment_1"}
+}
+```
+
+### The Critical Difference
+**Flat**: Events appear independent → AI cannot determine relationships
+**Hierarchical**: Events explicitly show parent-child relationships → AI understands causality
+
+### Why This Structure Matches Reality
+Real systems work hierarchically:
+1. **Function call stack**: main() calls processOrder() calls validatePayment()  
+2. **Time attribution**: Payment validation time is part of order processing time
+3. **Error propagation**: Stripe failure causes payment failure causes order failure
+
+### The AI Analysis Impact
+With hierarchy, AI can answer:
+- "Why did order processing take 680ms?" → Because payment took 520ms
+- "What should I optimize first?" → The 247ms Stripe call within payment processing
+- "If I fix Stripe, what improves?" → Payment processing AND order processing
+
+**Without hierarchy**: AI sees disconnected events, cannot trace causality, cannot prioritize optimizations effectively.
+
+### The Fundamental Problem Hierarchical Logging Solves
+Traditional flat logging forces hierarchical reality into linear sequences, losing:
+- **Causal relationships**: What operation caused what result?
+- **Contextual scope**: Which operations contain which operations?  
+- **Problem attribution**: Does the 200ms belong to the parent or child process?
+- **Performance correlation**: How do nested operation times contribute to total time?
+
+**Therefore**: Hierarchical semantic logging doesn't impose artificial structure - it reveals and preserves the natural hierarchical structure that already exists in how systems actually work and how problems actually occur.
+
+## Semantic Logger Design Principles
+
+### Core Design Philosophy
+
+The Semantic Logger framework is built on these fundamental principles:
+
+**Application Autonomy**: Applications define their own context types and corresponding schemas. The framework provides structure, but applications control semantics. No predefined context types are imposed.
+
+**Framework Agnostic**: This logging system works with any application framework. It provides structural patterns (open/close/events) while letting applications define their own business contexts.
+
+**Extensibility**: New context types can be added without framework changes. The schema system scales to any domain or application type through application-defined schemas.
+
+**Hierarchical Correlation**: Operations are linked through `openId` references to preserve natural request flow structure. This reflects how systems actually work - through nested, related operations.
+
+**Semantic Enrichment**: Web Links provide contextual relationships beyond pure data structure, following RFC 8288 Web Linking principles to enable AI understanding of relationships that data alone cannot express.
+
+**Reality Reflection**: The schema structure mirrors how systems actually work - hierarchically and contextually. It doesn't impose artificial constraints but captures the natural organization of software operations.
+
+### Why These Principles Matter
+
+These principles ensure that:
+- **AI analysis** can understand any application domain without framework-specific knowledge
+- **Performance debugging** follows natural system boundaries rather than arbitrary log categories  
+- **Error tracking** preserves causal relationships that exist in real system execution
+- **Scalability** works across different programming languages, frameworks, and application types
+
+The framework succeeds when it becomes invisible - when the logged structure naturally matches how developers think about their systems.
+
 ## Semantic Logging Integration
 
 BEAR.Resource includes comprehensive semantic logging for observability:
@@ -363,6 +440,103 @@ BEAR.Resource includes comprehensive semantic logging for observability:
 - **Xdebug**: Detailed function call tracing
 - Automatic profile file generation and linking
 
+### OpenId: Hierarchical Operation Correlation System
+
+**Critical Concept**: The `openId` field is SemanticLogger's core mechanism for linking operations across the open/event/close lifecycle and establishing hierarchical relationships between nested operations.
+
+#### OpenId Correlation Pattern
+Every `close` and `event` entry contains an `openId` field that references the `id` of its corresponding `open` entry:
+
+```json
+{
+    "open": {
+        "id": "http_request_1",              // ← This ID
+        "type": "http_request",
+        "context": {...}
+    },
+    "close": {
+        "id": "http_response_1",
+        "type": "http_response", 
+        "openId": "http_request_1",          // ← Links to above open ID
+        "context": {...}
+    },
+    "events": [
+        {
+            "id": "cache_operation_1",
+            "type": "cache_operation",
+            "openId": "http_request_1",      // ← Also links to same open ID
+            "context": {...}
+        }
+    ]
+}
+```
+
+#### Hierarchical Nesting with OpenId
+In nested operations, `openId` creates parent-child relationships enabling complete request flow analysis:
+
+```json
+{
+    "open": {
+        "id": "http_request_1",              // Top-level operation
+        "type": "http_request",
+        "open": {                            // Nested operation
+            "id": "database_query_1",        // Child operation
+            "type": "database_query",
+            "open": {                        // Deeply nested
+                "id": "cache_check_1",
+                "type": "cache_operation"
+            }
+        }
+    },
+    "close": {
+        "id": "cache_result_1",
+        "openId": "cache_check_1",           // Links to deepest nested operation
+        "close": {
+            "id": "query_result_1", 
+            "openId": "database_query_1",    // Links to middle operation
+            "close": {
+                "id": "http_response_1",
+                "openId": "http_request_1"   // Links to top-level operation
+            }
+        }
+    }
+}
+```
+
+#### OpenId Business Logic Rules
+
+1. **Correlation Identity**: Every `openId` MUST reference an existing `id` from an `open` entry
+2. **Hierarchical Integrity**: Child operations close before their parent operations
+3. **Scope Binding**: Events and closes are scoped to their `openId` operation
+4. **Performance Attribution**: Nested operations contribute to their parent's total execution time
+
+#### AI Analysis Guidelines for OpenId
+
+**DO:**
+- Trace complete request flows by following `openId` chains
+- Calculate hierarchical performance metrics (child time contributes to parent)
+- Identify operation scope and context through `openId` relationships
+- Use `openId` to group related events and understand business logic flow
+
+**DON'T:**
+- Treat operations with different `openId` values as unrelated
+- Ignore the hierarchical structure when calculating performance impact
+- Assume events belong to the top-level operation without checking `openId`
+
+#### OpenId Performance Analysis Example
+
+```
+http_request_1 (Total: 676ms)
+├── authentication_request_1 (15ms) ← openId: http_request_1  
+├── business_logic_1 (520ms) ← openId: http_request_1
+│   ├── database_query_1 (45ms) ← openId: business_logic_1
+│   ├── external_api_1 (247ms) ← openId: business_logic_1  
+│   └── file_processing_1 (118ms) ← openId: business_logic_1
+└── cache_operation_1 (3ms) ← openId: http_request_1
+```
+
+This hierarchical structure enables precise bottleneck identification: external_api_1 consumed 247ms of the business_logic_1's 520ms, which itself consumed 520ms of http_request_1's total 676ms.
+
 ### Structured Log Output
 ```json
 {
@@ -378,6 +552,7 @@ BEAR.Resource includes comprehensive semantic logging for observability:
     "close": {
         "id": "bear_resource_complete_1", 
         "type": "bear_resource_complete",
+        "openId": "bear_resource_request_1",  // ← Explicit correlation
         "context": {
             "code": 200,
             "body": {"id": 123, "name": "John"},

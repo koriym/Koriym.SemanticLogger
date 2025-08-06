@@ -1,14 +1,9 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "title": "BEAR.Resource Semantic Log",
-  "description": "Schema for BEAR.Resource semantic logging - structured performance profiling data designed for AI understanding",
+  "title": "Universal Semantic Logger Schema",
+  "description": "Framework-agnostic semantic logging schema. Context types and their schemas are defined by applications, not by this logging framework",
   "links": [
-    {
-      "rel": "describedby",
-      "href": "https://bearsunday.github.io/BEAR.Resource/llms-full.txt",
-      "title": "BEAR.Resource Framework"
-    },
     {
       "rel": "describedby",
       "href": "https://koriym.github.io/Koriym.SemanticLogger/llms-full.txt",
@@ -30,41 +25,162 @@
       "description": "URL to the semantic log schema"
     },
     "open": {
-      "$ref": "https://koriym.github.io/Koriym.SemanticLogger/schemas/open-context.json",
-      "description": "Resource request initiation context with profiling start"
+      "type": "object",
+      "description": "Application-defined open context - type and schema determined by application needs",
+      "required": ["id", "type", "$schema"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/operationId",
+          "description": "Unique identifier for this operation, referenced by corresponding close/event entries via openId"
+        },
+        "type": {
+          "type": "string",
+          "description": "Application-defined context type (e.g., http_request, database_query, business_logic)"
+        },
+        "$schema": {
+          "type": "string",
+          "format": "uri", 
+          "description": "URL to application-defined schema for this context type"
+        },
+        "context": {
+          "type": "object",
+          "description": "Application-specific context data conforming to the referenced schema",
+          "additionalProperties": true
+        },
+        "open": {
+          "$ref": "#/properties/open",
+          "description": "Nested child operation within this operation - enables hierarchical operation tracking"
+        }
+      },
+      "additionalProperties": true
     },
     "close": {
-      "oneOf": [
-        {
-          "$ref": "https://koriym.github.io/Koriym.SemanticLogger/schemas/complete-context.json"
+      "type": "object",
+      "description": "Application-defined close context - type and schema determined by application needs",
+      "required": ["id", "type", "$schema", "openId"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/operationId",
+          "description": "Unique identifier for this close operation"
         },
-        {
-          "$ref": "https://koriym.github.io/Koriym.SemanticLogger/schemas/error-context.json"
+        "type": {
+          "type": "string",
+          "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
+        },
+        "$schema": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL to application-defined schema for this context type"
+        },
+        "openId": {
+          "$ref": "#/$defs/openIdReference"
+        },
+        "context": {
+          "type": "object",
+          "description": "Application-specific context data conforming to the referenced schema",
+          "additionalProperties": true
+        },
+        "close": {
+          "$ref": "#/properties/close",
+          "description": "Nested child operation completion within this close - enables hierarchical close tracking"
         }
-      ],
-      "description": "Resource completion or error context with profiling results"
+      },
+      "additionalProperties": true
     },
     "events": {
       "type": "array",
-      "description": "Additional events during resource processing",
+      "description": "Events that occurred within specific operations - each event's openId indicates the hierarchical scope/position where the event happened. Events are positioned within the operation hierarchy through openId references, enabling precise attribution and scope analysis for performance tracking and debugging",
       "items": {
-        "type": "object"
+        "type": "object",
+        "required": ["id", "type", "$schema", "openId"],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/operationId",
+            "description": "Unique identifier for this event"
+          },
+          "type": {
+            "type": "string", 
+            "description": "Application-defined event type (e.g., cache_operation, database_query, external_api)"
+          },
+          "$schema": {
+            "type": "string",
+            "format": "uri",
+            "description": "URL to application-defined schema for this event type"
+          },
+          "openId": {
+            "$ref": "#/$defs/openIdReference"
+          },
+          "context": {
+            "type": "object",
+            "description": "Application-specific event data conforming to the referenced schema",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
       }
     },
     "links": {
       "type": "array",
-      "description": "HAL-style links for semantic relationships",
+      "description": "Web Links for semantic relationships - extends JSON Schema with hypermedia concepts for AI understanding. While not part of JSON Schema specification, these links provide semantic context and relationships between log entries, following RFC 8288 Web Linking principles. Enables AI to understand contextual relationships, dependencies, and semantic connections that pure data structure cannot express",
       "items": {
-        "type": "object"
-      }
+        "type": "object",
+        "properties": {
+          "rel": {
+            "type": "string",
+            "description": "Link relationship type following RFC 8288 Web Linking"
+          },
+          "href": {
+            "type": "string",
+            "format": "uri",
+            "description": "Target URI for the relationship"
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable title for the link relationship"
+          },
+          "type": {
+            "type": "string",
+            "description": "Media type hint for the linked resource"
+          }
+        },
+        "required": ["rel", "href"],
+        "additionalProperties": true
+      },
+      "examples": [
+        {
+          "rel": "related",
+          "href": "#/events/0", 
+          "title": "Cache operation within this request"
+        },
+        {
+          "rel": "caused-by",
+          "href": "semantic-log-external-api-failure.json",
+          "title": "External API failure that triggered this error"
+        }
+      ]
     }
   },
   "additionalProperties": false,
-  "definitions": {
+  "$defs": {
+    "operationId": {
+      "type": "string",
+      "pattern": "^[a-z_]+_[0-9]+$",
+      "description": "Unique operation identifier following semantic naming convention: {type}_{sequence_number}",
+      "examples": ["http_request_1", "database_query_3", "business_logic_2"]
+    },
+    "openIdReference": {
+      "type": "string",
+      "pattern": "^[a-z_]+_[0-9]+$",
+      "description": "References a parent operation ID for hierarchical correlation - establishes position within operation tree. Creates parent-child relationships enabling complete request flow analysis and performance attribution"
+    },
     "contextType": {
       "type": "string",
-      "enum": ["bear_resource_request", "bear_resource_complete", "bear_resource_error"],
-      "description": "Context type identifier for semantic log entries. Each type is defined by its corresponding schema: open-context.json for bear_resource_request, complete-context.json for bear_resource_complete, and error-context.json for bear_resource_error"
+      "description": "Application-defined context type identifier. Applications define their own context types through individual schema files"
+    }
+  },
+  "definitions": {
+    "contextType": {
+      "$ref": "#/$defs/contextType"
     }
   }
 }
