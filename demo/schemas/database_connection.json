@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "../schemas/database_connection.json",
+  "title": "Database Connection Context",
+  "description": "Context for database connection operations",
+  "type": "object",
+  "properties": {
+    "driver": {
+      "type": "string",
+      "enum": ["mysql", "postgresql", "sqlite", "mongodb", "redis"],
+      "description": "Database driver type"
+    },
+    "host": {
+      "type": "string",
+      "description": "Database host address"
+    },
+    "database": {
+      "type": "string",
+      "description": "Database name"
+    },
+    "connectionTime": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Connection establishment time in seconds"
+    },
+    "pooled": {
+      "type": "boolean",
+      "description": "Whether connection pooling is used"
+    }
+  },
+  "required": ["driver", "host", "database", "connectionTime"],
+  "additionalProperties": false
+}

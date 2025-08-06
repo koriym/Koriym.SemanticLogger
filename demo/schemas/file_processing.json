@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "../schemas/file_processing.json",
+  "title": "File Processing Context",
+  "description": "Context for file processing operations",
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": ["upload", "download", "convert", "pdf_generation", "image_resize", "compress"],
+      "description": "File processing operation type"
+    },
+    "filename": {
+      "type": "string",
+      "description": "Name of the processed file"
+    },
+    "mimeType": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9!#$&\\-\\^_]*\\/[a-zA-Z0-9][a-zA-Z0-9!#$&\\-\\^_.]*$",
+      "description": "MIME type of the file"
+    },
+    "fileSize": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "File size in bytes"
+    },
+    "processingTime": {
+      "type": "number",
+      "minimum": 0,
+      "description": "File processing time in seconds"
+    },
+    "success": {
+      "type": "boolean",
+      "description": "Whether file processing was successful"
+    },
+    "outputPath": {
+      "type": ["string", "null"],
+      "description": "Path to the processed output file"
+    }
+  },
+  "required": ["operation", "filename", "mimeType", "fileSize", "processingTime", "success"],
+  "additionalProperties": false
+}

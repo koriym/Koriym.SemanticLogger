@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "../schemas/performance_metrics.json",
+  "title": "Performance Metrics Context",
+  "description": "Context for performance metrics and monitoring",
+  "type": "object",
+  "properties": {
+    "executionTime": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total execution time in seconds"
+    },
+    "memoryUsed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Memory used in bytes"
+    },
+    "peakMemory": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Peak memory usage in bytes"
+    },
+    "databaseQueries": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of database queries executed"
+    },
+    "httpRequests": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of HTTP requests made"
+    },
+    "cacheHits": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of cache hits"
+    },
+    "cacheMisses": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of cache misses"
+    },
+    "functionCalls": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "time": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": ["calls", "time"]
+      },
+      "description": "Function call statistics"
+    }
+  },
+  "required": ["executionTime", "memoryUsed", "peakMemory", "databaseQueries", "httpRequests", "cacheHits", "cacheMisses", "functionCalls"],
+  "additionalProperties": false
+}

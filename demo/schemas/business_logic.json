@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "../schemas/business_logic.json",
+  "title": "Business Logic Context",
+  "description": "Context for core business logic operations with semantic meaning",
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": [
+        "order_validation",
+        "inventory_check", 
+        "payment_processing",
+        "user_authentication",
+        "pricing_calculation",
+        "shipping_validation",
+        "tax_calculation"
+      ],
+      "description": "Standardized business operation types",
+      "semanticMeaning": {
+        "order_validation": "Complete order validation workflow including customer verification, inventory availability, payment authorization, and shipping calculation",
+        "inventory_check": "Product availability and stock level verification",
+        "payment_processing": "Financial transaction processing and authorization",
+        "user_authentication": "User identity verification and authorization",
+        "pricing_calculation": "Dynamic pricing, discounts, and tax calculation",
+        "shipping_validation": "Delivery address validation and shipping cost calculation"
+      }
+    },
+    "inputData": {
+      "type": "object",
+      "description": "Input parameters for the business operation",
+      "properties": {
+        "customerId": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Unique customer identifier"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^P\\d+$",
+            "description": "Product ID in format P{number}"
+          },
+          "description": "List of product identifiers being processed"
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total amount in cents (smallest currency unit)",
+          "unit": "cents",
+          "currencyNote": "All monetary values should be in smallest currency unit (e.g., cents for USD, pence for GBP)"
+        }
+      },
+      "additionalProperties": true
+    },
+    "outputData": {
+      "type": "object",
+      "description": "Results produced by the business operation",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "pattern": "^ORD_[A-Z0-9]+$",
+          "description": "Generated order identifier in format ORD_{alphanumeric}"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["confirmed", "pending", "failed", "cancelled"],
+          "description": "Final status of the business operation"
+        },
+        "processingSteps": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Detailed log of each processing step with human-readable descriptions"
+        }
+      },
+      "additionalProperties": true
+    },
+    "validationRules": {
+      "type": "object",
+      "properties": {
+        "customer_exists": {
+          "type": "boolean",
+          "description": "Customer record found and active in database"
+        },
+        "items_available": {
+          "type": "boolean", 
+          "description": "All requested items have sufficient inventory"
+        },
+        "payment_valid": {
+          "type": "boolean",
+          "description": "Payment method authorized and funds available"
+        },
+        "shipping_valid": {
+          "type": "boolean",
+          "description": "Delivery address serviceable and shipping cost calculated"
+        }
+      },
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "description": "Individual validation checks with clear business meanings",
+      "businessRules": {
+        "allMustPass": "All validation rules must be true for success to be true",
+        "relationship": "success field should be false during processing and true only when all steps complete successfully"
+      }
+    },
+    "success": {
+      "type": "boolean",
+      "description": "Business operation completion status",
+      "semanticMeaning": {
+        "true": "All validation rules passed AND all processing steps completed successfully",
+        "false": "Either validation failed OR processing is still in progress OR errors occurred during processing"
+      }
+    }
+  },
+  "required": ["operation", "inputData", "outputData", "validationRules", "success"],
+  "additionalProperties": false,
+  "businessLogicRules": {
+    "openClosePattern": {
+      "open": "Captures initial validation state with empty outputData and success=false",
+      "close": "Captures final results with populated outputData and success reflecting actual completion status"
+    },
+    "monetaryValues": "All monetary amounts must be in smallest currency unit (cents) for precision",
+    "identifierFormats": "Product IDs: P{number}, Order IDs: ORD_{alphanumeric}, Customer IDs: integer"
+  }
+}

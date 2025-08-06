@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://koriym.github.io/Koriym.SemanticLogger/schemas/http_request.json",
+  "title": "HTTP Request Context",
+  "description": "Context for HTTP request operations in e-commerce applications",
+  "type": "object",
+  "properties": {
+    "method": {
+      "type": "string",
+      "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"],
+      "description": "HTTP request method"
+    },
+    "uri": {
+      "type": "string",
+      "format": "uri-reference",
+      "description": "Request URI path"
+    },
+    "headers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "HTTP request headers"
+    },
+    "body": {
+      "type": ["object", "null"],
+      "description": "Request body data (optional)"
+    },
+    "userAgent": {
+      "type": "string",
+      "description": "Client user agent string"
+    },
+    "clientIp": {
+      "type": "string",
+      "format": "ipv4",
+      "description": "Client IP address"
+    }
+  },
+  "required": ["method", "uri", "headers"],
+  "additionalProperties": false
+}

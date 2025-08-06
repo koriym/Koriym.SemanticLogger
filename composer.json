@@ -68,6 +68,7 @@
             "@crc",
             "@metrics"
         ],
+        "demo": "php demo/run.php",
         "post-install-cmd": "@composer bin all install --ansi",
         "post-update-cmd": "@composer bin all update --ansi"
     },
@@ -88,7 +89,8 @@
         "metrics": "Build metrics report",
         "crc": "Run composer require checker",
         "tests": "Run tests and quality checks",
-        "build": "Build project"
+        "build": "Build project",
+        "demo": "Run semantic logging demonstration"
     },
     "config": {
         "allow-plugins": {

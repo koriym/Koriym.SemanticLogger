@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "../schemas/http_response.json",
+  "title": "HTTP Response Context",
+  "description": "Context for HTTP response operations",
+  "type": "object",
+  "properties": {
+    "statusCode": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599,
+      "description": "HTTP response status code"
+    },
+    "headers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "HTTP response headers"
+    },
+    "contentLength": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Response content length in bytes"
+    },
+    "contentType": {
+      "type": "string",
+      "description": "Response content type"
+    },
+    "responseTime": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total response time in seconds"
+    },
+    "cached": {
+      "type": "boolean",
+      "description": "Whether the response was served from cache"
+    }
+  },
+  "required": ["statusCode", "headers", "contentLength", "contentType", "responseTime"],
+  "additionalProperties": false
+}

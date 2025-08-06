@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "../schemas/cache_operation.json",
+  "title": "Cache Operation Context with Semantic Key Patterns",
+  "description": "Context for caching operations with standardized key naming conventions",
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": ["get", "set", "delete", "flush", "exists", "increment"],
+      "description": "Type of cache operation performed",
+      "semanticMeaning": {
+        "get": "Retrieve value from cache (hit=true means found, hit=false means cache miss)",
+        "set": "Store value in cache (hit=true means successful storage)",
+        "delete": "Remove value from cache (hit=true means key existed and was deleted)",
+        "flush": "Remove all values from cache or cache namespace",
+        "exists": "Check if key exists without retrieving value",
+        "increment": "Atomic increment operation on numeric cache value"
+      }
+    },
+    "key": {
+      "type": "string",
+      "description": "Cache key following standardized naming conventions",
+      "pattern": "^[a-z][a-z0-9_]*[a-z0-9]$",
+      "keyNamingConventions": {
+        "userSessions": "user_session_{userId}",
+        "jwtBlacklist": "jwt_blacklist_check",
+        "customerData": "customer_{customerId}",
+        "orderSummary": "order_summary_{customerId}",
+        "inventoryLevel": "inventory_{productId}",
+        "apiRateLimit": "rate_limit_{clientIp}_{endpoint}",
+        "temporaryLock": "lock_{resourceType}_{resourceId}"
+      },
+      "examples": [
+        "jwt_blacklist_check",
+        "order_summary_12345",
+        "customer_67890",
+        "inventory_P001",
+        "rate_limit_192.168.1.100_api_orders"
+      ]
+    },
+    "hit": {
+      "type": "boolean",
+      "description": "Operation success indicator",
+      "semanticMeaning": {
+        "get": {
+          "true": "Cache hit - requested data found in cache",
+          "false": "Cache miss - requested data not in cache, likely fetched from primary data source"
+        },
+        "set": {
+          "true": "Value successfully stored in cache",
+          "false": "Cache storage failed - memory full, key invalid, or cache unavailable"
+        },
+        "delete": {
+          "true": "Key existed and was successfully removed",
+          "false": "Key did not exist or removal failed"
+        }
+      }
+    },
+    "duration": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Cache operation duration in seconds",
+      "unit": "seconds",
+      "performanceGuidelines": {
+        "excellent": "< 0.001s (< 1ms)",
+        "good": "0.001s - 0.01s (1-10ms)",
+        "acceptable": "0.01s - 0.1s (10-100ms)",
+        "slow": "0.1s - 1.0s",
+        "critical": "> 1.0s (indicates cache performance issue)"
+      }
+    },
+    "ttl": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Time to live in seconds (0 means no expiration)",
+      "unit": "seconds",
+      "commonTtlPatterns": {
+        "session": 3600,
+        "shortTerm": 300,
+        "mediumTerm": 1800,
+        "longTerm": 86400,
+        "permanent": 0
+      },
+      "businessMeaning": {
+        "3600": "1 hour - typical for user sessions and JWT blacklist checks",
+        "1800": "30 minutes - order summaries and temporary user data", 
+        "300": "5 minutes - frequently changing data like inventory levels",
+        "86400": "24 hours - relatively stable data like user preferences",
+        "0": "No expiration - permanent cache until explicitly deleted"
+      }
+    },
+    "size": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Size of cached data in bytes",
+      "unit": "bytes",
+      "sizeGuidelines": {
+        "small": "< 1KB - IDs, flags, counters",
+        "medium": "1KB - 10KB - user data, small objects",
+        "large": "10KB - 100KB - detailed records, small documents",
+        "veryLarge": "> 100KB - may indicate cache misuse, consider compression or splitting"
+      }
+    }
+  },
+  "required": ["operation", "key", "hit", "duration"],
+  "additionalProperties": false,
+  "businessLogicRules": {
+    "cacheHitRatio": "Track hit ratio for performance analysis - low ratios indicate ineffective caching strategy",
+    "keyExpiration": "TTL values should align with data volatility - frequently changing data needs shorter TTL",
+    "sizeOptimization": "Large cached values (>10KB) should be reviewed for compression or restructuring opportunities",
+    "keyNaming": "Consistent key naming enables easier cache analysis and debugging"
+  },
+  "performanceAnalysis": {
+    "cacheEffectiveness": "High hit ratios (>80%) with low duration (<10ms) indicate effective caching",
+    "problemIndicators": {
+      "highMissRatio": "Hit ratio <50% suggests cache strategy needs optimization",
+      "slowOperations": "Duration >100ms indicates cache performance issues",
+      "largeSizes": "Individual entries >100KB may impact cache memory efficiency"
+    }
+  }
+}

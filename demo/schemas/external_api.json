@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "../schemas/external_api.json", 
+  "title": "External API Context with Open/Close Semantics",
+  "description": "Context for external service API calls with clear request/response separation",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/ExternalApiRequest"
+    },
+    {
+      "$ref": "#/$defs/ExternalApiResponse"
+    }
+  ],
+  "$defs": {
+    "ExternalApiRequest": {
+      "title": "External API Request (Open)",
+      "description": "API request initiation context - used in open() calls",
+      "type": "object",
+      "properties": {
+        "service": {
+          "type": "string",
+          "enum": [
+            "PaymentGateway",
+            "ShippingService", 
+            "EmailService",
+            "InventoryService",
+            "UserService",
+            "NotificationService"
+          ],
+          "description": "Standardized external service names",
+          "semanticMeaning": {
+            "PaymentGateway": "Financial transaction processing (Stripe, PayPal, etc.)",
+            "ShippingService": "Logistics and delivery services (FedEx, UPS, DHL, etc.)",
+            "EmailService": "Transactional email delivery (SendGrid, Mailgun, etc.)",
+            "InventoryService": "Stock management and product catalog services", 
+            "UserService": "User management and authentication services",
+            "NotificationService": "Push notifications and messaging services"
+          }
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "Complete API endpoint URL including domain and path",
+          "examples": [
+            "https://api.stripe.com/v1/payment_intents",
+            "https://api.fedex.com/ship/v1/shipments",
+            "https://api.sendgrid.com/v3/mail/send"
+          ]
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+          "description": "HTTP method for the request"
+        },
+        "requestSize": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Request payload size in bytes",
+          "unit": "bytes"
+        },
+        "requestHeaders": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "HTTP request headers (sensitive values should be masked)",
+          "properties": {
+            "Authorization": {
+              "type": "string",
+              "pattern": "^Bearer [a-zA-Z0-9_\\.\\-]+\\.\\.\\.?$",
+              "description": "Authorization header with masked token for security"
+            },
+            "Content-Type": {
+              "type": "string",
+              "enum": ["application/json", "application/xml", "application/x-www-form-urlencoded"],
+              "description": "Request content type"
+            }
+          }
+        }
+      },
+      "required": ["service", "endpoint", "method", "requestSize", "requestHeaders"],
+      "additionalProperties": false,
+      "openClosePattern": "This schema is used for OPEN operations - capturing request initiation"
+    },
+    "ExternalApiResponse": {
+      "title": "External API Response (Close)",
+      "description": "API response completion context - used in close() calls",
+      "type": "object", 
+      "properties": {
+        "statusCode": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599,
+          "description": "HTTP response status code",
+          "semanticMeaning": {
+            "200-299": "Successful responses",
+            "300-399": "Redirection responses", 
+            "400-499": "Client error responses (invalid request, authentication failed, etc.)",
+            "500-599": "Server error responses (service unavailable, internal error, etc.)"
+          }
+        },
+        "responseTime": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total API call duration in seconds",
+          "unit": "seconds",
+          "performanceGuidelines": {
+            "excellent": "< 0.1s",
+            "good": "0.1s - 0.5s", 
+            "acceptable": "0.5s - 2.0s",
+            "slow": "2.0s - 5.0s",
+            "critical": "> 5.0s"
+          }
+        },
+        "responseSize": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Response payload size in bytes",
+          "unit": "bytes"
+        },
+        "transactionId": {
+          "type": "string",
+          "description": "External service transaction/reference ID for tracking"
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5,
+          "description": "Number of retry attempts before success/failure"
+        }
+      },
+      "required": ["statusCode", "responseTime", "responseSize"],
+      "additionalProperties": true,
+      "openClosePattern": "This schema is used for CLOSE operations - capturing response results",
+      "businessLogicRules": {
+        "responseInterpretation": {
+          "2xx": "Success - transaction completed as expected",
+          "4xx": "Client error - check request parameters, authentication, permissions",
+          "5xx": "Service error - retry may be appropriate, service may be degraded"
+        }
+      }
+    }
+  },
+  "businessContext": {
+    "purposeOfSeparation": "Request and response contexts are separated to clearly distinguish between what was sent (open) and what was received (close)",
+    "performanceAnalysis": "Response time and size metrics enable identification of slow/large API calls that impact user experience",
+    "securityConsiderations": "Authorization headers are masked to prevent credential exposure in logs",
+    "troubleshooting": "Transaction IDs enable correlation between internal logs and external service logs"
+  }
+}
