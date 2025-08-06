@@ -26,7 +26,10 @@ final class AuthenticationErrorContextTest extends TestCase
         $schemaContent = file_get_contents($schemaPath);
         $this->assertNotFalse($schemaContent, 'Schema file should exist and be readable');
 
-        $this->schema = json_decode($schemaContent);
+        $schema = json_decode((string) $schemaContent);
+        assert($schema !== null);
+        /** @var object $schema */
+        $this->schema = $schema;
         $this->assertNotNull($this->schema, 'Schema should be valid JSON');
     }
 
@@ -49,11 +52,15 @@ final class AuthenticationErrorContextTest extends TestCase
 
         $context = new AuthenticationErrorContext($errorData);
         $contextArray = (array) $context;
-        $contextObject = json_decode(json_encode($contextArray));
+        $jsonString = json_encode($contextArray);
+        assert(is_string($jsonString));
+        $contextObject = json_decode($jsonString);
 
         // Validate against schema
         $this->validator->validate($contextObject, $this->schema);
-        $this->assertTrue($this->validator->isValid(), 'Context should be valid: ' . json_encode($this->validator->getErrors()));
+        $errorsJson = json_encode($this->validator->getErrors());
+        assert(is_string($errorsJson));
+        $this->assertTrue($this->validator->isValid(), 'Context should be valid: ' . $errorsJson);
     }
 
     public function testMinimalValidAuthenticationErrorContext(): void
@@ -68,11 +75,15 @@ final class AuthenticationErrorContextTest extends TestCase
 
         $context = new AuthenticationErrorContext($errorData);
         $contextArray = (array) $context;
-        $contextObject = json_decode(json_encode($contextArray));
+        $jsonString = json_encode($contextArray);
+        assert(is_string($jsonString));
+        $contextObject = json_decode($jsonString);
 
         // Validate against schema
         $this->validator->validate($contextObject, $this->schema);
-        $this->assertTrue($this->validator->isValid(), 'Minimal context should be valid: ' . json_encode($this->validator->getErrors()));
+        $errorsJson = json_encode($this->validator->getErrors());
+        assert(is_string($errorsJson));
+        $this->assertTrue($this->validator->isValid(), 'Minimal context should be valid: ' . $errorsJson);
     }
 
     public function testInvalidErrorType(): void
@@ -87,7 +98,9 @@ final class AuthenticationErrorContextTest extends TestCase
 
         $context = new AuthenticationErrorContext($errorData);
         $contextArray = (array) $context;
-        $contextObject = json_decode(json_encode($contextArray));
+        $jsonString = json_encode($contextArray);
+        assert(is_string($jsonString));
+        $contextObject = json_decode($jsonString);
 
         // Validate against schema
         $this->validator->validate($contextObject, $this->schema);
@@ -95,7 +108,9 @@ final class AuthenticationErrorContextTest extends TestCase
 
         $errors = $this->validator->getErrors();
         $this->assertCount(1, $errors);
-        $this->assertStringContainsString('errorType', json_encode($errors[0]));
+        $errorJson = json_encode($errors[0]);
+        assert(is_string($errorJson));
+        $this->assertStringContainsString('errorType', $errorJson);
     }
 
     public function testInvalidHttpStatusCode(): void
@@ -110,7 +125,9 @@ final class AuthenticationErrorContextTest extends TestCase
 
         $context = new AuthenticationErrorContext($errorData);
         $contextArray = (array) $context;
-        $contextObject = json_decode(json_encode($contextArray));
+        $jsonString = json_encode($contextArray);
+        assert(is_string($jsonString));
+        $contextObject = json_decode($jsonString);
 
         // Validate against schema
         $this->validator->validate($contextObject, $this->schema);
@@ -118,7 +135,9 @@ final class AuthenticationErrorContextTest extends TestCase
 
         $errors = $this->validator->getErrors();
         $this->assertCount(1, $errors);
-        $this->assertStringContainsString('code', json_encode($errors[0]));
+        $errorJson = json_encode($errors[0]);
+        assert(is_string($errorJson));
+        $this->assertStringContainsString('code', $errorJson);
     }
 
     public function testMissingRequiredFields(): void
@@ -131,7 +150,9 @@ final class AuthenticationErrorContextTest extends TestCase
 
         $context = new AuthenticationErrorContext($errorData);
         $contextArray = (array) $context;
-        $contextObject = json_decode(json_encode($contextArray));
+        $jsonString = json_encode($contextArray);
+        assert(is_string($jsonString));
+        $contextObject = json_decode($jsonString);
 
         // Validate against schema
         $this->validator->validate($contextObject, $this->schema);
