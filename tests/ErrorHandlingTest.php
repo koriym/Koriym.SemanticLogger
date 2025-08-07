@@ -67,7 +67,7 @@ final class ErrorHandlingTest extends TestCase
         $logJson = $logger->flush();
 
         // Verify structure
-        $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json', $logJson->schemaUrl);
+        $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json', $logJson->schemaUrl);
 
         // Test nested structure
         $this->assertSame('outer', $logJson->open->context['message']);
@@ -99,6 +99,6 @@ final class ErrorHandlingTest extends TestCase
         // This test documents that line 242 assert() is an internal consistency check
         // that should never fail through normal API usage. The assert will only
         // trigger in development mode if there's a bug in the class implementation.
-        $this->assertTrue(true, 'Line 242 assert() is an internal consistency check');
+        $this->addToAssertionCount(1); // Internal consistency check acknowledgment
     }
 }

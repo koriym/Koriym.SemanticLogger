@@ -274,6 +274,52 @@ The semantic structure captures the complete intent→result flow with **hierarc
 - **Monitoring**: Track operation completion and identify unclosed operations
 - **Compliance**: Maintain audit trails with clear operation boundaries
 
+## Semantic Log Validation
+
+Validate your semantic logs with our custom validator that understands the AI-human understanding bridge approach:
+
+### Command Line Usage
+
+```bash
+# Validate a semantic log against schema directory
+php vendor/bin/validate-semantic-log.php path/to/semantic-log.json path/to/schemas/
+
+# Example with demo
+composer demo  # Generates demo.json and validates it automatically
+```
+
+### PHP Usage
+
+```php
+use Koriym\SemanticLogger\SemanticLogValidator;
+
+$validator = new SemanticLogValidator();
+
+try {
+    $validator->validate('path/to/semantic-log.json', 'path/to/schemas/');
+    echo "✅ All contexts validate successfully!\n";
+} catch (RuntimeException $e) {
+    echo "❌ Validation failed: " . $e->getMessage() . "\n";
+}
+```
+
+### Validation Features
+
+- **Hierarchical Structure Validation**: Validates deeply nested open/close/event structures
+- **Schema URL Resolution**: Supports both relative (`./schemas/`) and absolute URLs
+- **Comprehensive Error Reporting**: Detailed violation messages with JSON Schema links
+- **AI-Human Bridge Support**: Validates the `schemaUrl` field approach for AI understanding
+
+### Sample Validation Output
+
+```
+✅ open (http_request) validates against ./schemas/http_request.json
+✅ open.open.open (database_query) validates against ./schemas/database_query.json
+✅ events[0] (cache_operation) validates against ./schemas/cache_operation.json
+✅ events[1] (performance_metrics) validates against ./schemas/performance_metrics.json
+✅ All contexts validate successfully!
+```
+
 ## Documentation
 
 **[Schema Portal](https://koriym.github.io/Koriym.SemanticLogger/)** - AI-native semantic schema portal with comprehensive documentation

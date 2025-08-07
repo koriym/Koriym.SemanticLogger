@@ -6,6 +6,7 @@ namespace Koriym\SemanticLogger;
 
 use InvalidArgumentException;
 use JsonSchema\Validator;
+use Override;
 use RuntimeException;
 
 use function basename;
@@ -23,6 +24,7 @@ use function str_starts_with;
 
 final class SemanticLogValidator implements SemanticLogValidatorInterface
 {
+    #[Override]
     public function validate(string $file, string $schemaDir): void
     {
         if (! file_exists($file)) {
@@ -64,8 +66,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Extract and validate all contexts from log data
      *
-     * @param array<string, mixed> $data
-     * @param array<string>        $violations
+     * @param array<mixed, mixed> $data
+     * @param array<string>       $violations
      */
     private function validateContexts(array $data, string $schemaDir, array &$violations): void
     {
@@ -81,9 +83,14 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
         // Validate event contexts
         if (isset($data['events']) && is_array($data['events'])) {
-            foreach ($data['events'] as $index => $event) {
+            /** @var array<int, mixed> $events */
+            $events = $data['events'];
+            /** @psalm-suppress MixedAssignment */
+            foreach ($events as $index => $event) {
                 if (is_array($event)) {
-                    $this->validateContext($event, $schemaDir, "events[{$index}]", $violations);
+                    /** @var array<mixed, mixed> $eventData */
+                    $eventData = $event;
+                    $this->validateContext($eventData, $schemaDir, "events[{$index}]", $violations);
                 }
             }
         }
@@ -92,8 +99,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Validate a single context against its schema
      *
-     * @param array<string, mixed> $contextData
-     * @param array<string>        $violations
+     * @param array<mixed, mixed> $contextData
+     * @param array<string>       $violations
      */
     private function validateContext(array $contextData, string $schemaDir, string $path, array &$violations): void
     {
@@ -126,6 +133,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
                 return;
             }
 
+            /** @var object|null $schema */
             $schema = json_decode($schemaContents);
             if ($schema === null) {
                 $violations[] = "[{$path}] Invalid schema JSON: {$schemaFile}";
@@ -135,7 +143,15 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
             // Validate context against schema
             $validator = new Validator();
-            $contextObj = json_decode(json_encode($context));
+            $contextJson = json_encode($context);
+            if ($contextJson === false) {
+                $violations[] = "[{$path}] Failed to encode context to JSON";
+
+                return;
+            }
+
+            /** @var object|null $contextObj */
+            $contextObj = json_decode($contextJson);
             $validator->validate($contextObj, $schema);
 
             if (! $validator->isValid()) {
@@ -144,8 +160,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
                         continue;
                     }
 
-                    $property = is_string($error['property'] ?? '') ? $error['property'] : '';
-                    $message = is_string($error['message'] ?? '') ? $error['message'] : 'Validation failed';
+                    $property = isset($error['property']) && is_string($error['property']) ? $error['property'] : '';
+                    $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Validation failed';
                     $violations[] = "[{$path}.context ({$type})] {$message} at '{$property}'";
                 }
             } else {

@@ -11,6 +11,8 @@ use function assert;
 use function dirname;
 use function file_get_contents;
 use function implode;
+use function is_array;
+use function is_string;
 use function json_decode;
 
 final class DemoOutputValidationTest extends TestCase
@@ -38,22 +40,28 @@ final class DemoOutputValidationTest extends TestCase
         // Load the generated demo.json (created by running demo/run.php)
         $demoPath = dirname(__DIR__, 2) . '/demo';
         $jsonPath = $demoPath . '/demo.json';
-        $this->assertFileExists($jsonPath, 'demo.json should exist (run "cd demo && php run.php" to generate)');
+        $this->assertFileExists($jsonPath, 'demo.json should exist (run "composer demo" to generate)');
 
         $jsonContent = file_get_contents($jsonPath);
         $this->assertNotFalse($jsonContent, 'JSON file should be readable');
 
         $logData = json_decode($jsonContent);
-        $this->assertNotNull($logData, 'semantic-log.json should contain valid JSON');
+        $this->assertNotNull($logData, 'demo.json should contain valid JSON');
 
-        // Validate against semantic-log.json schema
+        // Validate against semantic-log.json schema (now supports both URIs and relative paths)
         $this->validator->validate($logData, $this->schema);
 
         if (! $this->validator->isValid()) {
             $errors = $this->validator->getErrors();
             $errorMessages = [];
             foreach ($errors as $error) {
-                $errorMessages[] = "[{$error['property']}] {$error['message']}";
+                if (! is_array($error)) {
+                    continue;
+                }
+
+                $property = isset($error['property']) && is_string($error['property']) ? $error['property'] : '';
+                $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Unknown error';
+                $errorMessages[] = "[{$property}] {$message}";
             }
 
             $this->fail('Demo output validation failed: ' . implode(', ', $errorMessages));

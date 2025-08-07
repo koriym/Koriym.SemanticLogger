@@ -167,9 +167,19 @@
       "description": "Application-defined context type identifier. Applications define their own context types through individual schema files"
     },
     "schemaUrl": {
-      "type": "string",
-      "format": "uri",
-      "description": "Context schema reference for AI-human understanding alignment. While humans naturally understand what this context represents, AI needs explicit schema guidance to achieve the same level of comprehension about data structure, constraints, and business meaning.",
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "uri",
+          "description": "Absolute URI to context schema"
+        },
+        {
+          "type": "string",
+          "pattern": "^\\./schemas/[a-zA-Z0-9_-]+\\.json$",
+          "description": "Relative path to local schema file"
+        }
+      ],
+      "description": "Context schema reference for AI-human understanding alignment. While humans naturally understand what this context represents, AI needs explicit schema guidance to achieve the same level of comprehension about data structure, constraints, and business meaning. Supports both absolute URLs and relative file paths.",
       "$comment": "Bridge: Humans intuitively understand context meaning; AI uses this schema reference to gain equivalent understanding."
     }
   }

@@ -7,10 +7,10 @@ namespace Koriym\SemanticLogger\Profiler;
 use JsonSerializable;
 use Override;
 
+use function count;
 use function date;
 use function file_put_contents;
 use function function_exists;
-use function is_array;
 use function json_encode;
 use function md5;
 use function sys_get_temp_dir;
@@ -51,7 +51,12 @@ final class XHProfResult implements JsonSerializable
         $xhprofData = xhprof_disable();
 
         // xhprof_disable() returns array|false according to PHPStan
-        if (! is_array($xhprofData) || $xhprofData === []) {
+        /** @psalm-suppress TypeDoesNotContainType */
+        if ($xhprofData === false) { /** @phpstan-ignore-line identical.alwaysFalse */
+            return new self(); // @codeCoverageIgnore
+        }
+
+        if (count($xhprofData) === 0) {
             return new self();
         }
 
@@ -68,7 +73,12 @@ final class XHProfResult implements JsonSerializable
         $filename = 'xhprof_' . date('Y-m-d_H-i-s') . '_' . md5($uri) . '.json';
         $filePath = sys_get_temp_dir() . '/' . $filename;
 
-        file_put_contents($filePath, json_encode($data, JSON_PRETTY_PRINT));
+        $json = json_encode($data, JSON_PRETTY_PRINT);
+        if ($json === false) {
+            $json = '{}';
+        }
+
+        file_put_contents($filePath, $json);
 
         return $filePath;
     }

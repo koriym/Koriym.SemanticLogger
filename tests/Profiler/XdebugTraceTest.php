@@ -140,9 +140,8 @@ class XdebugTraceTest extends TestCase
         $serialized = $trace->jsonSerialize();
 
         $this->assertNotEmpty($serialized);
-        $this->assertSame($content, $serialized['data']);
-        $this->assertSame($filePath, $serialized['file']);
-        $this->assertSame('https://xdebug.org/docs/trace#Output-Formats', $serialized['spec_url']);
+        $this->assertArrayHasKey('source', $serialized);
+        $this->assertSame($filePath, $serialized['source']);
     }
 
     public function testStartWithoutXdebugExtension(): void

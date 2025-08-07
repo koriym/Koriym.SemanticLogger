@@ -193,6 +193,7 @@ class XHProfResultTest extends TestCase
         }
 
         // If no file was created (XHProf not available), verify graceful handling
+        /** @phpstan-ignore-next-line */
         $this->assertTrue($filePath === null);
     }
 }

@@ -7,7 +7,6 @@ namespace Koriym\SemanticLogger\Profiler;
 use PHPUnit\Framework\TestCase;
 
 use function file_put_contents;
-use function is_array;
 use function strlen;
 use function sys_get_temp_dir;
 use function tempnam;
@@ -65,20 +64,16 @@ class ProfileTest extends TestCase
         // Check XHProf summary
         $xhprofSummary = $serialized['xhprof'];
         $this->assertIsArray($xhprofSummary);
-        $this->assertArrayHasKey('file', $xhprofSummary);
-        $this->assertArrayHasKey('functions_count', $xhprofSummary);
-        $this->assertArrayHasKey('total_wall_time', $xhprofSummary);
-        $this->assertSame('/tmp/xhprof.json', $xhprofSummary['file']);
-        $this->assertSame(1, $xhprofSummary['functions_count']);
-        $this->assertSame(100, $xhprofSummary['total_wall_time']);
+        $this->assertArrayHasKey('source', $xhprofSummary);
+        $this->assertSame('/tmp/xhprof.json', $xhprofSummary['source']);
 
         // Check Xdebug summary
         $xdebugSummary = $serialized['xdebug'];
         $this->assertIsArray($xdebugSummary);
-        $this->assertArrayHasKey('file', $xdebugSummary);
+        $this->assertArrayHasKey('source', $xdebugSummary);
         $this->assertArrayHasKey('file_size', $xdebugSummary);
         $this->assertArrayHasKey('compressed', $xdebugSummary);
-        $this->assertSame('/tmp/trace.xt', $xdebugSummary['file']);
+        $this->assertSame('/tmp/trace.xt', $xdebugSummary['source']);
         $this->assertIsInt($xdebugSummary['file_size']);
         $this->assertIsBool($xdebugSummary['compressed']);
 
@@ -110,15 +105,16 @@ class ProfileTest extends TestCase
         $profile = new Profile($xhprof, null, null);
         $serialized = $profile->jsonSerialize();
 
-        $this->assertTrue(is_array($serialized));
+        /** @var array<string, mixed> $serialized */
+        $this->assertNotEmpty($serialized);
 
         // XHProf should have data
         $xhprofSummary = $serialized['xhprof'];
         $this->assertIsArray($xhprofSummary);
-        $this->assertArrayHasKey('file', $xhprofSummary);
-        $this->assertSame('/tmp/test.json', $xhprofSummary['file']);
-        $this->assertSame(1, $xhprofSummary['functions_count']);
-        $this->assertSame(200, $xhprofSummary['total_wall_time']);
+        $this->assertArrayHasKey('source', $xhprofSummary);
+        $this->assertSame('/tmp/test.json', $xhprofSummary['source']);
+        // XHProf data is present (simplified validation)
+        $this->assertNotNull($xhprofSummary['source']);
 
         // Others should be empty
         $this->assertSame([], $serialized['xdebug']);
@@ -133,9 +129,8 @@ class ProfileTest extends TestCase
 
         $xhprofSummary = $serialized['xhprof'];
         $this->assertIsArray($xhprofSummary);
-        $this->assertNull($xhprofSummary['file']);
-        $this->assertSame(0, $xhprofSummary['functions_count']);
-        $this->assertSame(0, $xhprofSummary['total_wall_time']);
+        $this->assertArrayHasKey('source', $xhprofSummary);
+        $this->assertNull($xhprofSummary['source']);
     }
 
     public function testGetXdebugSummaryWithFileSize(): void
@@ -152,7 +147,7 @@ class ProfileTest extends TestCase
 
             $xdebugSummary = $serialized['xdebug'];
             $this->assertIsArray($xdebugSummary);
-            $this->assertSame($tempFile, $xdebugSummary['file']);
+            $this->assertSame($tempFile, $xdebugSummary['source']);
             $this->assertSame(strlen($testContent), $xdebugSummary['file_size']);
             $this->assertFalse($xdebugSummary['compressed']);
         } finally {

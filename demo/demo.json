@@ -36,7 +36,7 @@
                         "Content-Type": "application/json",
                         "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                         "User-Agent": "ECommerceApp/2.1.0",
-                        "X-Request-ID": "req_6894285e89897"
+                        "X-Request-ID": "req_68946ccbce665"
                     },
                     "body": {
                         "customerId": 12345,
@@ -104,7 +104,7 @@
                             "schemaUrl": "./schemas/file_processing.json",
                             "context": {
                                 "operation": "pdf_generation",
-                                "filename": "invoice_ORD_6894285f063f1.pdf",
+                                "filename": "invoice_ORD_68946ccc49efc.pdf",
                                 "mimeType": "application/pdf",
                                 "fileSize": 0,
                                 "processingTime": 0,
@@ -195,7 +195,7 @@
             },
             "contentLength": 128,
             "contentType": "application/json",
-            "responseTime": 0.003350973129272461,
+            "responseTime": 0.0017368793487548828,
             "cached": false
         },
         "openId": "http_request_2",
@@ -326,9 +326,9 @@
             "type": "performance_metrics",
             "schemaUrl": "./schemas/performance_metrics.json",
             "context": {
-                "executionTime": 0.6914169788360596,
-                "memoryUsed": 54856,
-                "peakMemory": 1603528,
+                "executionTime": 0.6769709587097168,
+                "memoryUsed": 54368,
+                "peakMemory": 1597512,
                 "databaseQueries": 5,
                 "totalQueryTime": 0.135,
                 "cacheHits": 2,
