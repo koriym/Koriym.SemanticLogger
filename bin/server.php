@@ -345,7 +345,22 @@ function semanticAnalyze(array $args): array
     $escapedXdebugMode = escapeshellarg($xdebugMode);
     $escapedScript = escapeshellarg($script);
     $escapedXdebugConfig = escapeshellarg('compression_level=0');
-    $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG=$escapedXdebugConfig php -d max_execution_time=30 -d memory_limit=256M -d xdebug.output_dir=/tmp -d xdebug.trace_format=1 -d xdebug.use_compression=0 $escapedScript 2>&1";
+    $phpOptions = [
+        'max_execution_time=30',
+        'memory_limit=256M',
+        'xdebug.output_dir=/tmp',
+        'xdebug.start_with_request=no',
+        'xdebug.trace_format=1',
+        'xdebug.trace_options=10',
+        'xdebug.use_compression=0',
+        'xdebug.collect_params=1',
+        'xdebug.collect_return=1',
+        'xdebug.collect_assignments=1',
+        'error_reporting=E_ALL',
+        'display_errors=1',
+    ];
+    $phpOptionsString = implode(' ', array_map(fn($opt) => "-d $opt", $phpOptions));
+    $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG=$escapedXdebugConfig php $phpOptionsString $escapedScript 2>&1";
 
     /** @psalm-suppress ForbiddenCode */
     $output = shell_exec($command);
