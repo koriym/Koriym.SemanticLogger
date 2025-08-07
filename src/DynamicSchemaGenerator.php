@@ -26,6 +26,8 @@ final class DynamicSchemaGenerator
 
     /**
      * Generate combined schema with dynamic type-based context validation
+     * 
+     * @return array<string, mixed>
      */
     public function generateCombinedSchema(): array
     {
@@ -104,6 +106,9 @@ final class DynamicSchemaGenerator
 
     /**
      * Generate open schema with dynamic type validation
+     * 
+     * @param array<string, string> $contextTypes
+     * @return array<string, mixed>
      */
     private function generateOpenSchema(array $contextTypes): array
     {
@@ -128,6 +133,9 @@ final class DynamicSchemaGenerator
 
     /**
      * Generate close schema with dynamic type validation
+     * 
+     * @param array<string, string> $contextTypes
+     * @return array<string, mixed>
      */
     private function generateCloseSchema(array $contextTypes): array
     {
@@ -153,6 +161,9 @@ final class DynamicSchemaGenerator
 
     /**
      * Generate events schema with dynamic type validation
+     * 
+     * @param array<string, string> $contextTypes
+     * @return array<string, mixed>
      */
     private function generateEventsSchema(array $contextTypes): array
     {
@@ -183,7 +194,7 @@ final class DynamicSchemaGenerator
      *
      * @param array<string, string> $contextTypes
      *
-     * @return array<array>
+     * @return array<array<string, mixed>>
      */
     private function generateTypeConditions(array $contextTypes): array
     {
