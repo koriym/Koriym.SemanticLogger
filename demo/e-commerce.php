@@ -482,7 +482,7 @@ class ComplexWebRequestSimulation
             $jsonString = json_encode([], JSON_PRETTY_PRINT);
         }
 
-        $outputPath = __DIR__ . '/semantic-log.json';
+        $outputPath = __DIR__ . '/demo.json';
         file_put_contents($outputPath, $jsonString);
 
         echo "\nAll complex web request tests completed!\n";

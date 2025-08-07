@@ -35,10 +35,10 @@ final class DemoOutputValidationTest extends TestCase
 
     public function testDemoSemanticLogValidatesAgainstSchema(): void
     {
-        // Load the generated semantic-log.json (created by running demo/run.php)
+        // Load the generated demo.json (created by running demo/run.php)
         $demoPath = dirname(__DIR__, 2) . '/demo';
-        $jsonPath = $demoPath . '/semantic-log.json';
-        $this->assertFileExists($jsonPath, 'semantic-log.json should exist (run "cd demo && php run.php" to generate)');
+        $jsonPath = $demoPath . '/demo.json';
+        $this->assertFileExists($jsonPath, 'demo.json should exist (run "cd demo && php run.php" to generate)');
 
         $jsonContent = file_get_contents($jsonPath);
         $this->assertNotFalse($jsonContent, 'JSON file should be readable');
@@ -59,6 +59,6 @@ final class DemoOutputValidationTest extends TestCase
             $this->fail('Demo output validation failed: ' . implode(', ', $errorMessages));
         }
 
-        $this->assertTrue($this->validator->isValid(), 'Demo semantic-log.json should validate against schema');
+        $this->assertTrue($this->validator->isValid(), 'Demo demo.json should validate against schema');
     }
 }
