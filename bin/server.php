@@ -348,6 +348,8 @@ function semanticAnalyze(array $args): array
     $logDirectory = $GLOBALS['logDirectory'];
     assert(is_string($logDirectory));
     $phpOptions = [
+        'zend_extension=xdebug.so',
+        'extension=xhprof.so',
         'max_execution_time=30',
         'memory_limit=256M',
         "xdebug.output_dir=$logDirectory",
