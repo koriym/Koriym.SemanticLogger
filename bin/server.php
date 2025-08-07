@@ -340,13 +340,12 @@ function semanticAnalyze(array $args): array
     // Record time before execution to find newly created log files
     $beforeExecution = time();
 
-    // Execute the PHP script with profiling using php-dev.ini
+    // Execute the PHP script with profiling settings via -d options
     // All variables are validated and properly escaped to prevent command injection
     $escapedXdebugMode = escapeshellarg($xdebugMode);
-    $escapedPhpDevIni = escapeshellarg(__DIR__ . '/php-dev.ini');
     $escapedScript = escapeshellarg($script);
     $escapedXdebugConfig = escapeshellarg('compression_level=0');
-    $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG=$escapedXdebugConfig php -c $escapedPhpDevIni -d max_execution_time=30 -d memory_limit=256M $escapedScript 2>&1";
+    $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG=$escapedXdebugConfig php -d max_execution_time=30 -d memory_limit=256M -d xdebug.output_dir=/tmp -d xdebug.trace_format=1 -d xdebug.use_compression=0 $escapedScript 2>&1";
 
     /** @psalm-suppress ForbiddenCode */
     $output = shell_exec($command);
