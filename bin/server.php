@@ -345,10 +345,12 @@ function semanticAnalyze(array $args): array
     $escapedXdebugMode = escapeshellarg($xdebugMode);
     $escapedScript = escapeshellarg($script);
     $escapedXdebugConfig = escapeshellarg('compression_level=0');
+    $logDirectory = $GLOBALS['logDirectory'];
+    assert(is_string($logDirectory));
     $phpOptions = [
         'max_execution_time=30',
         'memory_limit=256M',
-        'xdebug.output_dir=/tmp',
+        "xdebug.output_dir=$logDirectory",
         'xdebug.start_with_request=no',
         'xdebug.trace_format=1',
         'xdebug.trace_options=10',
