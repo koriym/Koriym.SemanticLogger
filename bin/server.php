@@ -347,11 +347,28 @@ function semanticAnalyze(array $args): array
     $escapedXdebugConfig = escapeshellarg('compression_level=0');
     $logDirectory = $GLOBALS['logDirectory'];
     assert(is_string($logDirectory));
+    
+    // Check if profiling extensions are available
+    $hasXdebug = extension_loaded('xdebug');
+    $hasXHProf = extension_loaded('xhprof');
+    
     $phpOptions = [
-        'zend_extension=xdebug.so',
-        'extension=xhprof.so',
         'max_execution_time=30',
         'memory_limit=256M',
+        'error_reporting=E_ALL',
+        'display_errors=1',
+    ];
+    
+    // Add extension loading if not already loaded
+    if (!$hasXdebug) {
+        $phpOptions[] = 'zend_extension=xdebug.so';
+    }
+    if (!$hasXHProf) {
+        $phpOptions[] = 'extension=xhprof.so';
+    }
+    
+    // Add Xdebug settings only if Xdebug is available or being loaded
+    $phpOptions = array_merge($phpOptions, [
         "xdebug.output_dir=$logDirectory",
         'xdebug.start_with_request=no',
         'xdebug.trace_format=1',
@@ -360,14 +377,26 @@ function semanticAnalyze(array $args): array
         'xdebug.collect_params=1',
         'xdebug.collect_return=1',
         'xdebug.collect_assignments=1',
-        'error_reporting=E_ALL',
-        'display_errors=1',
-    ];
+    ]);
     $phpOptionsString = implode(' ', array_map(fn($opt) => "-d $opt", $phpOptions));
     $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG=$escapedXdebugConfig php $phpOptionsString $escapedScript 2>&1";
 
     /** @psalm-suppress ForbiddenCode */
     $output = shell_exec($command);
+    
+    // Check if profiling extensions failed to load and warn if needed
+    if (strpos($output, 'Unable to load dynamic library') !== false) {
+        $warningMsg = "Warning: Some profiling extensions may not be available. ";
+        if (!$hasXdebug && !$hasXHProf) {
+            $warningMsg .= "Neither Xdebug nor XHProf extensions are loaded. ";
+        } elseif (!$hasXdebug) {
+            $warningMsg .= "Xdebug extension is not loaded. ";
+        } elseif (!$hasXHProf) {
+            $warningMsg .= "XHProf extension is not loaded. ";
+        }
+        $warningMsg .= "Semantic logging will continue with basic functionality.\n";
+        $output = $warningMsg . $output;
+    }
 
     // Find semantic log files created during script execution
     $logDirectory = $GLOBALS['logDirectory'];
