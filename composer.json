@@ -32,7 +32,8 @@
         }
     },
     "bin": [
-        "bin/server.php"
+        "bin/semantic-mcp",
+        "bin/validate-semantic-log.php"
     ],
     "scripts": {
         "bin": "echo 'bin not installed'",
