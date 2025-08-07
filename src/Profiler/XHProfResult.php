@@ -78,10 +78,7 @@ final class XHProfResult implements JsonSerializable
             $json = '{}';
         }
 
-        $bytesWritten = file_put_contents($filePath, $json);
-        if ($bytesWritten === false) {
-            throw new \RuntimeException("Failed to write XHProf data to file: {$filePath}");
-        }
+        file_put_contents($filePath, $json);
 
         return $filePath;
     }
