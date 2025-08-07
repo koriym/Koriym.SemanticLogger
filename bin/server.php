@@ -389,9 +389,11 @@ function semanticAnalyze(array $args): array
         $warningMsg = "Warning: Some profiling extensions may not be available. ";
         if (!$hasXdebug && !$hasXHProf) {
             $warningMsg .= "Neither Xdebug nor XHProf extensions are loaded. ";
-        } elseif (!$hasXdebug) {
+        }
+        if (!$hasXdebug && $hasXHProf) {
             $warningMsg .= "Xdebug extension is not loaded. ";
-        } elseif (!$hasXHProf) {
+        }
+        if ($hasXdebug && !$hasXHProf) {
             $warningMsg .= "XHProf extension is not loaded. ";
         }
         $warningMsg .= "Semantic logging will continue with basic functionality.\n";
