@@ -26,7 +26,7 @@ final class DynamicSchemaGenerator
 
     /**
      * Generate combined schema with dynamic type-based context validation
-     * 
+     *
      * @return array<string, mixed>
      */
     public function generateCombinedSchema(): array
@@ -88,6 +88,10 @@ final class DynamicSchemaGenerator
     private function discoverContextTypes(): array
     {
         $schemaFiles = glob($this->schemasDirectory . '/*.json');
+        if ($schemaFiles === false) {
+            return [];
+        }
+
         $contextTypes = [];
 
         foreach ($schemaFiles as $file) {
@@ -106,8 +110,9 @@ final class DynamicSchemaGenerator
 
     /**
      * Generate open schema with dynamic type validation
-     * 
+     *
      * @param array<string, string> $contextTypes
+     *
      * @return array<string, mixed>
      */
     private function generateOpenSchema(array $contextTypes): array
@@ -133,8 +138,9 @@ final class DynamicSchemaGenerator
 
     /**
      * Generate close schema with dynamic type validation
-     * 
+     *
      * @param array<string, string> $contextTypes
+     *
      * @return array<string, mixed>
      */
     private function generateCloseSchema(array $contextTypes): array
@@ -161,8 +167,9 @@ final class DynamicSchemaGenerator
 
     /**
      * Generate events schema with dynamic type validation
-     * 
+     *
      * @param array<string, string> $contextTypes
+     *
      * @return array<string, mixed>
      */
     private function generateEventsSchema(array $contextTypes): array

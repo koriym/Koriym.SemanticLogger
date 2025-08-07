@@ -78,7 +78,7 @@ class XHProfResultTest extends TestCase
         $this->assertNull($result->filePath);
     }
 
-    public function testGetFunctionCountWithData(): void
+    public function testDataPropertyWithData(): void
     {
         $testData = [
             'func1' => ['wt' => 100],
@@ -88,47 +88,14 @@ class XHProfResultTest extends TestCase
 
         $result = new XHProfResult($testData);
 
-        $this->assertSame(3, $result->getFunctionCount());
+        $this->assertSame($testData, $result->data);
     }
 
-    public function testGetFunctionCountWithoutData(): void
+    public function testDataPropertyWithoutData(): void
     {
         $result = new XHProfResult();
 
-        $this->assertSame(0, $result->getFunctionCount());
-    }
-
-    public function testGetTotalWallTimeWithData(): void
-    {
-        $testData = [
-            'func1' => ['wt' => 100],
-            'func2' => ['wt' => 200],
-            'func3' => ['wt' => 150],
-        ];
-
-        $result = new XHProfResult($testData);
-
-        $this->assertSame(450, $result->getTotalWallTime());
-    }
-
-    public function testGetTotalWallTimeWithoutData(): void
-    {
-        $result = new XHProfResult();
-
-        $this->assertSame(0, $result->getTotalWallTime());
-    }
-
-    public function testGetTotalWallTimeWithMissingWtFields(): void
-    {
-        $testData = [
-            'func1' => ['wt' => 100],
-            'func2' => [], // Missing 'wt' field
-            'func3' => ['wt' => 150],
-        ];
-
-        $result = new XHProfResult($testData);
-
-        $this->assertSame(250, $result->getTotalWallTime());
+        $this->assertNull($result->data);
     }
 
     public function testJsonSerializeWithoutData(): void
@@ -148,9 +115,7 @@ class XHProfResultTest extends TestCase
         $serialized = $result->jsonSerialize();
 
         $this->assertNotEmpty($serialized);
-        $this->assertSame($testData, $serialized['data']);
-        $this->assertSame($filePath, $serialized['file']);
-        $this->assertSame('https://github.com/tideways/php-xhprof-extension?tab=readme-ov-file#data-format', $serialized['spec_url']);
+        $this->assertSame($filePath, $serialized['source']);
     }
 
     public function testStartStopLifecycleWhenXhprofNotAvailable(): void
@@ -166,8 +131,6 @@ class XHProfResultTest extends TestCase
         $this->assertInstanceOf(XHProfResult::class, $stopped);
         $this->assertNull($stopped->data);
         $this->assertNull($stopped->filePath);
-        $this->assertSame(0, $stopped->getFunctionCount());
-        $this->assertSame(0, $stopped->getTotalWallTime());
     }
 
     /** @requires extension xhprof */
@@ -193,12 +156,11 @@ class XHProfResultTest extends TestCase
         // When XHProf is working, we should get data
         if ($stopped->data !== null) {
             $this->assertIsArray($stopped->data);
-            $this->assertGreaterThan(0, $stopped->getFunctionCount());
-            $this->assertNotNull($stopped->getFilePath());
-            $this->assertTrue(file_exists($stopped->getFilePath()));
+            $this->assertNotNull($stopped->filePath);
+            $this->assertTrue(file_exists($stopped->filePath));
 
             // Verify file contains valid JSON
-            $fileContent = file_get_contents($stopped->getFilePath());
+            $fileContent = file_get_contents($stopped->filePath);
             $this->assertIsString($fileContent);
             $decoded = json_decode($fileContent, true);
             $this->assertIsArray($decoded);
@@ -215,7 +177,7 @@ class XHProfResultTest extends TestCase
         $result = new XHProfResult($testData, null);
         $stopped = $result->stop('test://save/file/test');
 
-        $filePath = $stopped->getFilePath();
+        $filePath = $stopped->filePath;
         if ($filePath !== null) {
             $this->assertTrue(file_exists($filePath));
 

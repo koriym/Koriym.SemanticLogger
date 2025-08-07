@@ -13,6 +13,7 @@ use function count;
 use function file_exists;
 use function file_get_contents;
 use function is_array;
+use function is_string;
 use function json_decode;
 use function json_encode;
 use function realpath;
@@ -32,7 +33,12 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
             throw new InvalidArgumentException("Schema directory not found: {$schemaDir}");
         }
 
-        $logData = json_decode(file_get_contents($file), true);
+        $contents = file_get_contents($file);
+        if ($contents === false) {
+            throw new InvalidArgumentException("Cannot read log file: {$file}");
+        }
+
+        $logData = json_decode($contents, true);
         if ($logData === null) {
             throw new InvalidArgumentException("Invalid JSON in log file: {$file}");
         }
@@ -40,6 +46,10 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $violations = [];
 
         // Validate all contexts recursively
+        if (! is_array($logData)) {
+            throw new InvalidArgumentException('Log data must be an array');
+        }
+
         $this->validateContexts($logData, $schemaDir, $violations);
 
         if (! empty($violations)) {
@@ -60,19 +70,21 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     private function validateContexts(array $data, string $schemaDir, array &$violations): void
     {
         // Validate open contexts (recursive)
-        if (isset($data['open'])) {
+        if (isset($data['open']) && is_array($data['open'])) {
             $this->validateContext($data['open'], $schemaDir, 'open', $violations);
         }
 
         // Validate close contexts (recursive)
-        if (isset($data['close'])) {
+        if (isset($data['close']) && is_array($data['close'])) {
             $this->validateContext($data['close'], $schemaDir, 'close', $violations);
         }
 
         // Validate event contexts
         if (isset($data['events']) && is_array($data['events'])) {
             foreach ($data['events'] as $index => $event) {
-                $this->validateContext($event, $schemaDir, "events[{$index}]", $violations);
+                if (is_array($event)) {
+                    $this->validateContext($event, $schemaDir, "events[{$index}]", $violations);
+                }
             }
         }
     }
@@ -91,6 +103,12 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
             $type = $contextData['type'];
             $context = $contextData['context'];
 
+            if (! is_string($schemaUrl) || ! is_string($type) || ! is_array($context)) {
+                $violations[] = "[{$path}] Invalid context structure";
+
+                return;
+            }
+
             // Resolve schema file path
             $schemaFile = $this->resolveSchemaPath($schemaUrl, $schemaDir);
 
@@ -101,7 +119,14 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
             }
 
             // Load and validate schema
-            $schema = json_decode(file_get_contents($schemaFile));
+            $schemaContents = file_get_contents($schemaFile);
+            if ($schemaContents === false) {
+                $violations[] = "[{$path}] Cannot read schema file: {$schemaFile}";
+
+                return;
+            }
+
+            $schema = json_decode($schemaContents);
             if ($schema === null) {
                 $violations[] = "[{$path}] Invalid schema JSON: {$schemaFile}";
 
@@ -115,8 +140,12 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
             if (! $validator->isValid()) {
                 foreach ($validator->getErrors() as $error) {
-                    $property = $error['property'] ?? '';
-                    $message = $error['message'] ?? 'Validation failed';
+                    if (! is_array($error)) {
+                        continue;
+                    }
+
+                    $property = is_string($error['property'] ?? '') ? $error['property'] : '';
+                    $message = is_string($error['message'] ?? '') ? $error['message'] : 'Validation failed';
                     $violations[] = "[{$path}.context ({$type})] {$message} at '{$property}'";
                 }
             } else {
@@ -125,11 +154,11 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         }
 
         // Recursively validate nested open/close
-        if (isset($contextData['open'])) {
+        if (isset($contextData['open']) && is_array($contextData['open'])) {
             $this->validateContext($contextData['open'], $schemaDir, "{$path}.open", $violations);
         }
 
-        if (isset($contextData['close'])) {
+        if (isset($contextData['close']) && is_array($contextData['close'])) {
             $this->validateContext($contextData['close'], $schemaDir, "{$path}.close", $violations);
         }
     }
