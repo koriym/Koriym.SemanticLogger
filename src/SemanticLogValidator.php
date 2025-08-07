@@ -125,12 +125,14 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
         if (! is_string($schemaUrl) || ! is_string($type) || ! is_array($context)) {
             $violations[] = "[{$path}] Invalid context structure";
+
             return;
         }
 
         $schemaFile = $this->resolveSchemaPath($schemaUrl, $schemaDir);
         if ($schemaFile === null) {
             $violations[] = "[{$path}] Schema file not found: {$schemaUrl}";
+
             return;
         }
 
@@ -142,14 +144,13 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $this->performValidation($context, $schema, $type, $schemaUrl, $path, $violations);
     }
 
-    /**
-     * @param array<string>       $violations
-     */
-    private function loadSchema(string $schemaFile, string $path, array &$violations): ?object
+    /** @param array<string> $violations */
+    private function loadSchema(string $schemaFile, string $path, array &$violations): object|null
     {
         $schemaContents = file_get_contents($schemaFile);
         if ($schemaContents === false) {
             $violations[] = "[{$path}] Cannot read schema file: {$schemaFile}";
+
             return null;
         }
 
@@ -157,6 +158,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $schema = json_decode($schemaContents);
         if ($schema === null) {
             $violations[] = "[{$path}] Invalid schema JSON: {$schemaFile}";
+
             return null;
         }
 
@@ -173,6 +175,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $contextJson = json_encode($context);
         if ($contextJson === false) {
             $violations[] = "[{$path}] Failed to encode context to JSON";
+
             return;
         }
 
@@ -182,15 +185,14 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
         if (! $validator->isValid()) {
             $this->addValidationErrors($validator, $type, $path, $violations);
+
             return;
         }
 
         echo "✅ {$path} ({$type}) validates against {$schemaUrl}\n";
     }
 
-    /**
-     * @param array<string> $violations
-     */
+    /** @param array<string> $violations */
     private function addValidationErrors(Validator $validator, string $type, string $path, array &$violations): void
     {
         foreach ($validator->getErrors() as $error) {
