@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class DatabaseConnectionContext extends AbstractContext
 {
     public const TYPE = 'database_connection';
-    public const SCHEMA_URL = '../schemas/database_connection.json';
+    public const SCHEMA_URL = './schemas/database_connection.json';
 
     public function __construct(
         public readonly string $driver,

@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class ExternalApiCompleteContext extends AbstractContext
 {
     public const TYPE = 'external_api_response';
-    public const SCHEMA_URL = '../schemas/external_api_response.json';
+    public const SCHEMA_URL = './schemas/external_api_response.json';
 
     public function __construct(public readonly array $responseData)
     {

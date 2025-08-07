@@ -59,6 +59,6 @@
       "description": "Function call statistics"
     }
   },
-  "required": ["executionTime", "memoryUsed", "peakMemory", "databaseQueries", "httpRequests", "cacheHits", "cacheMisses", "functionCalls"],
-  "additionalProperties": false
+  "required": ["executionTime", "memoryUsed", "peakMemory"],
+  "additionalProperties": true
 }

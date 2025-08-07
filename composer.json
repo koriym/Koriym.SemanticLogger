@@ -69,7 +69,8 @@
             "@crc",
             "@metrics"
         ],
-        "demo": "php demo/run.php",
+        "demo": "XDEBUG_MODE=profile,trace php -d zend_extension=xdebug -d extension=xhprof -d xdebug.mode=profile,trace -d xdebug.start_with_request=no -d xdebug.output_dir=/tmp -d xhprof.output_dir=/tmp -d xdebug.profiler_output_name=cachegrind.out.%H-%R-%t -d xdebug.trace_output_name=trace.%H-%R-%t -d xdebug.profiler_append=0 -d xdebug.collect_params=1 -d xdebug.collect_return=1 -d xdebug.collect_assignments=1 demo/run.php",
+        "sgen": "php demo/generate-schema.php && mv demo/semantic-log-generated.json demo/schemas/combined.json",
         "post-install-cmd": "@composer bin all install --ansi",
         "post-update-cmd": "@composer bin all update --ansi"
     },
@@ -91,7 +92,8 @@
         "crc": "Run composer require checker",
         "tests": "Run tests and quality checks",
         "build": "Build project",
-        "demo": "Run semantic logging demonstration"
+        "demo": "Run semantic logging demonstration",
+        "sgen": "Generate combined JSON Schema from individual context schemas"
     },
     "config": {
         "allow-plugins": {

@@ -41,6 +41,10 @@ class ComplexWebRequestSimulation
         $startTime = microtime(true);
         $startMemory = memory_get_usage();
 
+        // Debug: First logger call
+        echo "Debug: About to call first logger->open()...\n";
+        echo "Debug: Logger instance: " . get_class($this->logger) . "\n";
+
         // 1. HTTP Request arrives
         $httpRequestId = $this->logger->open(new HttpRequestContext(
             'POST',
@@ -356,8 +360,7 @@ class ComplexWebRequestSimulation
             false,
         ), $httpRequestId);
 
-        // Save to file
-        $this->devLogger->log($this->logger);
+        // Don't flush here - save for final flush
 
         echo "E-Commerce order processing completed!\n";
         echo 'Total execution time: ' . number_format(($endTime - $startTime) * 1000, 2) . "ms\n";
@@ -371,8 +374,8 @@ class ComplexWebRequestSimulation
 
         $startTime = microtime(true);
 
-        // HTTP Request with error
-        $httpRequestId = $this->logger->open(new HttpRequestContext(
+        // HTTP Request with error (new request, different ID)
+        $errorHttpRequestId = $this->logger->open(new HttpRequestContext(
             'POST',
             '/api/orders',
             ['Content-Type' => 'application/json'],
@@ -422,9 +425,9 @@ class ComplexWebRequestSimulation
             'application/json',
             $endTime - $startTime,
             false,
-        ), $httpRequestId);
+        ), $errorHttpRequestId);
 
-        $this->devLogger->log($this->logger);
+        // Don't flush here either - combine with main session
 
         echo "Error scenario completed!\n";
         echo 'Response time: ' . number_format(($endTime - $startTime) * 1000, 2) . "ms\n";
@@ -432,9 +435,49 @@ class ComplexWebRequestSimulation
 
     public function run(): void
     {
+        // Start Xdebug trace manually
+        echo "=== Debug: Starting Xdebug trace ===\n";
+        if (function_exists('xdebug_start_trace')) {
+            $traceFile = '/Users/akihito/git/Koriym.SemanticLogger/demo/xdebug_trace.xt';
+            xdebug_start_trace($traceFile);
+            echo "Xdebug trace started: {$traceFile}.xt\n";
+        }
+        
         $this->simulateECommerceOrderProcessing();
         $this->simulateErrorScenario();
+        
+        // Stop Xdebug trace
+        if (function_exists('xdebug_stop_trace')) {
+            xdebug_stop_trace();
+            echo "Xdebug trace stopped\n";
+        }
+        
+        // Debug: Check logger state before flush
+        echo "=== Debug: Logger state before flush ===\n";
+        echo "Logger class: " . get_class($this->logger) . "\n";
+        
+        // Generate JSON from the logger and save to demo folder
+        try {
+            echo "Attempting to flush logger...\n";
+            $logJson = $this->logger->flush();
+            echo "Flush successful! Log has entries: " . (!empty($logJson->toArray())) . "\n";
+            $jsonString = json_encode($logJson, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            
+            // Also save via DevLogger for AI debugging
+            $this->devLogger->saveToFile($logJson);
+            echo "DevLogger also saved copy to /tmp\n";
+        } catch (\Exception $e) {
+            // If no log session, create empty log
+            echo "Flush failed: " . $e->getMessage() . "\n";
+            echo "Exception type: " . get_class($e) . "\n";
+            $jsonString = json_encode([], JSON_PRETTY_PRINT);
+        }
+        
+        $outputPath = __DIR__ . '/semantic-log.json';
+        file_put_contents($outputPath, $jsonString);
+        
         echo "\nAll complex web request tests completed!\n";
+        echo "Generated semantic log saved to: {$outputPath}\n";
         echo "Check /tmp for semantic-dev-*.json files with complex nested data.\n";
     }
 }

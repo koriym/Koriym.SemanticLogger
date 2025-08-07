@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class FileProcessingContext extends AbstractContext
 {
     public const TYPE = 'file_processing';
-    public const SCHEMA_URL = '../schemas/file_processing.json';
+    public const SCHEMA_URL = './schemas/file_processing.json';
 
     public function __construct(
         public readonly string $operation,

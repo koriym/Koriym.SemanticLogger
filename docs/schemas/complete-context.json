@@ -39,6 +39,18 @@
       "rel": "describedby",
       "href": "https://koriym.github.io/Koriym.SemanticLogger/schemas/profile.json",
       "title": "Profile Data Structure"
+    },
+    {
+      "anchor": "#/context/profile/xhprof",
+      "rel": "describedby", 
+      "href": "https://github.com/tideways/php-xhprof-extension#data-format",
+      "title": "XHProf Data Format"
+    },
+    {
+      "anchor": "#/context/profile/xdebug",
+      "rel": "describedby",
+      "href": "https://xdebug.org/docs/trace#Output-Formats", 
+      "title": "Xdebug Trace Output Formats"
     }
   ],
   "type": "object",
@@ -93,20 +105,58 @@
           "properties": {
             "xhprof": {
               "oneOf": [
-                {"type": "array", "maxItems": 0},
-                {"type": "object"}
+                {"type": "object", "maxProperties": 0},
+                {
+                  "type": "object",
+                  "properties": {
+                    "source": {
+                      "oneOf": [
+                        {"type": "string", "description": "File path to XHProf JSON data"},
+                        {"type": "object", "description": "Inline XHProf data"}
+                      ]
+                    }
+                  }
+                }
               ]
             },
             "xdebug": {
               "oneOf": [
-                {"type": "array", "maxItems": 0},
-                {"type": "object"}
+                {"type": "object", "maxProperties": 0},
+                {
+                  "type": "object", 
+                  "properties": {
+                    "source": {
+                      "oneOf": [
+                        {"type": "string", "description": "File path to Xdebug trace file"},
+                        {"type": "string", "description": "Inline Xdebug trace data"}
+                      ]
+                    },
+                    "file_size": {"type": "integer"},
+                    "compressed": {"type": "boolean"}
+                  }
+                }
               ]
             },
             "php": {
               "type": "object",
+              "description": "PHP profiling data with execution time and call stack information",
               "properties": {
-                "backtrace": {"type": "array"}
+                "backtrace": {
+                  "type": "array",
+                  "description": "Array of function call frames with file, line, class, function, and type information. Generated via debug_backtrace()",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "file": {"type": "string"},
+                      "line": {"type": "integer"},
+                      "class": {"type": "string"},
+                      "function": {"type": "string"},
+                      "type": {"type": "string"}
+                    }
+                  }
+                },
+                "wall_time": {"type": "number", "description": "Elapsed wall time in seconds (float) measured via microtime(true)"},
+                "total_wall_time": {"type": "number", "description": "Alias for wall_time, maintained for compatibility"}
               }
             }
           }

@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class AuthenticationContext extends AbstractContext
 {
     public const TYPE = 'authentication_request';
-    public const SCHEMA_URL = '../schemas/authentication.json';
+    public const SCHEMA_URL = './schemas/authentication.json';
 
     public function __construct(
         public readonly string $method,

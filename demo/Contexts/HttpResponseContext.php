@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class HttpResponseContext extends AbstractContext
 {
     public const TYPE = 'http_response';
-    public const SCHEMA_URL = '../schemas/http_response.json';
+    public const SCHEMA_URL = './schemas/http_response.json';
 
     public function __construct(
         public readonly int $statusCode,

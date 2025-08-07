@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
+use Koriym\SemanticLogger\Exception\NoLogSessionException;
 use Koriym\SemanticLogger\Exception\UnclosedLogicException;
 use LogicException;
 use PHPUnit\Framework\TestCase;
@@ -556,5 +557,15 @@ JSON;
         $this->expectExceptionMessage('Cannot close operation');
 
         $this->logger->close($closeContext, $openId);
+    }
+
+    public function testFlushWithNoOperationsThrowsException(): void
+    {
+        // Coverage: NoLogSessionException when no operations exist + Usage example
+        $this->expectException(NoLogSessionException::class);
+        $this->expectExceptionMessage('no completed operations');
+
+        // Try to flush without any operations
+        $this->logger->flush();
     }
 }

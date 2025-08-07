@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "../schemas/external_api_request.json",
+  "title": "External API Request Context",
+  "description": "Context for external service API calls (both request and response phases)",
+  "type": "object",
+  "properties": {
+    "service": {
+      "type": "string",
+      "description": "External service name"
+    },
+    "endpoint": {
+      "type": "string",
+      "format": "uri",
+      "description": "API endpoint URL"
+    },
+    "method": {
+      "type": "string",
+      "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+      "description": "HTTP method"
+    },
+    "statusCode": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "HTTP response status code (0 for request initiation)"
+    },
+    "responseTime": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Response time in seconds"
+    },
+    "requestSize": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Request size in bytes"
+    },
+    "responseSize": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Response size in bytes"
+    },
+    "errorCode": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Error code (0 for success)"
+    }
+  },
+  "required": ["service", "endpoint", "method"],
+  "additionalProperties": true
+}

@@ -22,6 +22,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `composer psalm` - Run Psalm analysis only
 - `composer phpmd` - Run PHP Mess Detector
 
+### Code Style Guidelines
+- **Avoid else statements**: Use early returns instead of else blocks for better readability
+- **Prefer guard clauses**: Check conditions early and return/throw immediately
+
 ### Utility
 - `composer clean` - Clear caches (PHPStan, Psalm)
 - `composer build` - Complete build process (style, analysis, coverage, metrics)

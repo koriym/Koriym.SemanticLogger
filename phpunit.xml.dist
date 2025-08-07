@@ -13,6 +13,9 @@
         <include>
             <directory suffix=".php">src</directory>
         </include>
+        <exclude>
+            <file>src/DevLogger.php</file>
+        </exclude>
     </coverage>
     <php>
         <ini name="error_reporting" value="-1"/>

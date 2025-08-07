@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", 
+  "$id": "https://example.com/schema/complex-query.json",
+  "title": "Complex Database Query Context",
+  "description": "Context for complex database operations with detailed metrics",
+  "type": "object",
+  "properties": {
+    "queryType": {
+      "type": "string",
+      "enum": ["SELECT", "INSERT", "UPDATE", "DELETE", "UPSERT"],
+      "description": "Type of database operation"
+    },
+    "table": {
+      "type": "string", 
+      "description": "Target table(s) including JOINs"
+    },
+    "parameters": {
+      "type": ["object", "array"],
+      "description": "Query parameters and filters"
+    },
+    "fieldCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of fields affected"
+    },
+    "executionTime": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Query execution time in seconds"
+    },
+    "affectedRows": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of rows affected"
+    },
+    "hasError": {
+      "type": "boolean",
+      "description": "Whether query execution had errors"
+    },
+    "customerId": {
+      "type": ["string", "null"],
+      "description": "Related customer ID for tracking"
+    }
+  },
+  "required": ["queryType", "table"],
+  "additionalProperties": true
+}

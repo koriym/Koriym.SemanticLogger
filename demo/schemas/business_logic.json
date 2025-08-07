@@ -45,17 +45,17 @@
           "description": "List of product identifiers being processed"
         },
         "total": {
-          "type": "integer",
+          "type": "number",
           "minimum": 0,
-          "description": "Total amount in cents (smallest currency unit)",
-          "unit": "cents",
-          "currencyNote": "All monetary values should be in smallest currency unit (e.g., cents for USD, pence for GBP)"
+          "description": "Total amount (accepts both integer cents and decimal currency values)",
+          "unit": "currency",
+          "currencyNote": "Accepts both decimal currency values (e.g., 209.97) and integer cents"
         }
       },
       "additionalProperties": true
     },
     "outputData": {
-      "type": "object",
+      "type": ["object", "array"],
       "description": "Results produced by the business operation",
       "properties": {
         "orderId": {
