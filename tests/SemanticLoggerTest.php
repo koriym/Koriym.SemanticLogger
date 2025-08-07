@@ -537,6 +537,7 @@ final class SemanticLoggerTest extends TestCase
     {
         // Coverage: NoLogSessionException when no operations exist + Usage example
         $this->expectException(NoLogSessionException::class);
+        $this->expectExceptionMessage('Cannot create log session: no open entry');
 
         // Try to flush without any operations
         $this->logger->flush();
