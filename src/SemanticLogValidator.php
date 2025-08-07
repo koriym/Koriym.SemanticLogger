@@ -104,72 +104,112 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
      */
     private function validateContext(array $contextData, string $schemaDir, string $path, array &$violations): void
     {
-        // Check if context has schemaUrl (non-standard but our approach)
+        // Validate current context if it has required fields
         if (isset($contextData['schemaUrl'], $contextData['context'], $contextData['type'])) {
-            $schemaUrl = $contextData['schemaUrl'];
-            $type = $contextData['type'];
-            $context = $contextData['context'];
-
-            if (! is_string($schemaUrl) || ! is_string($type) || ! is_array($context)) {
-                $violations[] = "[{$path}] Invalid context structure";
-
-                return;
-            }
-
-            // Resolve schema file path
-            $schemaFile = $this->resolveSchemaPath($schemaUrl, $schemaDir);
-
-            if ($schemaFile === null) {
-                $violations[] = "[{$path}] Schema file not found: {$schemaUrl}";
-
-                return;
-            }
-
-            // Load and validate schema
-            $schemaContents = file_get_contents($schemaFile);
-            if ($schemaContents === false) {
-                $violations[] = "[{$path}] Cannot read schema file: {$schemaFile}";
-
-                return;
-            }
-
-            /** @var object|null $schema */
-            $schema = json_decode($schemaContents);
-            if ($schema === null) {
-                $violations[] = "[{$path}] Invalid schema JSON: {$schemaFile}";
-
-                return;
-            }
-
-            // Validate context against schema
-            $validator = new Validator();
-            $contextJson = json_encode($context);
-            if ($contextJson === false) {
-                $violations[] = "[{$path}] Failed to encode context to JSON";
-
-                return;
-            }
-
-            /** @var object|null $contextObj */
-            $contextObj = json_decode($contextJson);
-            $validator->validate($contextObj, $schema);
-
-            if (! $validator->isValid()) {
-                foreach ($validator->getErrors() as $error) {
-                    if (! is_array($error)) {
-                        continue;
-                    }
-
-                    $property = isset($error['property']) && is_string($error['property']) ? $error['property'] : '';
-                    $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Validation failed';
-                    $violations[] = "[{$path}.context ({$type})] {$message} at '{$property}'";
-                }
-            } else {
-                echo "✅ {$path} ({$type}) validates against {$schemaUrl}\n";
-            }
+            $this->validateSingleContext($contextData, $schemaDir, $path, $violations);
         }
 
-        // Recursively validate nested open/close
+        // Recursively validate nested structures
+        $this->validateNestedContexts($contextData, $schemaDir, $path, $violations);
+    }
+
+    /**
+     * @param array<mixed, mixed> $contextData
+     * @param array<string>       $violations
+     */
+    private function validateSingleContext(array $contextData, string $schemaDir, string $path, array &$violations): void
+    {
+        $schemaUrl = $contextData['schemaUrl'];
+        $type = $contextData['type'];
+        $context = $contextData['context'];
+
+        if (! is_string($schemaUrl) || ! is_string($type) || ! is_array($context)) {
+            $violations[] = "[{$path}] Invalid context structure";
+            return;
+        }
+
+        $schemaFile = $this->resolveSchemaPath($schemaUrl, $schemaDir);
+        if ($schemaFile === null) {
+            $violations[] = "[{$path}] Schema file not found: {$schemaUrl}";
+            return;
+        }
+
+        $schema = $this->loadSchema($schemaFile, $path, $violations);
+        if ($schema === null) {
+            return;
+        }
+
+        $this->performValidation($context, $schema, $type, $schemaUrl, $path, $violations);
+    }
+
+    /**
+     * @param array<string>       $violations
+     */
+    private function loadSchema(string $schemaFile, string $path, array &$violations): ?object
+    {
+        $schemaContents = file_get_contents($schemaFile);
+        if ($schemaContents === false) {
+            $violations[] = "[{$path}] Cannot read schema file: {$schemaFile}";
+            return null;
+        }
+
+        /** @var object|null $schema */
+        $schema = json_decode($schemaContents);
+        if ($schema === null) {
+            $violations[] = "[{$path}] Invalid schema JSON: {$schemaFile}";
+            return null;
+        }
+
+        return $schema;
+    }
+
+    /**
+     * @param array<mixed, mixed> $context
+     * @param array<string>       $violations
+     */
+    private function performValidation(array $context, object $schema, string $type, string $schemaUrl, string $path, array &$violations): void
+    {
+        $validator = new Validator();
+        $contextJson = json_encode($context);
+        if ($contextJson === false) {
+            $violations[] = "[{$path}] Failed to encode context to JSON";
+            return;
+        }
+
+        /** @var object|null $contextObj */
+        $contextObj = json_decode($contextJson);
+        $validator->validate($contextObj, $schema);
+
+        if (! $validator->isValid()) {
+            $this->addValidationErrors($validator, $type, $path, $violations);
+            return;
+        }
+
+        echo "✅ {$path} ({$type}) validates against {$schemaUrl}\n";
+    }
+
+    /**
+     * @param array<string> $violations
+     */
+    private function addValidationErrors(Validator $validator, string $type, string $path, array &$violations): void
+    {
+        foreach ($validator->getErrors() as $error) {
+            if (! is_array($error)) {
+                continue;
+            }
+
+            $property = isset($error['property']) && is_string($error['property']) ? $error['property'] : '';
+            $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Validation failed';
+            $violations[] = "[{$path}.context ({$type})] {$message} at '{$property}'";
+        }
+    }
+
+    /**
+     * @param array<mixed, mixed> $contextData
+     * @param array<string>       $violations
+     */
+    private function validateNestedContexts(array $contextData, string $schemaDir, string $path, array &$violations): void
+    {
         if (isset($contextData['open']) && is_array($contextData['open'])) {
             $this->validateContext($contextData['open'], $schemaDir, "{$path}.open", $violations);
         }
