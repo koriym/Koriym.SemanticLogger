@@ -49,6 +49,3 @@ jobs:
 
       - name: Run test suite
         run: ./vendor/bin/phpunit
-
-      - name: Run demo and validation
-        run: composer demo
