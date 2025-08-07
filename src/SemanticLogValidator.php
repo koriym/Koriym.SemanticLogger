@@ -4,49 +4,58 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
+use InvalidArgumentException;
 use JsonSchema\Validator;
+use RuntimeException;
+
+use function basename;
+use function count;
 use function file_exists;
 use function file_get_contents;
+use function is_array;
 use function json_decode;
+use function json_encode;
 use function realpath;
 use function sprintf;
+use function str_contains;
+use function str_starts_with;
 
 final class SemanticLogValidator implements SemanticLogValidatorInterface
 {
     public function validate(string $file, string $schemaDir): void
     {
-        if (!file_exists($file)) {
-            throw new \InvalidArgumentException("Log file not found: {$file}");
+        if (! file_exists($file)) {
+            throw new InvalidArgumentException("Log file not found: {$file}");
         }
 
-        if (!file_exists($schemaDir)) {
-            throw new \InvalidArgumentException("Schema directory not found: {$schemaDir}");
+        if (! file_exists($schemaDir)) {
+            throw new InvalidArgumentException("Schema directory not found: {$schemaDir}");
         }
 
         $logData = json_decode(file_get_contents($file), true);
         if ($logData === null) {
-            throw new \InvalidArgumentException("Invalid JSON in log file: {$file}");
+            throw new InvalidArgumentException("Invalid JSON in log file: {$file}");
         }
 
         $violations = [];
-        
+
         // Validate all contexts recursively
         $this->validateContexts($logData, $schemaDir, $violations);
-        
-        if (!empty($violations)) {
+
+        if (! empty($violations)) {
             $this->reportViolations($violations);
-            throw new \RuntimeException(sprintf('Validation failed with %d violations', count($violations)));
+
+            throw new RuntimeException(sprintf('Validation failed with %d violations', count($violations)));
         }
-        
+
         echo "✅ All contexts validate successfully!\n";
     }
 
     /**
      * Extract and validate all contexts from log data
-     * 
+     *
      * @param array<string, mixed> $data
-     * @param string $schemaDir
-     * @param array<string> $violations
+     * @param array<string>        $violations
      */
     private function validateContexts(array $data, string $schemaDir, array &$violations): void
     {
@@ -70,11 +79,9 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
     /**
      * Validate a single context against its schema
-     * 
+     *
      * @param array<string, mixed> $contextData
-     * @param string $schemaDir
-     * @param string $path
-     * @param array<string> $violations
+     * @param array<string>        $violations
      */
     private function validateContext(array $contextData, string $schemaDir, string $path, array &$violations): void
     {
@@ -86,9 +93,10 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
             // Resolve schema file path
             $schemaFile = $this->resolveSchemaPath($schemaUrl, $schemaDir);
-            
+
             if ($schemaFile === null) {
                 $violations[] = "[{$path}] Schema file not found: {$schemaUrl}";
+
                 return;
             }
 
@@ -96,6 +104,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
             $schema = json_decode(file_get_contents($schemaFile));
             if ($schema === null) {
                 $violations[] = "[{$path}] Invalid schema JSON: {$schemaFile}";
+
                 return;
             }
 
@@ -104,7 +113,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
             $contextObj = json_decode(json_encode($context));
             $validator->validate($contextObj, $schema);
 
-            if (!$validator->isValid()) {
+            if (! $validator->isValid()) {
                 foreach ($validator->getErrors() as $error) {
                     $property = $error['property'] ?? '';
                     $message = $error['message'] ?? 'Validation failed';
@@ -119,7 +128,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         if (isset($contextData['open'])) {
             $this->validateContext($contextData['open'], $schemaDir, "{$path}.open", $violations);
         }
-        
+
         if (isset($contextData['close'])) {
             $this->validateContext($contextData['close'], $schemaDir, "{$path}.close", $violations);
         }
@@ -128,24 +137,26 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Resolve schema URL to local file path
      */
-    private function resolveSchemaPath(string $schemaUrl, string $schemaDir): ?string
+    private function resolveSchemaPath(string $schemaUrl, string $schemaDir): string|null
     {
         // Handle relative paths like "./schemas/http_request.json"
         if (str_starts_with($schemaUrl, './schemas/')) {
             $filename = basename($schemaUrl);
             $schemaFile = realpath($schemaDir . '/' . $filename);
+
             return $schemaFile !== false ? $schemaFile : null;
         }
 
         // Handle direct filenames
-        if (!str_contains($schemaUrl, '/')) {
+        if (! str_contains($schemaUrl, '/')) {
             $schemaFile = realpath($schemaDir . '/' . $schemaUrl);
+
             return $schemaFile !== false ? $schemaFile : null;
         }
 
         // For absolute URLs, try to extract filename and map to local files
         $filename = basename($schemaUrl);
-        
+
         // Special case: complex-query.json from external URL
         if ($filename === 'complex-query.json') {
             $localFile = realpath($schemaDir . '/complex_query.json');
@@ -153,16 +164,16 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
                 return $localFile;
             }
         }
-        
+
         // General case: try exact filename match
         $schemaFile = realpath($schemaDir . '/' . $filename);
+
         return $schemaFile !== false ? $schemaFile : null;
     }
 
-
     /**
      * Report validation violations
-     * 
+     *
      * @param array<string> $violations
      */
     private function reportViolations(array $violations): void
@@ -171,6 +182,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         foreach ($violations as $violation) {
             echo "  {$violation}\n";
         }
+
         echo "\n📖 For error format details, see: https://json-schema.org/understanding-json-schema/reference/generic.html#validation-keywords\n";
     }
 }

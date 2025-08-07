@@ -13,8 +13,8 @@ $combinedSchema = $generator->generateCombinedSchema();
 
 $outputPath = __DIR__ . '/semantic-log-generated.json';
 file_put_contents(
-    $outputPath, 
-    json_encode($combinedSchema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+    $outputPath,
+    json_encode($combinedSchema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
 );
 
 echo "Generated dynamic schema: {$outputPath}\n";

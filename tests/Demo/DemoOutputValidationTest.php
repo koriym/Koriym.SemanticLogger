@@ -9,9 +9,8 @@ use PHPUnit\Framework\TestCase;
 
 use function assert;
 use function dirname;
-use function exec;
 use function file_get_contents;
-use function is_string;
+use function implode;
 use function json_decode;
 
 final class DemoOutputValidationTest extends TestCase
@@ -40,22 +39,23 @@ final class DemoOutputValidationTest extends TestCase
         $demoPath = dirname(__DIR__, 2) . '/demo';
         $jsonPath = $demoPath . '/semantic-log.json';
         $this->assertFileExists($jsonPath, 'semantic-log.json should exist (run "cd demo && php run.php" to generate)');
-        
+
         $jsonContent = file_get_contents($jsonPath);
         $this->assertNotFalse($jsonContent, 'JSON file should be readable');
-        
+
         $logData = json_decode($jsonContent);
         $this->assertNotNull($logData, 'semantic-log.json should contain valid JSON');
 
         // Validate against semantic-log.json schema
         $this->validator->validate($logData, $this->schema);
-        
-        if (!$this->validator->isValid()) {
+
+        if (! $this->validator->isValid()) {
             $errors = $this->validator->getErrors();
             $errorMessages = [];
             foreach ($errors as $error) {
                 $errorMessages[] = "[{$error['property']}] {$error['message']}";
             }
+
             $this->fail('Demo output validation failed: ' . implode(', ', $errorMessages));
         }
 

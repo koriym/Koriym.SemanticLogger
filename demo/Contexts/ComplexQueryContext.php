@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
-use Koriym\SemanticLogger\AbstractContext;
-
 final class ComplexQueryContext extends AbstractContext
 {
     public const TYPE = 'complex_query';
@@ -19,7 +17,7 @@ final class ComplexQueryContext extends AbstractContext
         public readonly float $executionTime,
         public readonly int $affectedRows,
         public readonly bool $hasError,
-        public readonly ?string $customerId = null,
+        public readonly string|null $customerId = null,
     ) {
     }
 }
