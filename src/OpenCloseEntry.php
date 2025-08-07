@@ -19,13 +19,13 @@ final class OpenCloseEntry implements JsonSerializable
     ) {
     }
 
-    /** @return array{id: string, type: string, '$schema': string, context: array<string, mixed>, open?: array<string, mixed>} */
+    /** @return array{id: string, type: string, schemaUrl: string, context: array<string, mixed>, open?: array<string, mixed>} */
     public function toArray(): array
     {
         $result = [
             'id' => $this->id,
             'type' => $this->type,
-            '$schema' => $this->schemaUrl,
+            'schemaUrl' => $this->schemaUrl,
             'context' => $this->context,
         ];
 

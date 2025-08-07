@@ -173,6 +173,14 @@ while ($line = fgets(STDIN)) {
                         ],
                     ],
                     [
+                        'name' => 'listSemanticProfiles',
+                        'description' => 'List all available semantic profile log files in the directory',
+                        'inputSchema' => [
+                            'type' => 'object',
+                            'properties' => (object) [],
+                        ],
+                    ],
+                    [
                         'name' => 'semanticAnalyze',
                         'description' => 'Execute PHP script with semantic profiling enabled, then automatically generate AI-powered performance insights and recommendations',
                         'inputSchema' => [
@@ -270,6 +278,10 @@ function handleToolCall(array $params, string $logFile): array
             ],
             'isError' => false,
         ];
+    }
+
+    if ($toolName === 'listSemanticProfiles') {
+        return listSemanticProfiles();
     }
 
     if ($toolName === 'semanticAnalyze') {
@@ -378,6 +390,57 @@ function semanticAnalyze(array $args): array
             [
                 'type' => 'text',
                 'text' => "Script executed successfully.\nLog file: $executionLog\n\n" . $analysisPrompt . "\n\n```json\n" . $jsonData . "\n```",
+            ],
+        ],
+        'isError' => false,
+    ];
+}
+
+/**
+ * @return McpToolCallResult
+ */
+function listSemanticProfiles(): array
+{
+    $logDirectory = $GLOBALS['logDirectory'];
+    assert(is_string($logDirectory));
+    $pattern = rtrim($logDirectory, '/') . '/semantic-dev-*.json';
+    
+    $files = glob($pattern);
+    if ($files === false || empty($files)) {
+        return [
+            'content' => [
+                [
+                    'type' => 'text',
+                    'text' => 'No semantic profile files found in directory: ' . $logDirectory,
+                ],
+            ],
+            'isError' => false,
+        ];
+    }
+    
+    // Sort by modification time (newest first)
+    usort($files, static fn (string $a, string $b): int => filemtime($b) <=> filemtime($a));
+    
+    $fileList = [];
+    foreach ($files as $file) {
+        $basename = basename($file);
+        $size = filesize($file);
+        $mtime = filemtime($file);
+        $fileList[] = sprintf(
+            '• %s (%s bytes, %s)',
+            $basename,
+            number_format($size),
+            date('Y-m-d H:i:s', $mtime)
+        );
+    }
+    
+    $text = "Available semantic profile files:\n\n" . implode("\n", $fileList);
+    
+    return [
+        'content' => [
+            [
+                'type' => 'text',
+                'text' => $text,
             ],
         ],
         'isError' => false,

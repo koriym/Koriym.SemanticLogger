@@ -20,27 +20,22 @@
   "required": ["schemaUrl", "open", "close"],
   "properties": {
     "schemaUrl": {
-      "type": "string",
-      "format": "uri",
-      "description": "URL to the semantic log schema"
+      "$ref": "#/$defs/schemaUrl"
     },
     "open": {
       "type": "object",
       "description": "Application-defined open context - type and schema determined by application needs",
-      "required": ["id", "type", "$schema"],
+      "required": ["id", "type", "$ref"],
       "properties": {
         "id": {
-          "$ref": "#/$defs/operationId",
-          "description": "Unique identifier for this operation, referenced by corresponding close/event entries via openId"
+          "$ref": "#/$defs/operationId"
         },
         "type": {
           "type": "string",
           "description": "Application-defined context type (e.g., http_request, database_query, business_logic)"
         },
         "schemaUrl": {
-          "type": "string",
-          "format": "uri", 
-          "description": "URL to application-defined schema for this context type"
+          "$ref": "#/$defs/schemaUrl"
         },
         "context": {
           "type": "object",
@@ -57,20 +52,17 @@
     "close": {
       "type": "object",
       "description": "Application-defined close context - type and schema determined by application needs",
-      "required": ["id", "type", "$schema", "openId"],
+      "required": ["id", "type", "$ref", "openId"],
       "properties": {
         "id": {
-          "$ref": "#/$defs/operationId",
-          "description": "Unique identifier for this close operation"
+          "$ref": "#/$defs/operationId"
         },
         "type": {
           "type": "string",
           "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
         },
         "schemaUrl": {
-          "type": "string",
-          "format": "uri",
-          "description": "URL to application-defined schema for this context type"
+          "$ref": "#/$defs/schemaUrl"
         },
         "openId": {
           "$ref": "#/$defs/openIdReference"
@@ -92,20 +84,17 @@
       "description": "Events that occurred within specific operations - each event's openId indicates the hierarchical scope/position where the event happened. Events are positioned within the operation hierarchy through openId references, enabling precise attribution and scope analysis for performance tracking and debugging",
       "items": {
         "type": "object",
-        "required": ["id", "type", "$schema", "openId"],
+        "required": ["id", "type", "$ref", "openId"],
         "properties": {
           "id": {
-            "$ref": "#/$defs/operationId",
-            "description": "Unique identifier for this event"
+            "$ref": "#/$defs/operationId"
           },
           "type": {
             "type": "string", 
             "description": "Application-defined event type (e.g., cache_operation, database_query, external_api)"
           },
           "schemaUrl": {
-            "type": "string",
-            "format": "uri",
-            "description": "URL to application-defined schema for this event type"
+            "$ref": "#/$defs/schemaUrl"
           },
           "openId": {
             "$ref": "#/$defs/openIdReference"
@@ -176,11 +165,20 @@
     "contextType": {
       "type": "string",
       "description": "Application-defined context type identifier. Applications define their own context types through individual schema files"
+    },
+    "schemaUrl": {
+      "type": "string",
+      "format": "uri",
+      "description": "Context schema reference for AI-human understanding alignment. While humans naturally understand what this context represents, AI needs explicit schema guidance to achieve the same level of comprehension about data structure, constraints, and business meaning.",
+      "$comment": "Bridge: Humans intuitively understand context meaning; AI uses this schema reference to gain equivalent understanding."
     }
   },
   "definitions": {
     "contextType": {
       "$ref": "#/$defs/contextType"
+    },
+    "schemaUrl": {
+      "$ref": "#/$defs/schemaUrl"
     }
   }
 }
