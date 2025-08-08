@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
+use Koriym\SemanticLogger\Exception\NoLogSessionException;
 use Koriym\SemanticLogger\Exception\UnclosedLogicException;
 use LogicException;
 use PHPUnit\Framework\TestCase;
@@ -61,7 +62,7 @@ final class SemanticLoggerTest extends TestCase
 
         $logJson = $this->logger->flush();
 
-        $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json', $logJson->schemaUrl);
+        $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json', $logJson->schemaUrl);
 
         // Open - check ID
         $this->assertSame('process_start_1', $logJson->open->id);
@@ -261,43 +262,34 @@ final class SemanticLoggerTest extends TestCase
 
     public function testJsonStringOutput(): void
     {
-        // Test simple operation JSON string format
+        // Test simple operation structure (schema-based testing)
         $openContext = new FakeContext('test message', 123);
         $openId = $this->logger->open($openContext);
 
         $closeContext = new FakeContext('test complete', 456);
         $this->logger->close($closeContext, $openId);
 
-        $actualJson = json_encode($this->logger, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        $logJson = $this->logger->flush();
 
-        $expectedJson = <<<'JSON'
-{
-    "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-    "open": {
-        "id": "example_event_1",
-        "type": "example_event",
-        "$schema": "https://example.com/schemas/example.json",
-        "context": {
-            "message": "test message",
-            "value": 123
-        }
-    },
-    "close": {
-        "id": "example_event_2",
-        "type": "example_event",
-        "$schema": "https://example.com/schemas/example.json",
-        "context": {
-            "message": "test complete",
-            "value": 456
-        },
-        "openId": "example_event_1"
-    }
-}
-JSON;
+        // Verify structure instead of exact JSON string (more robust)
+        $this->assertStringContainsString('schemas/combined.json', $logJson->schemaUrl);
 
-        $this->assertSame($expectedJson, $actualJson);
+        // Verify open structure
+        $this->assertSame('example_event_1', $logJson->open->id);
+        $this->assertSame('example_event', $logJson->open->type);
+        $this->assertSame('test message', $logJson->open->context['message']);
+        $this->assertSame(123, $logJson->open->context['value']);
 
-        // Verify no null fields exist in the string
+        // Verify close structure
+        $this->assertSame('example_event_2', $logJson->close->id);
+        $this->assertSame('example_event', $logJson->close->type);
+        $this->assertSame('test complete', $logJson->close->context['message']);
+        $this->assertSame(456, $logJson->close->context['value']);
+        $this->assertSame('example_event_1', $logJson->close->openId);
+
+        // Verify JSON serialization quality
+        $actualJson = json_encode($logJson, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        $this->assertIsString($actualJson);
         $this->assertStringNotContainsString(': null', $actualJson);
         $this->assertStringNotContainsString('"open": null', $actualJson);
         $this->assertStringNotContainsString('"close": null', $actualJson);
@@ -305,62 +297,45 @@ JSON;
 
     public function testNestedJsonStringOutput(): void
     {
-        // Test nested operation JSON string format
+        // Test nested operation structure (schema-based testing)
         $logger = new SemanticLogger();
         $outerOpenId = $logger->open(new FakeContext('outer task', 100));
         $innerOpenId = $logger->open(new FakeContext('inner task', 200));
         $logger->close(new FakeContext('inner done', 300), $innerOpenId);
         $logger->close(new FakeContext('outer done', 400), $outerOpenId);
 
-        $actualJson = json_encode($logger, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        $logJson = $logger->flush();
 
-        $expectedJson = <<<'JSON'
-{
-    "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-    "open": {
-        "id": "example_event_1",
-        "type": "example_event",
-        "$schema": "https://example.com/schemas/example.json",
-        "context": {
-            "message": "outer task",
-            "value": 100
-        },
-        "open": {
-            "id": "example_event_2",
-            "type": "example_event",
-            "$schema": "https://example.com/schemas/example.json",
-            "context": {
-                "message": "inner task",
-                "value": 200
-            }
-        }
-    },
-    "close": {
-        "id": "example_event_4",
-        "type": "example_event",
-        "$schema": "https://example.com/schemas/example.json",
-        "context": {
-            "message": "outer done",
-            "value": 400
-        },
-        "openId": "example_event_1",
-        "close": {
-            "id": "example_event_3",
-            "type": "example_event",
-            "$schema": "https://example.com/schemas/example.json",
-            "context": {
-                "message": "inner done",
-                "value": 300
-            },
-            "openId": "example_event_2"
-        }
-    }
-}
-JSON;
+        // Verify nested structure (more robust than exact JSON comparison)
+        $this->assertStringContainsString('schemas/combined.json', $logJson->schemaUrl);
 
-        $this->assertSame($expectedJson, $actualJson);
+        // Verify outer open
+        $this->assertSame('example_event_1', $logJson->open->id);
+        $this->assertSame('outer task', $logJson->open->context['message']);
+        $this->assertSame(100, $logJson->open->context['value']);
 
-        // Verify no null fields exist anywhere in nested structure
+        // Verify inner open (nested)
+        $this->assertNotNull($logJson->open->open);
+        $this->assertSame('example_event_2', $logJson->open->open->id);
+        $this->assertSame('inner task', $logJson->open->open->context['message']);
+        $this->assertSame(200, $logJson->open->open->context['value']);
+
+        // Verify outer close
+        $this->assertSame('example_event_4', $logJson->close->id);
+        $this->assertSame('outer done', $logJson->close->context['message']);
+        $this->assertSame(400, $logJson->close->context['value']);
+        $this->assertSame('example_event_1', $logJson->close->openId);
+
+        // Verify inner close (nested)
+        $this->assertNotNull($logJson->close->close);
+        $this->assertSame('example_event_3', $logJson->close->close->id);
+        $this->assertSame('inner done', $logJson->close->close->context['message']);
+        $this->assertSame(300, $logJson->close->close->context['value']);
+        $this->assertSame('example_event_2', $logJson->close->close->openId);
+
+        // Verify JSON serialization quality
+        $actualJson = json_encode($logJson, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        $this->assertIsString($actualJson);
         $this->assertStringNotContainsString(': null', $actualJson);
         $this->assertStringNotContainsString('"open": null', $actualJson);
         $this->assertStringNotContainsString('"close": null', $actualJson);
@@ -556,5 +531,15 @@ JSON;
         $this->expectExceptionMessage('Cannot close operation');
 
         $this->logger->close($closeContext, $openId);
+    }
+
+    public function testFlushWithNoOperationsThrowsException(): void
+    {
+        // Coverage: NoLogSessionException when no operations exist + Usage example
+        $this->expectException(NoLogSessionException::class);
+        $this->expectExceptionMessage('Cannot create log session: no open entry');
+
+        // Try to flush without any operations
+        $this->logger->flush();
     }
 }

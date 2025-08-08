@@ -22,6 +22,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `composer psalm` - Run Psalm analysis only
 - `composer phpmd` - Run PHP Mess Detector
 
+### Code Style Guidelines
+- **Avoid else statements**: Use early returns instead of else blocks for better readability
+- **Prefer guard clauses**: Check conditions early and return/throw immediately
+
+### Commit Message Guidelines
+This project does NOT use conventional commits prefixes like `feat:`, `fix:`, `docs:`, etc.
+
+**Use simple, descriptive commit messages:**
+- ✅ `Add semantic log validator`
+- ✅ `Update README with validation examples`
+- ✅ `Fix XHProf result class implementation`
+- ❌ `feat: add semantic log validator`
+- ❌ `docs: update README with validation examples`
+- ❌ `fix: correct XHProf result class implementation`
+
+Keep commit messages concise and focused on what was changed, not categorizing the type of change.
+
 ### Utility
 - `composer clean` - Clear caches (PHPStan, Psalm)
 - `composer build` - Complete build process (style, analysis, coverage, metrics)

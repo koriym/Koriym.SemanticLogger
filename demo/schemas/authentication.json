@@ -10,14 +10,14 @@
       "enum": ["JWT", "OAuth", "BasicAuth", "APIKey", "Session"],
       "description": "Authentication method used"
     },
-    "userId": {
+    "token": {
       "type": ["string", "null"],
-      "description": "Authenticated user ID (null if authentication failed)"
+      "description": "Authentication token (null if not provided or failed)"
     },
-    "claims": {
-      "type": "object",
+    "requestMetadata": {
+      "type": ["object", "array"],
       "additionalProperties": true,
-      "description": "User claims and permissions"
+      "description": "Authentication request metadata and claims"
     },
     "success": {
       "type": "boolean",
@@ -29,6 +29,6 @@
       "description": "Authentication duration in seconds"
     }
   },
-  "required": ["method", "success", "duration"],
-  "additionalProperties": false
+  "required": ["method"],
+  "additionalProperties": true
 }

@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class ErrorContext extends AbstractContext
 {
     public const TYPE = 'error';
-    public const SCHEMA_URL = '../schemas/error.json';
+    public const SCHEMA_URL = './schemas/error.json';
 
     public function __construct(
         public readonly string $errorType,

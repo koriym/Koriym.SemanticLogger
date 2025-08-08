@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class HttpRequestContext extends AbstractContext
 {
     public const TYPE = 'http_request';
-    public const SCHEMA_URL = '../schemas/http_request.json';
+    public const SCHEMA_URL = './schemas/http_request.json';
 
     public function __construct(
         public readonly string $method,

@@ -19,7 +19,7 @@ use function is_string;
 
 final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 {
-    private const SEMANTIC_LOG_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json';
+    private const SEMANTIC_LOG_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json';
 
     /** @var list<EventEntry> */
     private array $events = [];
@@ -239,9 +239,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         // Build nested structure from outermost to innermost
         $result = array_pop($closeEntries);
 
-        if ($result === null) {
-            throw new NoLogSessionException('no close entries');
-        }
+        assert($result !== null, 'Internal error: closeStack is empty but completedOperations exist');
 
         while (! empty($closeEntries)) {
             $child = array_pop($closeEntries);

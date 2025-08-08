@@ -1,5 +1,13 @@
 {
-    "symbol-whitelist" : [],
+    "symbol-whitelist" : [
+        "xdebug_get_tracefile_name",
+        "xdebug_start_trace", 
+        "xdebug_stop_trace",
+        "xhprof_disable",
+        "xhprof_enable",
+        "XHPROF_FLAGS_CPU",
+        "XHPROF_FLAGS_MEMORY"
+    ],
     "php-core-extensions" : [
         "Core",
         "date",

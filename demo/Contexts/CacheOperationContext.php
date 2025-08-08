@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class CacheOperationContext extends AbstractContext
 {
     public const TYPE = 'cache_operation';
-    public const SCHEMA_URL = '../schemas/cache_operation.json';
+    public const SCHEMA_URL = './schemas/cache_operation.json';
 
     public function __construct(
         public readonly string $operation,

@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class DatabaseQueryCompleteContext extends AbstractContext
 {
     public const TYPE = 'database_query_response';
-    public const SCHEMA_URL = '../schemas/database_query_response.json';
+    public const SCHEMA_URL = './schemas/database_query.json';
 
     public function __construct(public readonly array $resultData)
     {

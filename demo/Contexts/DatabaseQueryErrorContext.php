@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class DatabaseQueryErrorContext extends AbstractContext
 {
     public const TYPE = 'database_query_error';
-    public const SCHEMA_URL = '../schemas/database_query_error.json';
+    public const SCHEMA_URL = './schemas/database_query_error.json';
 
     public function __construct(public readonly array $errorData)
     {

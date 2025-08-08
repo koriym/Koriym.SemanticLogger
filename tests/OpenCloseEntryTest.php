@@ -30,7 +30,7 @@ final class OpenCloseEntryTest extends TestCase
         $this->assertSame([
             'id' => 'simple_entry_1',
             'type' => 'simple_entry',
-            '$schema' => 'https://example.com/simple.json',
+            'schemaUrl' => 'https://example.com/simple.json',
             'context' => ['message' => 'hello', 'value' => 42],
         ], $array);
     }

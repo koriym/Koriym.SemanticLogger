@@ -10,7 +10,7 @@ namespace Koriym\SemanticLogger;
 final class BusinessLogicContext extends AbstractContext
 {
     public const TYPE = 'business_logic';
-    public const SCHEMA_URL = '../schemas/business_logic.json';
+    public const SCHEMA_URL = './schemas/business_logic.json';
 
     public function __construct(
         public readonly string $operation,

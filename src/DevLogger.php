@@ -53,10 +53,12 @@ final class DevLogger
         }
     }
 
-    private function saveToFile(LogJson $logData): void
+    public function saveToFile(LogJson $logData): void
     {
         $jsonContent = json_encode($logData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         if ($jsonContent === false) {
+            error_log('DevLogger: JSON encoding failed for semantic log data');
+
             return; // Skip if JSON encoding fails
         }
 
