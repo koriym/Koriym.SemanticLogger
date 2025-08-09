@@ -385,7 +385,7 @@ function semanticAnalyze(array $args): array
     $output = shell_exec($command);
     
     // Check if profiling extensions failed to load and warn if needed
-    if (strpos($output, 'Unable to load dynamic library') !== false) {
+    if ($output !== null && $output !== false && strpos($output, 'Unable to load dynamic library') !== false) {
         $warningMsg = "Warning: Some profiling extensions may not be available. ";
         if (!$hasXdebug && !$hasXHProf) {
             $warningMsg .= "Neither Xdebug nor XHProf extensions are loaded. ";
@@ -401,8 +401,8 @@ function semanticAnalyze(array $args): array
     }
 
     // Find semantic log files created during script execution
+    /** @var string $logDirectory */
     $logDirectory = $GLOBALS['logDirectory'];
-    assert(is_string($logDirectory));
     $pattern = rtrim($logDirectory, '/') . '/semantic-log-*.json';
 
     $files = glob($pattern);
@@ -475,6 +475,9 @@ function listSemanticProfiles(): array
         $basename = basename($file);
         $size = filesize($file);
         $mtime = filemtime($file);
+        if ($size === false || $mtime === false) {
+            continue;
+        }
         $fileList[] = sprintf(
             '• %s (%s bytes, %s)',
             $basename,
