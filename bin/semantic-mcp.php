@@ -97,7 +97,7 @@ if (! is_dir($logDirectory)) {
 }
 
 // Find the latest semantic log file
-$pattern = rtrim($logDirectory, '/') . '/semantic-dev-*.json';
+$pattern = rtrim($logDirectory, '/') . '/semantic-log-*.json';
 $files = glob($pattern);
 
 if ($files === false || empty($files)) {
@@ -403,7 +403,7 @@ function semanticAnalyze(array $args): array
     // Find semantic log files created during script execution
     $logDirectory = $GLOBALS['logDirectory'];
     assert(is_string($logDirectory));
-    $pattern = rtrim($logDirectory, '/') . '/semantic-dev-*.json';
+    $pattern = rtrim($logDirectory, '/') . '/semantic-log-*.json';
 
     $files = glob($pattern);
     if ($files === false) {
@@ -452,7 +452,7 @@ function listSemanticProfiles(): array
 {
     $logDirectory = $GLOBALS['logDirectory'];
     assert(is_string($logDirectory));
-    $pattern = rtrim($logDirectory, '/') . '/semantic-dev-*.json';
+    $pattern = rtrim($logDirectory, '/') . '/semantic-log-*.json';
     
     $files = glob($pattern);
     if ($files === false || empty($files)) {

@@ -3,8 +3,8 @@
     "semantic-profiler": {
       "command": "php",
       "args": [
-        "bin/server.php",
-        "/tmp",
+        "bin/semantic-mcp.php",
+        "demo",
         "Japanese"
       ]
     }
