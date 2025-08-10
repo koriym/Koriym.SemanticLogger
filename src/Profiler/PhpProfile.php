@@ -58,6 +58,7 @@ final class PhpProfile implements JsonSerializable
      * @param int $limit Maximum number of stack frames to collect
      *
      * @return array<int, array{file?: string, line?: int, class?: string, function: string, type?: string}>
+     * @codeCoverageIgnore
      */
     private static function collectBacktrace(int $limit): array
     {

@@ -1,179 +1,136 @@
 {
     "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json",
     "open": {
-        "id": "http_request_2",
-        "type": "http_request",
-        "schemaUrl": "./schemas/http_request.json",
+        "id": "business_logic_1",
+        "type": "business_logic",
+        "schemaUrl": "./schemas/business_logic.json",
         "context": {
-            "method": "POST",
-            "uri": "/api/orders",
-            "headers": {
-                "Content-Type": "application/json"
+            "operation": "order_validation",
+            "inputData": {
+                "endpoint": "/api/orders",
+                "method": "POST",
+                "customerId": 12345
             },
-            "body": {
-                "invalid": "data"
+            "outputData": [],
+            "validationRules": {
+                "customer_exists": true,
+                "items_available": true,
+                "payment_valid": true,
+                "shipping_valid": true
             },
-            "userAgent": "BadClient/1.0",
-            "clientIp": "192.168.1.200"
+            "success": false
         },
         "open": {
-            "id": "authentication_request_3",
-            "type": "authentication_request",
-            "schemaUrl": "./schemas/authentication.json",
+            "id": "business_logic_2",
+            "type": "business_logic",
+            "schemaUrl": "./schemas/business_logic.json",
             "context": {
-                "method": "JWT",
-                "token": null,
-                "requestMetadata": []
+                "operation": "order_validation",
+                "inputData": {
+                    "customerId": 12345,
+                    "items": [
+                        "P001",
+                        "P045"
+                    ],
+                    "total": 209.97
+                },
+                "outputData": [],
+                "validationRules": {
+                    "customer_exists": true,
+                    "items_available": true,
+                    "payment_valid": true,
+                    "shipping_valid": true
+                },
+                "success": false
             },
             "open": {
-                "id": "http_request_1",
-                "type": "http_request",
-                "schemaUrl": "./schemas/http_request.json",
+                "id": "external_api_request_5",
+                "type": "external_api_request",
+                "schemaUrl": "./schemas/external_api_request.json",
                 "context": {
+                    "service": "EmailService",
+                    "endpoint": "https://api.sendgrid.com/v3/mail/send",
                     "method": "POST",
-                    "uri": "/api/orders",
-                    "headers": {
-                        "Content-Type": "application/json",
-                        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-                        "User-Agent": "ECommerceApp/2.1.0",
-                        "X-Request-ID": "req_689719ab31533"
-                    },
-                    "body": {
-                        "customerId": 12345,
-                        "items": [
-                            {
-                                "productId": "P001",
-                                "quantity": 2,
-                                "price": 29.99
-                            },
-                            {
-                                "productId": "P045",
-                                "quantity": 1,
-                                "price": 149.99
-                            }
-                        ],
-                        "shippingAddress": {
-                            "street": "123 Main St",
-                            "city": "Tokyo"
-                        },
-                        "paymentMethod": "credit_card_ending_1234"
-                    },
-                    "userAgent": "ECommerceApp/2.1.0 (iOS 17.0)",
-                    "clientIp": "192.168.1.100"
+                    "statusCode": 0,
+                    "responseTime": 0,
+                    "requestSize": 2048,
+                    "responseSize": 0,
+                    "errorCode": 0
                 },
                 "open": {
-                    "id": "business_logic_1",
-                    "type": "business_logic",
-                    "schemaUrl": "./schemas/business_logic.json",
+                    "id": "file_processing_1",
+                    "type": "file_processing",
+                    "schemaUrl": "./schemas/file_processing.json",
                     "context": {
-                        "operation": "order_validation",
-                        "inputData": {
-                            "customerId": 12345,
-                            "items": [
-                                "P001",
-                                "P045"
-                            ],
-                            "total": 209.97
-                        },
-                        "outputData": [],
-                        "validationRules": {
-                            "customer_exists": true,
-                            "items_available": true,
-                            "payment_valid": true,
-                            "shipping_valid": true
-                        },
-                        "success": false
+                        "operation": "pdf_generation",
+                        "filename": "invoice_ORD_689843c5d976c.pdf",
+                        "mimeType": "application/pdf",
+                        "fileSize": 0,
+                        "processingTime": 0,
+                        "success": false,
+                        "outputPath": null
                     },
                     "open": {
-                        "id": "external_api_request_5",
+                        "id": "external_api_request_3",
                         "type": "external_api_request",
                         "schemaUrl": "./schemas/external_api_request.json",
                         "context": {
-                            "service": "EmailService",
-                            "endpoint": "https://api.email.example.com/v1/send",
+                            "service": "ShippingService",
+                            "endpoint": "https://api.fedex.com/v1/shipments",
                             "method": "POST",
                             "statusCode": 0,
                             "responseTime": 0,
-                            "requestSize": 2048,
+                            "requestSize": 1024,
                             "responseSize": 0,
                             "errorCode": 0
                         },
                         "open": {
-                            "id": "file_processing_1",
-                            "type": "file_processing",
-                            "schemaUrl": "./schemas/file_processing.json",
+                            "id": "external_api_request_1",
+                            "type": "external_api_request",
+                            "schemaUrl": "./schemas/external_api_request.json",
                             "context": {
-                                "operation": "pdf_generation",
-                                "filename": "invoice_ORD_689719aba528f.pdf",
-                                "mimeType": "application/pdf",
-                                "fileSize": 0,
-                                "processingTime": 0,
-                                "success": false,
-                                "outputPath": null
+                                "service": "PaymentGateway",
+                                "endpoint": "https://api.stripe.com/v1/charges",
+                                "method": "POST",
+                                "statusCode": 0,
+                                "responseTime": 0,
+                                "requestSize": 512,
+                                "responseSize": 0,
+                                "errorCode": 0
                             },
                             "open": {
-                                "id": "external_api_request_3",
-                                "type": "external_api_request",
-                                "schemaUrl": "./schemas/external_api_request.json",
+                                "id": "database_connection_1",
+                                "type": "database_connection",
+                                "schemaUrl": "./schemas/database_connection.json",
                                 "context": {
-                                    "service": "ShippingService",
-                                    "endpoint": "https://api.shipping.example.com/v1/labels",
-                                    "method": "POST",
-                                    "statusCode": 0,
-                                    "responseTime": 0,
-                                    "requestSize": 1024,
-                                    "responseSize": 0,
-                                    "errorCode": 0
+                                    "driver": "mysql",
+                                    "host": "db-cluster-1.example.com",
+                                    "database": "ecommerce_prod",
+                                    "connectionTime": 0.045,
+                                    "pooled": true
                                 },
                                 "open": {
-                                    "id": "database_connection_1",
-                                    "type": "database_connection",
-                                    "schemaUrl": "./schemas/database_connection.json",
+                                    "id": "complex_query_4",
+                                    "type": "complex_query",
+                                    "schemaUrl": "https://example.com/schema/complex-query.json",
                                     "context": {
-                                        "driver": "mysql",
-                                        "host": "db-cluster-1.example.com",
-                                        "database": "ecommerce_prod",
-                                        "connectionTime": 0.045,
-                                        "pooled": true
+                                        "queryType": "INSERT",
+                                        "table": "orders",
+                                        "parameters": [],
+                                        "fieldCount": 8,
+                                        "executionTime": 0,
+                                        "affectedRows": 0,
+                                        "hasError": false,
+                                        "customerId": null
                                     },
                                     "open": {
-                                        "id": "complex_query_4",
-                                        "type": "complex_query",
-                                        "schemaUrl": "https://example.com/schema/complex-query.json",
+                                        "id": "authentication_request_1",
+                                        "type": "authentication_request",
+                                        "schemaUrl": "./schemas/authentication.json",
                                         "context": {
-                                            "queryType": "INSERT",
-                                            "table": "orders",
-                                            "parameters": [],
-                                            "fieldCount": 8,
-                                            "executionTime": 0,
-                                            "affectedRows": 0,
-                                            "hasError": false,
-                                            "customerId": null
-                                        },
-                                        "open": {
-                                            "id": "external_api_request_1",
-                                            "type": "external_api_request",
-                                            "schemaUrl": "./schemas/external_api_request.json",
-                                            "context": {
-                                                "service": "PaymentGateway",
-                                                "endpoint": "https://api.payments.example.com/v2/authorize",
-                                                "method": "POST",
-                                                "statusCode": 0,
-                                                "responseTime": 0,
-                                                "requestSize": 512,
-                                                "responseSize": 0,
-                                                "errorCode": 0
-                                            },
-                                            "open": {
-                                                "id": "authentication_request_1",
-                                                "type": "authentication_request",
-                                                "schemaUrl": "./schemas/authentication.json",
-                                                "context": {
-                                                    "method": "JWT",
-                                                    "token": null,
-                                                    "requestMetadata": []
-                                                }
-                                            }
+                                            "method": "JWT",
+                                            "token": null,
+                                            "requestMetadata": []
                                         }
                                     }
                                 }
@@ -185,20 +142,30 @@
         }
     },
     "close": {
-        "id": "http_response_2",
-        "type": "http_response",
-        "schemaUrl": "./schemas/http_response.json",
+        "id": "business_logic_4",
+        "type": "business_logic",
+        "schemaUrl": "./schemas/business_logic.json",
         "context": {
-            "statusCode": 401,
-            "headers": {
-                "Content-Type": "application/json"
+            "operation": "order_validation",
+            "inputData": {
+                "endpoint": "/api/orders",
+                "method": "POST",
+                "customerId": 12345
             },
-            "contentLength": 128,
-            "contentType": "application/json",
-            "responseTime": 0.0048809051513671875,
-            "cached": false
+            "outputData": {
+                "orderId": "ORD_67890",
+                "status": "confirmed",
+                "responseCode": 201
+            },
+            "validationRules": {
+                "customer_exists": true,
+                "items_available": true,
+                "payment_valid": true,
+                "shipping_valid": true
+            },
+            "success": true
         },
-        "openId": "http_request_2",
+        "openId": "business_logic_1",
         "close": {
             "id": "authentication_request_2",
             "type": "authentication_request",
@@ -215,6 +182,44 @@
         }
     },
     "events": [
+        {
+            "id": "http_request_1",
+            "type": "http_request",
+            "schemaUrl": "./schemas/http_request.json",
+            "context": {
+                "method": "POST",
+                "uri": "/api/orders",
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "User-Agent": "ECommerceApp/2.1.0",
+                    "X-Request-ID": "req_689843c589d9e"
+                },
+                "body": {
+                    "customerId": 12345,
+                    "items": [
+                        {
+                            "productId": "P001",
+                            "quantity": 2,
+                            "price": 29.99
+                        },
+                        {
+                            "productId": "P045",
+                            "quantity": 1,
+                            "price": 149.99
+                        }
+                    ],
+                    "shippingAddress": {
+                        "street": "123 Main St",
+                        "city": "Tokyo"
+                    },
+                    "paymentMethod": "credit_card_ending_1234"
+                },
+                "userAgent": "ECommerceApp/2.1.0 (iOS 17.0)",
+                "clientIp": "192.168.1.100"
+            },
+            "openId": "business_logic_1"
+        },
         {
             "id": "cache_operation_1",
             "type": "cache_operation",
@@ -243,7 +248,7 @@
                 "fieldCount": 1,
                 "executionTime": 0.012,
                 "affectedRows": 1,
-                "hasError": true,
+                "hasError": false,
                 "customerId": "customer_12345"
             },
             "openId": "database_connection_1"
@@ -319,65 +324,58 @@
                 "ttl": 1800,
                 "size": 512
             },
-            "openId": "business_logic_1"
+            "openId": "business_logic_2"
         },
         {
             "id": "performance_metrics_1",
             "type": "performance_metrics",
             "schemaUrl": "./schemas/performance_metrics.json",
             "context": {
-                "executionTime": 0.7083978652954102,
-                "memoryUsed": 54368,
-                "peakMemory": 1597440,
+                "executionTime": 0.4666140079498291,
+                "memoryUsed": 44952,
+                "peakMemory": 1698440,
                 "databaseQueries": 5,
-                "totalQueryTime": 0.135,
+                "totalQueryTime": 0.093,
                 "cacheHits": 2,
                 "cacheMisses": 0,
                 "functionCalls": {
                     "mysql_query": {
                         "calls": 5,
-                        "time": 0.135
+                        "time": 0.093
                     },
                     "curl_exec": {
                         "calls": 3,
-                        "time": 0.517
+                        "time": 0.347
                     },
                     "json_encode": {
                         "calls": 8,
                         "time": 0.004
                     },
-                    "password_verify": {
-                        "calls": 1,
-                        "time": 0.015
-                    },
                     "pdf_create": {
                         "calls": 1,
-                        "time": 0.118
+                        "time": 0.078
                     }
                 }
             },
-            "openId": "http_request_1"
+            "openId": "business_logic_2"
         },
         {
-            "id": "error_1",
-            "type": "error",
-            "schemaUrl": "./schemas/error.json",
+            "id": "http_response_1",
+            "type": "http_response",
+            "schemaUrl": "./schemas/http_response.json",
             "context": {
-                "errorType": "AuthenticationError",
-                "message": "Invalid JWT token: signature verification failed",
-                "code": 401,
-                "file": "/src/Auth/JwtValidator.php",
-                "line": 45,
-                "trace": [
-                    "/src/Auth/JwtValidator.php:45",
-                    "/src/Middleware/AuthMiddleware.php:78",
-                    "/src/Controllers/OrderController.php:23"
-                ],
-                "context": {
-                    "token_header": "Bearer invalid_token"
-                }
+                "statusCode": 201,
+                "headers": {
+                    "Content-Type": "application/json",
+                    "X-Response-Time": "466.78ms",
+                    "X-Request-ID": "req_689843c607a6b"
+                },
+                "contentLength": 512,
+                "contentType": "application/json",
+                "responseTime": 0.46677589416503906,
+                "cached": false
             },
-            "openId": "authentication_request_3"
+            "openId": "business_logic_1"
         }
     ],
     "links": []
