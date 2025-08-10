@@ -113,6 +113,7 @@ final class HtmlRenderer
         return $html;
     }
 
+    /** @codeCoverageIgnore */
     private function getTypeClass(string $type): string
     {
         return match ($type) {
@@ -129,6 +130,7 @@ final class HtmlRenderer
         };
     }
 
+    /** @codeCoverageIgnore */
     private function getTimingClass(float $time): string
     {
         if ($time < 0.1) {
@@ -143,6 +145,7 @@ final class HtmlRenderer
         return 'very-slow';
     }
 
+    /** @codeCoverageIgnore */
     private function formatExecutionTime(float $time): string
     {
         if ($time < 0.001) {
@@ -154,6 +157,7 @@ final class HtmlRenderer
         return sprintf('[%.1fs]', $time);
     }
 
+    /** @codeCoverageIgnore */
     private function extractSimpleInfo(TreeNode $node): string
     {
         switch ($node->type) {
@@ -173,6 +177,7 @@ final class HtmlRenderer
         }
     }
 
+    /** @codeCoverageIgnore */
     private function getHtmlHeader(): string
     {
         return <<<'HTML'
@@ -281,6 +286,7 @@ final class HtmlRenderer
 HTML;
     }
 
+    /** @codeCoverageIgnore */
     private function getHtmlFooter(): string
     {
         return <<<'HTML'

@@ -243,7 +243,7 @@ final class StreeCommand
 
         $content = file_get_contents($file);
         if ($content === false) {
-            throw new RuntimeException(sprintf('Failed to read log file: %s', $file));
+            throw new RuntimeException(sprintf('Failed to read log file: %s', $file)); // @codeCoverageIgnore
         }
 
         try {

@@ -266,4 +266,221 @@ final class StreeCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
         $this->assertStringNotContainsString('fast_operation', $output);
     }
+
+    public function testShortOptions(): void
+    {
+        $logData = [
+            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []],
+            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
+            'events' => [],
+        ];
+
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode($logData));
+
+        $command = new StreeCommand();
+
+        // Test -h (help)
+        $exitCode = $command->run(['stree', '-h']);
+        $this->assertSame(0, $exitCode);
+
+        // Test -f (full)
+        ob_start();
+        $exitCode = $command->run(['stree', '-f', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+
+        // Test -d (depth)
+        ob_start();
+        $exitCode = $command->run(['stree', '-d', '3', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+
+        // Test -e (expand)
+        ob_start();
+        $exitCode = $command->run(['stree', '-e', 'database', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+
+        // Test -t (threshold)
+        ob_start();
+        $exitCode = $command->run(['stree', '-t', '10ms', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+
+        // Test -l (lines)
+        ob_start();
+        $exitCode = $command->run(['stree', '-l', '10', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+    }
+
+    public function testFormatOptions(): void
+    {
+        $logData = [
+            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []],
+            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
+            'events' => [],
+        ];
+
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode($logData));
+
+        $command = new StreeCommand();
+
+        // Test --format=html
+        ob_start();
+        $exitCode = $command->run(['stree', '--format=html', $this->tempFile]);
+        $output = ob_get_clean() ?: '';
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('<!DOCTYPE html>', $output);
+
+        // Test --format text (separate argument)
+        ob_start();
+        $exitCode = $command->run(['stree', '--format', 'text', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+    }
+
+    public function testThresholdParsing(): void
+    {
+        $logData = [
+            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => ['executionTime' => 0.5]],
+            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
+            'events' => [],
+        ];
+
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode($logData));
+
+        $command = new StreeCommand();
+
+        // Test milliseconds
+        ob_start();
+        $exitCode = $command->run(['stree', '--threshold=100ms', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+
+        // Test seconds
+        ob_start();
+        $exitCode = $command->run(['stree', '--threshold=0.1s', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+
+        // Test plain number (treated as seconds)
+        ob_start();
+        $exitCode = $command->run(['stree', '--threshold=0.1', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+    }
+
+    public function testMultipleExpand(): void
+    {
+        $logData = [
+            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []],
+            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
+            'events' => [],
+        ];
+
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode($logData));
+
+        $command = new StreeCommand();
+
+        // Test multiple --expand options
+        ob_start();
+        $exitCode = $command->run(['stree', '-e', 'database', '-e', 'api', '--expand=cache', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+    }
+
+    public function testOptionValidationErrors(): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, '{}');
+
+        $command = new StreeCommand();
+
+        // Test missing depth value
+        $exitCode = $command->run(['stree', '--depth']);
+        $this->assertSame(1, $exitCode);
+
+        // Test invalid depth format
+        $exitCode = $command->run(['stree', '--depth=abc', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+
+        // Test negative depth
+        $exitCode = $command->run(['stree', '-d', '-1', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+
+        // Test missing expand value
+        $exitCode = $command->run(['stree', '--expand']);
+        $this->assertSame(1, $exitCode);
+
+        // Test empty expand value
+        $exitCode = $command->run(['stree', '--expand=', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+
+        // Test missing threshold value
+        $exitCode = $command->run(['stree', '--threshold']);
+        $this->assertSame(1, $exitCode);
+
+        // Test invalid threshold format
+        $exitCode = $command->run(['stree', '--threshold=abc', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+
+        // Test invalid threshold format (bad ms)
+        $exitCode = $command->run(['stree', '--threshold=abcms', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+
+        // Test invalid threshold format (bad s)
+        $exitCode = $command->run(['stree', '--threshold=abcs', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+
+        // Test negative threshold
+        $exitCode = $command->run(['stree', '--threshold=-1ms', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+
+        // Test missing lines value
+        $exitCode = $command->run(['stree', '--lines']);
+        $this->assertSame(1, $exitCode);
+
+        // Test invalid lines format
+        $exitCode = $command->run(['stree', '--lines=abc', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+
+        // Test negative lines
+        $exitCode = $command->run(['stree', '-l', '-1', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+
+        // Test missing format value
+        $exitCode = $command->run(['stree', '--format']);
+        $this->assertSame(1, $exitCode);
+
+        // Test invalid format value
+        $exitCode = $command->run(['stree', '--format=xml', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+
+        // Test unknown option
+        $exitCode = $command->run(['stree', '--unknown', $this->tempFile]);
+        $this->assertSame(1, $exitCode);
+    }
+
+    public function testFileReadErrors(): void
+    {
+        $command = new StreeCommand();
+
+        // Create file and make it unreadable (skip on Windows where this doesn't work reliably)
+        if (PHP_OS_FAMILY !== 'Windows') {
+            $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+            file_put_contents($this->tempFile, '{}');
+            chmod($this->tempFile, 0000);
+            
+            $exitCode = $command->run(['stree', $this->tempFile]);
+            $this->assertSame(1, $exitCode);
+            
+            // Restore permissions for cleanup
+            chmod($this->tempFile, 0644);
+        }
+    }
 }

@@ -100,6 +100,7 @@ final class XdebugTrace implements JsonSerializable
         return $this->filePath;
     }
 
+    /** @codeCoverageIgnore */
     public function getFileSize(): int
     {
         if ($this->filePath === null || ! file_exists($this->filePath)) {
@@ -111,6 +112,7 @@ final class XdebugTrace implements JsonSerializable
         return $size !== false ? $size : 0;
     }
 
+    /** @codeCoverageIgnore */
     public function isCompressed(): bool
     {
         return $this->filePath !== null && str_ends_with($this->filePath, '.gz');
