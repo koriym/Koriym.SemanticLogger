@@ -1,0 +1,153 @@
+{
+    "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json",
+    "open": {
+        "id": "http_request_1",
+        "type": "http_request", 
+        "schemaUrl": "./schemas/http_request.json",
+        "context": {
+            "method": "POST",
+            "uri": "/api/orders",
+            "headers": {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
+            },
+            "responseTime": 0.580
+        },
+        "open": {
+            "id": "authentication_1",
+            "type": "authentication_request",
+            "schemaUrl": "./schemas/authentication.json", 
+            "context": {
+                "method": "JWT",
+                "token": "user_12345",
+                "executionTime": 0.012
+            },
+            "open": {
+                "id": "business_logic_1",
+                "type": "business_logic",
+                "schemaUrl": "./schemas/business_logic.json",
+                "context": {
+                    "operation": "process_order",
+                    "success": true,
+                    "executionTime": 0.520
+                },
+                "open": {
+                    "id": "database_connection_1",
+                    "type": "database_connection",
+                    "schemaUrl": "./schemas/database_connection.json",
+                    "context": {
+                        "driver": "mysql",
+                        "host": "db-cluster.example.com", 
+                        "database": "ecommerce",
+                        "connectionTime": 0.008
+                    },
+                    "open": {
+                        "id": "external_api_1",
+                        "type": "external_api_request",
+                        "schemaUrl": "./schemas/external_api_request.json",
+                        "context": {
+                            "service": "PaymentGateway",
+                            "endpoint": "https://api.stripe.com/v1/charges",
+                            "method": "POST",
+                            "statusCode": 200,
+                            "responseTime": 0.180
+                        },
+                        "open": {
+                            "id": "file_processing_1",
+                            "type": "file_processing",
+                            "schemaUrl": "./schemas/file_processing.json",
+                            "context": {
+                                "operation": "pdf_generation",
+                                "filename": "invoice_12345.pdf",
+                                "fileSize": 245760,
+                                "processingTime": 0.095,
+                                "success": true
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "close": {
+        "id": "http_response_1", 
+        "type": "http_response",
+        "schemaUrl": "./schemas/http_response.json",
+        "context": {
+            "statusCode": 200,
+            "contentType": "application/json",
+            "contentLength": 1024,
+            "responseTime": 0.580
+        },
+        "openId": "http_request_1"
+    },
+    "events": [
+        {
+            "id": "cache_operation_1",
+            "type": "cache_operation", 
+            "schemaUrl": "./schemas/cache_operation.json",
+            "context": {
+                "operation": "get",
+                "key": "user_session_12345",
+                "hit": true,
+                "duration": 0.001
+            },
+            "openId": "authentication_1"
+        },
+        {
+            "id": "database_query_1",
+            "type": "complex_query",
+            "schemaUrl": "./schemas/complex_query.json",
+            "context": {
+                "queryType": "SELECT",
+                "table": "products p JOIN inventory i ON p.id = i.product_id", 
+                "executionTime": 0.025,
+                "affectedRows": 5,
+                "hasError": false
+            },
+            "openId": "database_connection_1"
+        },
+        {
+            "id": "database_query_2",
+            "type": "complex_query", 
+            "schemaUrl": "./schemas/complex_query.json",
+            "context": {
+                "queryType": "INSERT",
+                "table": "orders",
+                "executionTime": 0.018,
+                "affectedRows": 1,
+                "hasError": false
+            },
+            "openId": "database_connection_1"
+        },
+        {
+            "id": "database_query_3",
+            "type": "complex_query",
+            "schemaUrl": "./schemas/complex_query.json", 
+            "context": {
+                "queryType": "UPDATE",
+                "table": "inventory",
+                "executionTime": 0.012,
+                "affectedRows": 3,
+                "hasError": false
+            },
+            "openId": "database_connection_1"
+        },
+        {
+            "id": "performance_metrics_1",
+            "type": "performance_metrics",
+            "schemaUrl": "./schemas/performance_metrics.json",
+            "context": {
+                "executionTime": 0.520,
+                "memoryUsed": 8388608,
+                "peakMemory": 12582912,
+                "databaseQueries": 3,
+                "totalQueryTime": 0.055,
+                "cacheHits": 1,
+                "cacheMisses": 0
+            },
+            "openId": "business_logic_1"
+        }
+    ],
+    "links": []
+}
