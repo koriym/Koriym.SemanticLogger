@@ -54,29 +54,6 @@ class ComplexWebRequestSimulation
         echo "Debug: About to call first logger->open()...\n";
         echo 'Debug: Logger instance: ' . get_class($this->logger) . "\n";
 
-        // 1. HTTP Request arrives - log as event
-        $this->logger->event(new HttpRequestContext(
-            'POST',
-            '/api/orders',
-            [
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-                'User-Agent' => 'ECommerceApp/2.1.0',
-                'X-Request-ID' => 'req_' . uniqid(),
-            ],
-            [
-                'customerId' => 12345,
-                'items' => [
-                    ['productId' => 'P001', 'quantity' => 2, 'price' => 29.99],
-                    ['productId' => 'P045', 'quantity' => 1, 'price' => 149.99],
-                ],
-                'shippingAddress' => ['street' => '123 Main St', 'city' => 'Tokyo'],
-                'paymentMethod' => 'credit_card_ending_1234',
-            ],
-            'ECommerceApp/2.1.0 (iOS 17.0)',
-            '192.168.1.100',
-        ));
-
         // Start processing the request
         $requestProcessingId = $this->logger->open(new BusinessLogicContext(
             'order_validation',
@@ -96,6 +73,29 @@ class ComplexWebRequestSimulation
         ));
 
         try {
+            // 1. HTTP Request arrives - log as event within the request processing context
+            $this->logger->event(new HttpRequestContext(
+                'POST',
+                '/api/orders',
+                [
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                    'User-Agent' => 'ECommerceApp/2.1.0',
+                    'X-Request-ID' => 'req_' . uniqid(),
+                ],
+                [
+                    'customerId' => 12345,
+                    'items' => [
+                        ['productId' => 'P001', 'quantity' => 2, 'price' => 29.99],
+                        ['productId' => 'P045', 'quantity' => 1, 'price' => 149.99],
+                    ],
+                    'shippingAddress' => ['street' => '123 Main St', 'city' => 'Tokyo'],
+                    'paymentMethod' => 'credit_card_ending_1234',
+                ],
+                'ECommerceApp/2.1.0 (iOS 17.0)',
+                '192.168.1.100',
+            ));
+
             usleep(5000); // Initial request processing delay
 
             // 2. Authentication Process
@@ -560,4 +560,12 @@ class ComplexWebRequestSimulation
         echo "  php bin/stree --full demo/semantic-log-demo.json\n";
         echo "  php bin/stree --threshold=50ms --full demo/semantic-log-demo.json\n";
     }
+}
+
+// Execute the simulation if run directly
+if (basename(__FILE__) === basename($_SERVER['SCRIPT_NAME'])) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+    
+    $simulation = new ComplexWebRequestSimulation();
+    $simulation->run();
 }

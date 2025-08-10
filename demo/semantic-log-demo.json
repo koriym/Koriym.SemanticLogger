@@ -63,7 +63,7 @@
                     "schemaUrl": "./schemas/file_processing.json",
                     "context": {
                         "operation": "pdf_generation",
-                        "filename": "invoice_ORD_689768da41b6e.pdf",
+                        "filename": "invoice_ORD_689843c5d976c.pdf",
                         "mimeType": "application/pdf",
                         "fileSize": 0,
                         "processingTime": 0,
@@ -193,7 +193,7 @@
                     "Content-Type": "application/json",
                     "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                     "User-Agent": "ECommerceApp/2.1.0",
-                    "X-Request-ID": "req_689768d9e1e0c"
+                    "X-Request-ID": "req_689843c589d9e"
                 },
                 "body": {
                     "customerId": 12345,
@@ -217,7 +217,8 @@
                 },
                 "userAgent": "ECommerceApp/2.1.0 (iOS 17.0)",
                 "clientIp": "192.168.1.100"
-            }
+            },
+            "openId": "business_logic_1"
         },
         {
             "id": "cache_operation_1",
@@ -330,9 +331,9 @@
             "type": "performance_metrics",
             "schemaUrl": "./schemas/performance_metrics.json",
             "context": {
-                "executionTime": 0.4960198402404785,
-                "memoryUsed": 55328,
-                "peakMemory": 1603336,
+                "executionTime": 0.4666140079498291,
+                "memoryUsed": 44952,
+                "peakMemory": 1698440,
                 "databaseQueries": 5,
                 "totalQueryTime": 0.093,
                 "cacheHits": 2,
@@ -366,12 +367,12 @@
                 "statusCode": 201,
                 "headers": {
                     "Content-Type": "application/json",
-                    "X-Response-Time": "497.67ms",
-                    "X-Request-ID": "req_689768da67274"
+                    "X-Response-Time": "466.78ms",
+                    "X-Request-ID": "req_689843c607a6b"
                 },
                 "contentLength": 512,
                 "contentType": "application/json",
-                "responseTime": 0.49767398834228516,
+                "responseTime": 0.46677589416503906,
                 "cached": false
             },
             "openId": "business_logic_1"

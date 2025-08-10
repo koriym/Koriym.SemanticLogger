@@ -29,7 +29,7 @@ final class TreeRendererTest extends TestCase
         ];
 
         $renderer = new TreeRenderer();
-        $config = new RenderConfig(2, [], 0.0, false);
+        $config = new RenderConfig(2, [], 0.0, false, 5);
 
         $result = $renderer->render($logData, $config);
 
@@ -63,7 +63,7 @@ final class TreeRendererTest extends TestCase
         ];
 
         $renderer = new TreeRenderer();
-        $config = new RenderConfig(10, [], 0.0, true);
+        $config = new RenderConfig(10, [], 0.0, true, 5);
 
         $result = $renderer->render($logData, $config);
 
@@ -99,7 +99,7 @@ final class TreeRendererTest extends TestCase
         ];
 
         $renderer = new TreeRenderer();
-        $config = new RenderConfig(10, [], 0.0, true);
+        $config = new RenderConfig(10, [], 0.0, true, 5);
 
         $result = $renderer->render($logData, $config);
 
@@ -139,7 +139,7 @@ final class TreeRendererTest extends TestCase
         ];
 
         $renderer = new TreeRenderer();
-        $config = new RenderConfig(2, [], 0.0, false);
+        $config = new RenderConfig(2, [], 0.0, false, 5);
 
         $result = $renderer->render($logData, $config);
 
@@ -179,7 +179,7 @@ final class TreeRendererTest extends TestCase
         ];
 
         $renderer = new TreeRenderer();
-        $config = new RenderConfig(2, ['special_type'], 0.0, false);
+        $config = new RenderConfig(2, ['special_type'], 0.0, false, 5);
 
         $result = $renderer->render($logData, $config);
 
@@ -213,7 +213,7 @@ final class TreeRendererTest extends TestCase
         ];
 
         $renderer = new TreeRenderer();
-        $config = new RenderConfig(10, [], 0.010, true); // 10ms threshold
+        $config = new RenderConfig(10, [], 0.010, true, 5); // 10ms threshold
 
         $result = $renderer->render($logData, $config);
 
