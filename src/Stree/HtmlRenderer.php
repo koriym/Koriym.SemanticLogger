@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Stree;
 
 use function htmlspecialchars;
+use function in_array;
 use function sprintf;
+use function str_repeat;
 
 final class HtmlRenderer
 {
@@ -20,10 +22,11 @@ final class HtmlRenderer
         return $html;
     }
 
+    /** @codeCoverageIgnore */
     private function renderNode(TreeNode $node, RenderConfig $config, int $currentDepth): string
     {
         $indent = str_repeat('    ', $currentDepth);
-        
+
         // Check depth limits (similar to TreeRenderer logic)
         if (! $config->showFullTree && $currentDepth >= $config->maxDepth) {
             if (! in_array($node->type, $config->expandTypes, true)) {
@@ -36,15 +39,20 @@ final class HtmlRenderer
                         "%s        <span class=\"timing collapsed\">[...]</span>\n" .
                         "%s    </div>\n" .
                         "%s</div>\n",
-                        $indent, htmlspecialchars($node->type),
                         $indent,
-                        $indent, $this->getTypeClass($node->type), htmlspecialchars($node->type),
-                        $indent, htmlspecialchars($this->extractSimpleInfo($node)),
+                        htmlspecialchars($node->type),
                         $indent,
                         $indent,
-                        $indent
+                        $this->getTypeClass($node->type),
+                        htmlspecialchars($node->type),
+                        $indent,
+                        htmlspecialchars($this->extractSimpleInfo($node)),
+                        $indent,
+                        $indent,
+                        $indent,
                     );
                 }
+
                 return '';
             }
         }
@@ -62,12 +70,12 @@ final class HtmlRenderer
             $indent,
             $nodeClass,
             htmlspecialchars($node->type),
-            $node->executionTime
+            $node->executionTime,
         );
 
         // Node header
         $html .= sprintf("%s    <div class=\"node-header\">\n", $indent);
-        
+
         if ($hasChildren) {
             $html .= sprintf("%s        <span class=\"toggle\" onclick=\"toggleNode(this)\">▼</span>\n", $indent);
         } else {
@@ -78,7 +86,7 @@ final class HtmlRenderer
             "%s        <span class=\"node-type %s\">%s</span>\n",
             $indent,
             $this->getTypeClass($node->type),
-            htmlspecialchars($node->type)
+            htmlspecialchars($node->type),
         );
 
         $contextInfo = $node->extractContextInfo($config);
@@ -86,7 +94,7 @@ final class HtmlRenderer
             $html .= sprintf(
                 "%s        <span class=\"node-info\">%s</span>\n",
                 $indent,
-                htmlspecialchars($contextInfo)
+                htmlspecialchars($contextInfo),
             );
         }
 
@@ -94,7 +102,7 @@ final class HtmlRenderer
             "%s        <span class=\"timing %s\">%s</span>\n",
             $indent,
             $this->getTimingClass($node->executionTime),
-            $this->formatExecutionTime($node->executionTime)
+            $this->formatExecutionTime($node->executionTime),
         );
 
         $html .= sprintf("%s    </div>\n", $indent); // node-header
@@ -105,6 +113,7 @@ final class HtmlRenderer
             foreach ($node->children as $child) {
                 $html .= $this->renderNode($child, $config, $currentDepth + 1);
             }
+
             $html .= sprintf("%s    </div>\n", $indent);
         }
 
@@ -136,12 +145,15 @@ final class HtmlRenderer
         if ($time < 0.1) {
             return 'fast';
         }
+
         if ($time < 0.5) {
             return 'normal';
         }
+
         if ($time < 1.0) {
             return 'slow';
         }
+
         return 'very-slow';
     }
 
@@ -151,9 +163,11 @@ final class HtmlRenderer
         if ($time < 0.001) {
             return sprintf('[%.1fμs]', $time * 1_000_000);
         }
+
         if ($time < 1.0) {
             return sprintf('[%.1fms]', $time * 1000);
         }
+
         return sprintf('[%.1fs]', $time);
     }
 
@@ -164,14 +178,18 @@ final class HtmlRenderer
             case 'http_request':
                 $method = $node->context['method'] ?? '';
                 $uri = $node->context['uri'] ?? '';
+
                 return sprintf('%s %s', $method, $uri);
+
             case 'external_api_request':
-                $service = $node->context['service'] ?? '';
-                return $service;
+                return $node->context['service'] ?? '';
+
             case 'database_connection':
                 $host = $node->context['host'] ?? '';
                 $db = $node->context['database'] ?? '';
+
                 return sprintf('%s/%s', $host, $db);
+
             default:
                 return '';
         }

@@ -6,6 +6,8 @@ namespace Koriym\SemanticLogger\Stree;
 
 use PHPUnit\Framework\TestCase;
 
+use function strlen;
+
 final class TreeNodeTest extends TestCase
 {
     public function testBasicConstruction(): void

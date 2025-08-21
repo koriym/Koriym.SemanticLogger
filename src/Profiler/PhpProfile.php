@@ -45,6 +45,7 @@ final class PhpProfile implements JsonSerializable
         );
     }
 
+    /** @codeCoverageIgnore */
     public static function capture(int $backtraceLimit = 10): self
     {
         return new self(
@@ -58,6 +59,7 @@ final class PhpProfile implements JsonSerializable
      * @param int $limit Maximum number of stack frames to collect
      *
      * @return array<int, array{file?: string, line?: int, class?: string, function: string, type?: string}>
+     *
      * @codeCoverageIgnore
      */
     private static function collectBacktrace(int $limit): array
@@ -116,6 +118,7 @@ final class PhpProfile implements JsonSerializable
         }, $result);
     }
 
+    /** @codeCoverageIgnore */
     public function getTotalWallTime(): float
     {
         return $this->wallTime;

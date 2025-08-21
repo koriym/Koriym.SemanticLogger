@@ -6,6 +6,7 @@ namespace Koriym\SemanticLogger\Stree;
 
 use PHPUnit\Framework\TestCase;
 
+use function chmod;
 use function file_exists;
 use function file_put_contents;
 use function json_encode;
@@ -16,6 +17,7 @@ use function tempnam;
 use function unlink;
 
 use const JSON_THROW_ON_ERROR;
+use const PHP_OS_FAMILY;
 
 final class StreeCommandTest extends TestCase
 {
@@ -475,10 +477,10 @@ final class StreeCommandTest extends TestCase
             $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
             file_put_contents($this->tempFile, '{}');
             chmod($this->tempFile, 0000);
-            
+
             $exitCode = $command->run(['stree', $this->tempFile]);
             $this->assertSame(1, $exitCode);
-            
+
             // Restore permissions for cleanup
             chmod($this->tempFile, 0644);
         }

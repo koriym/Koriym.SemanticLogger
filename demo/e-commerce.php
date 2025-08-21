@@ -6,6 +6,7 @@ namespace Koriym\SemanticLogger;
 
 use Throwable;
 
+use function basename;
 use function file_put_contents;
 use function function_exists;
 use function get_class;
@@ -119,7 +120,6 @@ class ComplexWebRequestSimulation
                 ));
 
                 usleep(12000); // JWT verification time
-
             } finally {
                 $this->logger->close(new AuthenticationContext(
                     'JWT',
@@ -217,7 +217,6 @@ class ComplexWebRequestSimulation
                         ));
 
                         usleep(25000); // Order creation processing time
-
                     } finally {
                         $this->logger->close(new ComplexQueryContext(
                             'INSERT',
@@ -229,7 +228,6 @@ class ComplexWebRequestSimulation
                             false,
                         ), $orderInsertId);
                     }
-
                 } finally {
                     $this->logger->close(new DatabaseConnectionContext(
                         'mysql',
@@ -253,7 +251,6 @@ class ComplexWebRequestSimulation
 
                 try {
                     usleep(180000); // Payment gateway processing time
-
                 } finally {
                     // Payment authorization successful
                     $this->logger->close(new ExternalApiContext(
@@ -281,7 +278,6 @@ class ComplexWebRequestSimulation
 
                 try {
                     usleep(95000); // Shipping service processing
-
                 } finally {
                     $this->logger->close(new ExternalApiContext(
                         'ShippingService',
@@ -306,7 +302,6 @@ class ComplexWebRequestSimulation
 
                 try {
                     usleep(75000); // PDF generation time
-
                 } finally {
                     $this->logger->close(new FileProcessingContext(
                         'pdf_generation',
@@ -342,7 +337,6 @@ class ComplexWebRequestSimulation
 
                 try {
                     usleep(65000); // Email service time
-
                 } finally {
                     $this->logger->close(new ExternalApiContext(
                         'EmailService',
@@ -358,7 +352,7 @@ class ComplexWebRequestSimulation
                 // 10. Performance Metrics Collection
                 $endTime = microtime(true);
                 $endMemory = memory_get_usage();
-                
+
                 $this->logger->event(new PerformanceMetricsContext(
                     $endTime - $startTime,
                     $endMemory - $startMemory,
@@ -374,7 +368,6 @@ class ComplexWebRequestSimulation
                         'pdf_create' => ['calls' => 1, 'time' => 0.078],
                     ],
                 ));
-
             } finally {
                 // Business Logic Completion
                 $this->logger->close(new BusinessLogicContext(
@@ -398,7 +391,6 @@ class ComplexWebRequestSimulation
                     true,
                 ), $orderValidationId);
             }
-
         } finally {
             // HTTP Response - log as event
             $endTime = microtime(true);
@@ -565,7 +557,7 @@ class ComplexWebRequestSimulation
 // Execute the simulation if run directly
 if (basename(__FILE__) === basename($_SERVER['SCRIPT_NAME'])) {
     require_once __DIR__ . '/../vendor/autoload.php';
-    
+
     $simulation = new ComplexWebRequestSimulation();
     $simulation->run();
 }

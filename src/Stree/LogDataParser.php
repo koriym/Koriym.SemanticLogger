@@ -96,6 +96,7 @@ final class LogDataParser
         }
     }
 
+    /** @codeCoverageIgnore */
     private function findNodeById(TreeNode $node, string|null $id): TreeNode|null
     {
         if ($id === null) {

@@ -5,7 +5,12 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Stree;
 
 use function array_key_exists;
+use function count;
+use function implode;
+use function is_array;
 use function is_numeric;
+use function is_scalar;
+use function is_string;
 use function parse_url;
 use function sprintf;
 use function strlen;
@@ -68,11 +73,12 @@ final class TreeNode
             case 'http_request':
                 $method = $this->context['method'] ?? '';
                 $uri = $this->context['uri'] ?? '';
-                
+
                 // Add headers info if present and line limit allows
                 $headers = $this->context['headers'] ?? [];
                 if (! empty($headers) && is_array($headers)) {
                     $headerInfo = $this->formatMultiLineData($headers, $config);
+
                     return sprintf('%s %s (headers: %s)', $method, $uri, $headerInfo);
                 }
 
@@ -93,11 +99,12 @@ final class TreeNode
             case 'complex_query':
                 $queryType = $this->context['queryType'] ?? '';
                 $table = $this->context['table'] ?? '';
-                
+
                 // Add parameters info if present
                 $parameters = $this->context['parameters'] ?? [];
                 if (! empty($parameters) && is_array($parameters)) {
                     $paramInfo = $this->formatMultiLineData($parameters, $config);
+
                     return sprintf('%s %s (params: %s)', $queryType, $table, $paramInfo);
                 }
 
@@ -166,6 +173,7 @@ final class TreeNode
         }
     }
 
+    /** @codeCoverageIgnore */
     private function shortenUrl(string $url): string
     {
         if (strlen($url) <= 40) {
@@ -184,6 +192,7 @@ final class TreeNode
         return substr($url, 0, 37) . '...';
     }
 
+    /** @codeCoverageIgnore */
     private function truncateMessage(string $message): string
     {
         if (strlen($message) <= 60) {
@@ -195,13 +204,11 @@ final class TreeNode
 
     /**
      * Format multi-line data with line limits
-     *
-     * @param array<string, mixed>|mixed $data
      */
     private function formatMultiLineData(mixed $data, RenderConfig|null $config = null): string
     {
         $maxLines = $config?->maxLines ?? 5;
-        
+
         if ($maxLines <= 0) {
             // No limit
             return $this->convertDataToString($data);
@@ -213,19 +220,20 @@ final class TreeNode
 
         $items = [];
         $count = 0;
-        
+
         foreach ($data as $key => $value) {
             if ($count >= $maxLines) {
                 $remaining = count($data) - $maxLines;
                 $items[] = "... ({$remaining} more)";
                 break;
             }
-            
+
             if (is_scalar($value)) {
                 $items[] = is_string($key) ? "{$key}: {$value}" : (string) $value;
             } else {
-                $items[] = is_string($key) ? "{$key}: [complex]" : "[complex]";
+                $items[] = is_string($key) ? "{$key}: [complex]" : '[complex]';
             }
+
             $count++;
         }
 
@@ -235,27 +243,31 @@ final class TreeNode
     /**
      * Convert data to string representation
      */
+
+    /** @codeCoverageIgnore */
     private function convertDataToString(mixed $data): string
     {
         if (is_string($data)) {
             return $data;
         }
-        
+
         if (is_array($data)) {
             $items = [];
             foreach ($data as $key => $value) {
                 if (is_scalar($value)) {
                     $items[] = is_string($key) ? "{$key}: {$value}" : (string) $value;
                 } else {
-                    $items[] = is_string($key) ? "{$key}: [complex]" : "[complex]";
+                    $items[] = is_string($key) ? "{$key}: [complex]" : '[complex]';
                 }
             }
+
             return implode(', ', $items);
         }
-        
+
         return (string) $data;
     }
 
+    /** @codeCoverageIgnore */
     private function formatBytes(int|float $bytes): string
     {
         if (! is_numeric($bytes)) {

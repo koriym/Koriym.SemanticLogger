@@ -42,6 +42,7 @@ final class XHProfResult implements JsonSerializable
         return new self();
     }
 
+    /** @codeCoverageIgnore */
     public function stop(string $uri): self
     {
         if (! function_exists('xhprof_disable')) {
@@ -69,6 +70,7 @@ final class XHProfResult implements JsonSerializable
 
     /**
      * @param array<string, mixed> $data
+     *
      * @codeCoverageIgnore
      */
     private function saveToFile(array $data, string $uri): string
@@ -86,7 +88,11 @@ final class XHProfResult implements JsonSerializable
         return $filePath;
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     *
+     * @codeCoverageIgnore
+     */
     #[Override]
     public function jsonSerialize(): array
     {

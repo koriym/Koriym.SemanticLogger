@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantic Tree Visualization</title>
+    <style>
+        body {
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .semantic-tree {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tree-node {
+            margin: 0;
+            padding: 0;
+        }
+        .node-header {
+            display: flex;
+            align-items: center;
+            padding: 4px 0;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .node-header:hover {
+            background-color: #f0f8ff;
+        }
+        .toggle {
+            width: 16px;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+            margin-right: 6px;
+            color: #666;
+            font-size: 12px;
+        }
+        .toggle-placeholder {
+            width: 16px;
+            margin-right: 6px;
+        }
+        .node-type {
+            font-weight: bold;
+            margin-right: 8px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .node-type.http { background-color: #e3f2fd; color: #1976d2; }
+        .node-type.database { background-color: #f3e5f5; color: #7b1fa2; }
+        .node-type.api { background-color: #fff3e0; color: #f57c00; }
+        .node-type.auth { background-color: #e8f5e8; color: #388e3c; }
+        .node-type.cache { background-color: #fff8e1; color: #f9a825; }
+        .node-type.business { background-color: #fce4ec; color: #c2185b; }
+        .node-type.file { background-color: #e0f2f1; color: #00796b; }
+        .node-type.metrics { background-color: #f1f8e9; color: #689f38; }
+        .node-type.error { background-color: #ffebee; color: #d32f2f; }
+        .node-type.default { background-color: #f5f5f5; color: #616161; }
+        
+        .node-info {
+            flex-grow: 1;
+            margin-right: 8px;
+            font-size: 13px;
+            color: #555;
+        }
+        .timing {
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        .timing.fast { background-color: #e8f5e8; color: #388e3c; }
+        .timing.normal { background-color: #fff8e1; color: #f9a825; }
+        .timing.slow { background-color: #fff3e0; color: #f57c00; }
+        .timing.very-slow { background-color: #ffebee; color: #d32f2f; }
+        .timing.collapsed { background-color: #f5f5f5; color: #999; }
+        
+        .children {
+            margin-left: 20px;
+            border-left: 1px solid #e0e0e0;
+            padding-left: 4px;
+        }
+        .children.collapsed {
+            display: none;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌲 Semantic Tree Visualization</h1><div class="semantic-tree"><div class="tree-node has-children" data-type="business_logic" data-time="0.000"><div class="node-header"><span class="toggle" onclick="toggleNode(this)">▼</span><span class="node-type business">business_logic</span><span class="node-info">order_validation (FAILED)</span><span class="timing fast">[0.0μs]</span></div><div class="children"><div class="tree-node has-children" data-type="business_logic" data-time="0.000"><div class="node-header"><span class="toggle" onclick="toggleNode(this)">▼</span><span class="node-type business">business_logic</span><span class="node-info">order_validation (FAILED)</span><span class="timing fast">[0.0μs]</span></div><div class="children"><div class="tree-node has-children" data-type="external_api_request" data-time="0.000"><div class="node-header"><span class="toggle" onclick="toggleNode(this)">▼</span><span class="node-type api">external_api_request</span><span class="node-info">EmailService https://api.sendgrid.com/v3/mail/send</span><span class="timing fast">[0.0μs]</span></div><div class="children"><div class="tree-node has-children" data-type="file_processing" data-time="0.000"><div class="node-header"><span class="toggle" onclick="toggleNode(this)">▼</span><span class="node-type file">file_processing</span><span class="node-info">pdf_generation invoice_ORD_689768da41b6e.pdf</span><span class="timing fast">[0.0μs]</span></div><div class="children"><div class="tree-node has-children" data-type="external_api_request" data-time="0.000"><div class="node-header"><span class="toggle" onclick="toggleNode(this)">▼</span><span class="node-type api">external_api_request</span><span class="node-info">ShippingService https://api.fedex.com/v1/shipments</span><span class="timing fast">[0.0μs]</span></div><div class="children"><div class="tree-node has-children" data-type="external_api_request" data-time="0.000"><div class="node-header"><span class="toggle" onclick="toggleNode(this)">▼</span><span class="node-type api">external_api_request</span><span class="node-info">PaymentGateway https://api.stripe.com/v1/charges</span><span class="timing fast">[0.0μs]</span></div><div class="children"><div class="tree-node has-children" data-type="database_connection" data-time="0.045"><div class="node-header"><span class="toggle" onclick="toggleNode(this)">▼</span><span class="node-type database">database_connection</span><span class="node-info">db-cluster-1.example.com/ecommerce_prod</span><span class="timing fast">[45.0ms]</span></div><div class="children"><div class="tree-node has-children" data-type="complex_query" data-time="0.000"><div class="node-header"><span class="toggle" onclick="toggleNode(this)">▼</span><span class="node-type database">complex_query</span><span class="node-info">INSERT orders</span><span class="timing fast">[0.0μs]</span></div><div class="children"><div class="tree-node has-children" data-type="authentication_request" data-time="0.000"><div class="node-header"><span class="toggle" onclick="toggleNode(this)">▼</span><span class="node-type auth">authentication_request</span><span class="node-info">JWT (FAILED)</span><span class="timing fast">[0.0μs]</span></div><div class="children"><div class="tree-node leaf-node" data-type="cache_operation" data-time="0.002"><div class="node-header"><span class="toggle-placeholder"></span><span class="node-type cache">cache_operation</span><span class="node-info">get jwt_blacklist_check (HIT)</span><span class="timing fast">[2.0ms]</span></div></div></div></div><div class="tree-node leaf-node" data-type="complex_query" data-time="0.018"><div class="node-header"><span class="toggle-placeholder"></span><span class="node-type database">complex_query</span><span class="node-info">INSERT order_items</span><span class="timing fast">[18.0ms]</span></div></div></div></div><div class="tree-node leaf-node" data-type="complex_query" data-time="0.012"><div class="node-header"><span class="toggle-placeholder"></span><span class="node-type database">complex_query</span><span class="node-info">SELECT customers (params: id: 12345, active: 1)</span><span class="timing fast">[12.0ms]</span></div></div><div class="tree-node leaf-node" data-type="complex_query" data-time="0.028"><div class="node-header"><span class="toggle-placeholder"></span><span class="node-type database">complex_query</span><span class="node-info">SELECT inventory i JOIN products p ON i.product_id = p.id (params: product_id: [complex], available_quantity &gt;: 0)</span><span class="timing fast">[28.0ms]</span></div></div><div class="tree-node leaf-node" data-type="complex_query" data-time="0.035"><div class="node-header"><span class="toggle-placeholder"></span><span class="node-type database">complex_query</span><span class="node-info">UPDATE inventory (params: product_id: [complex])</span><span class="timing fast">[35.0ms]</span></div></div></div></div></div></div></div></div></div></div></div></div><div class="tree-node leaf-node" data-type="cache_operation" data-time="0.003"><div class="node-header"><span class="toggle-placeholder"></span><span class="node-type cache">cache_operation</span><span class="node-info">set order_summary_12345 (HIT)</span><span class="timing fast">[3.0ms]</span></div></div><div class="tree-node leaf-node" data-type="performance_metrics" data-time="0.496"><div class="node-header"><span class="toggle-placeholder"></span><span class="node-type metrics">performance_metrics</span><span class="node-info">5 queries, 54.0KB memory</span><span class="timing normal">[496.0ms]</span></div></div></div></div><div class="tree-node leaf-node" data-type="http_request" data-time="0.000"><div class="node-header"><span class="toggle-placeholder"></span><span class="node-type http">http_request</span><span class="node-info">POST /api/orders (headers: Content-Type: application/json, Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..., User-Agent: ECommerceApp/2.1.0, X-Request-ID: req_689768d9e1e0c)</span><span class="timing fast">[0.0μs]</span></div></div><div class="tree-node leaf-node" data-type="http_response" data-time="0.498"><div class="node-header"><span class="toggle-placeholder"></span><span class="node-type http">http_response</span><span class="node-info">Status 201</span><span class="timing normal">[497.7ms]</span></div></div></div></div></div>    <script>
+        function toggleNode(toggleElement) {
+            const nodeHeader = toggleElement.parentElement;
+            const treeNode = nodeHeader.parentElement;
+            const children = treeNode.querySelector('.children');
+            
+            if (children) {
+                const isCollapsed = children.classList.contains('collapsed');
+                
+                if (isCollapsed) {
+                    children.classList.remove('collapsed');
+                    toggleElement.textContent = '▼';
+                } else {
+                    children.classList.add('collapsed');
+                    toggleElement.textContent = '▶';
+                }
+            }
+        }
+        
+        // Initialize with some nodes collapsed for better overview
+        document.addEventListener('DOMContentLoaded', function() {
+            const deepNodes = document.querySelectorAll('.tree-node[data-time]');
+            deepNodes.forEach((node, index) => {
+                if (index > 5) { // Collapse nodes after the first few
+                    const children = node.querySelector('.children');
+                    const toggle = node.querySelector('.toggle');
+                    if (children && toggle) {
+                        children.classList.add('collapsed');
+                        toggle.textContent = '▶';
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

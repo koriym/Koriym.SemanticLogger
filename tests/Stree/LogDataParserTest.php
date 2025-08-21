@@ -395,10 +395,7 @@ final class LogDataParserTest extends TestCase
     public function testOpenEntryWithMissingFields(): void
     {
         $logData = [
-            'open' => [
-                // Missing id, type - should use defaults
-                'schemaUrl' => 'test.json',
-            ],
+            'open' => ['schemaUrl' => 'test.json'], // Missing id, type - should use defaults
             'close' => [
                 'id' => 'close_1',
                 'type' => 'close',
@@ -454,9 +451,7 @@ final class LogDataParserTest extends TestCase
                 'id' => 'test_1',
                 'type' => 'test_operation',
                 'schemaUrl' => 'test.json',
-                'context' => [
-                    'executionTime' => 'not_a_number', // Non-numeric should result in 0.0
-                ],
+                'context' => ['executionTime' => 'not_a_number'], // Non-numeric should result in 0.0
             ],
             'close' => [
                 'id' => 'close_1',

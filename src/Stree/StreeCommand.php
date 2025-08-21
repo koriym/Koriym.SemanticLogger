@@ -58,7 +58,7 @@ final class StreeCommand
             );
 
             $logData = $this->loadLogFile($options['file']);
-            
+
             $format = $options['format'] ?? 'text';
             if ($format === 'html') {
                 $htmlRenderer = new HtmlRenderer();
@@ -101,17 +101,19 @@ final class StreeCommand
                 if (! isset($args[$i + 1])) {
                     throw new RuntimeException('--format requires a value');
                 }
-                
+
                 $formatValue = $args[++$i];
                 if (! in_array($formatValue, ['text', 'html'], true)) {
                     throw new RuntimeException('--format must be "text" or "html"');
                 }
+
                 $options['format'] = $formatValue;
             } elseif (str_starts_with($arg, '--format=')) {
                 $value = substr($arg, 9);
                 if (! in_array($value, ['text', 'html'], true)) {
                     throw new RuntimeException('--format must be "text" or "html"');
                 }
+
                 $options['format'] = $value;
             } elseif ($arg === '--depth' || $arg === '-d') {
                 if (! isset($args[$i + 1])) {
@@ -122,20 +124,24 @@ final class StreeCommand
                 if (! is_numeric($depthValue)) {
                     throw new RuntimeException(sprintf('--depth must be a number, got: %s', $depthValue));
                 }
+
                 $depth = (int) $depthValue;
                 if ($depth < 0) {
                     throw new RuntimeException('--depth must be 0 or greater');
                 }
+
                 $options['depth'] = $depth;
             } elseif (str_starts_with($arg, '--depth=')) {
                 $value = substr($arg, 8);
                 if (! is_numeric($value)) {
                     throw new RuntimeException(sprintf('--depth must be a number, got: %s', $value));
                 }
+
                 $depth = (int) $value;
                 if ($depth < 0) {
                     throw new RuntimeException('--depth must be 0 or greater');
                 }
+
                 $options['depth'] = $depth;
             } elseif ($arg === '--expand' || $arg === '-e') {
                 if (! isset($args[$i + 1])) {
@@ -147,12 +153,14 @@ final class StreeCommand
                 if (empty($expandType)) {
                     throw new RuntimeException('--expand context type cannot be empty');
                 }
+
                 $options['expand'][] = $expandType;
             } elseif (str_starts_with($arg, '--expand=')) {
                 $value = substr($arg, 9);
                 if (empty($value)) {
                     throw new RuntimeException('--expand context type cannot be empty');
                 }
+
                 $options['expand'][] = $value;
             } elseif ($arg === '--threshold' || $arg === '-t') {
                 if (! isset($args[$i + 1])) {
@@ -173,20 +181,24 @@ final class StreeCommand
                 if (! is_numeric($linesValue)) {
                     throw new RuntimeException(sprintf('--lines must be a number, got: %s', $linesValue));
                 }
+
                 $lines = (int) $linesValue;
                 if ($lines < 0) {
                     throw new RuntimeException('--lines must be 0 or greater (0 = no limit)');
                 }
+
                 $options['lines'] = $lines;
             } elseif (str_starts_with($arg, '--lines=')) {
                 $value = substr($arg, 8);
                 if (! is_numeric($value)) {
                     throw new RuntimeException(sprintf('--lines must be a number, got: %s', $value));
                 }
+
                 $lines = (int) $value;
                 if ($lines < 0) {
                     throw new RuntimeException('--lines must be 0 or greater (0 = no limit)');
                 }
+
                 $options['lines'] = $lines;
             } elseif ($arg[0] !== '-') {
                 // This is the log file
@@ -203,23 +215,26 @@ final class StreeCommand
     {
         // Parse threshold value like "10ms", "0.5s"
         $threshold = 0.0;
-        
+
         if (str_ends_with($value, 'ms')) {
             $numericValue = substr($value, 0, -2);
             if (! is_numeric($numericValue)) {
                 throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
             }
+
             $threshold = (float) $numericValue / 1000;
         } elseif (str_ends_with($value, 's')) {
             $numericValue = substr($value, 0, -1);
             if (! is_numeric($numericValue)) {
                 throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
             }
+
             $threshold = (float) $numericValue;
         } else {
             if (! is_numeric($value)) {
                 throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
             }
+
             $threshold = (float) $value;
         }
 
@@ -256,11 +271,13 @@ final class StreeCommand
         }
     }
 
+    /** @codeCoverageIgnore */
     private function showUsage(): void
     {
         fprintf(STDERR, "Usage: stree [OPTIONS] <logfile.json>\n");
     }
 
+    /** @codeCoverageIgnore */
     private function showHelp(): void
     {
         $help = <<<'HELP'
