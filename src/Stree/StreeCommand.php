@@ -205,7 +205,7 @@ final class StreeCommand
             } elseif ($arg[0] !== '-') {
                 // This is the log file
                 $options['file'] = $arg;
-            } else {
+            } elseif ($arg[0] === '-') {
                 throw new RuntimeException(sprintf('Unknown option: %s', $arg));
             }
         }
@@ -225,17 +225,23 @@ final class StreeCommand
             }
 
             $threshold = (float) $numericValue / 1000;
-        } elseif (str_ends_with($value, 's')) {
+        }
+
+        if (str_ends_with($value, 's') && ! str_ends_with($value, 'ms')) {
             $numericValue = substr($value, 0, -1);
             if (! is_numeric($numericValue)) {
                 throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
             }
 
             $threshold = (float) $numericValue;
-        } elseif (is_numeric($value)) {
+        }
+
+        if (! str_ends_with($value, 'ms') && ! str_ends_with($value, 's')) {
+            if (! is_numeric($value)) {
+                throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
+            }
+
             $threshold = (float) $value;
-        } else {
-            throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
         }
 
         if ($threshold < 0) {
