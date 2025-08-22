@@ -134,7 +134,7 @@ final class HtmlRenderer
             'business_logic' => 'business',
             'file_processing' => 'file',
             'performance_metrics' => 'metrics',
-            'error_context' => 'error',
+            'error', 'error_context' => 'error',
             default => 'default'
         };
     }

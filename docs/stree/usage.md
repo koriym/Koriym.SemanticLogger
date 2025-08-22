@@ -40,11 +40,11 @@ stree -f logfile.json
 
 ```bash
 # Expand specific context types beyond depth limit
-stree --expand=DatabaseQuery logfile.json
-stree -e ComplexQuery -e ExternalApi logfile.json
+stree --expand=database_query logfile.json
+stree -e complex_query -e external_api_request logfile.json
 
 # Combine with depth limits
-stree --depth=2 --expand=HttpRequest logfile.json
+stree --depth=2 --expand=http_request logfile.json
 ```
 
 ### Performance Filtering

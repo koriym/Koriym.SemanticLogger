@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-namespace Koriym\SemanticLogger;
-
 /**
  * Standalone Semantic Profiler MCP Server
  *
@@ -18,8 +16,6 @@ namespace Koriym\SemanticLogger;
  * @psalm-import-type McpToolCallParams from Types
  * @psalm-import-type McpLogData from Types
  */
-
-declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 

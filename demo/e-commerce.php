@@ -80,7 +80,7 @@ class ComplexWebRequestSimulation
                 '/api/orders',
                 [
                     'Content-Type' => 'application/json',
-                    'Authorization' => 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                    'Authorization' => 'Bearer ' . ($_ENV['JWT_TOKEN'] ?? '<TOKEN_REDACTED>'),
                     'User-Agent' => 'ECommerceApp/2.1.0',
                     'X-Request-ID' => 'req_' . uniqid(),
                 ],
