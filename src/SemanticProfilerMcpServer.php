@@ -314,7 +314,21 @@ final class SemanticProfilerMcpServer
 
     private function semanticAnalyze(string $script, string $xdebugMode): string
     {
-        // Validate and sanitize xdebug mode to prevent command injection
+        $this->validateAnalyzeParameters($script, $xdebugMode);
+
+        $beforeExecution = time();
+        $output = $this->executeScriptWithProfiling($script, $xdebugMode);
+
+        $newLogFiles = $this->findNewLogFiles($beforeExecution);
+        if (empty($newLogFiles)) {
+            return "Script executed but no new semantic log generated.\nOutput:\n$output";
+        }
+
+        return $this->formatAnalysisResult($newLogFiles);
+    }
+
+    private function validateAnalyzeParameters(string $script, string &$xdebugMode): void
+    {
         $allowedModes = ['trace', 'profile', 'debug', 'develop', 'gcstats', 'off'];
         if (! in_array($xdebugMode, $allowedModes, true)) {
             $xdebugMode = 'trace';
@@ -327,17 +341,25 @@ final class SemanticProfilerMcpServer
         if (! file_exists($script)) {
             throw new Exception("Script not found: $script");
         }
+    }
 
-        // Record time before execution to find newly created log files
-        $beforeExecution = time();
-
-        // Execute the PHP script with profiling settings via -d options
-        // All variables are validated and properly escaped to prevent command injection
+    private function executeScriptWithProfiling(string $script, string $xdebugMode): string
+    {
         $escapedXdebugMode = escapeshellarg($xdebugMode);
         $escapedScript = escapeshellarg($script);
         $escapedXdebugConfig = escapeshellarg('compression_level=0');
 
-        // Check if profiling extensions are available
+        $phpOptions = $this->buildPhpOptions();
+        $phpOptionsString = implode(' ', array_map(static fn ($opt) => "-d $opt", $phpOptions));
+        $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG=$escapedXdebugConfig php $phpOptionsString $escapedScript 2>&1";
+
+        $output = shell_exec($command);
+
+        return $this->processExecutionOutput($output);
+    }
+
+    private function buildPhpOptions(): array
+    {
         $hasXdebug = extension_loaded('xdebug');
         $hasXHProf = extension_loaded('xhprof');
 
@@ -348,7 +370,6 @@ final class SemanticProfilerMcpServer
             'display_errors=1',
         ];
 
-        // Add extension loading if not already loaded
         if (! $hasXdebug) {
             $phpOptions[] = 'zend_extension=xdebug.so';
         }
@@ -357,8 +378,7 @@ final class SemanticProfilerMcpServer
             $phpOptions[] = 'extension=xhprof.so';
         }
 
-        // Add Xdebug settings only if Xdebug is available or being loaded
-        $phpOptions = array_merge($phpOptions, [
+        return array_merge($phpOptions, [
             "xdebug.output_dir={$this->logDirectory}",
             'xdebug.start_with_request=no',
             'xdebug.trace_format=1',
@@ -368,48 +388,48 @@ final class SemanticProfilerMcpServer
             'xdebug.collect_return=1',
             'xdebug.collect_assignments=1',
         ]);
-        $phpOptionsString = implode(' ', array_map(static fn ($opt) => "-d $opt", $phpOptions));
-        $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG=$escapedXdebugConfig php $phpOptionsString $escapedScript 2>&1";
+    }
 
-        $output = shell_exec($command);
-
-        // Check if profiling extensions failed to load and warn if needed
-        if ($output !== null && $output !== false && strpos($output, 'Unable to load dynamic library') !== false) {
-            $warningMsg = 'Warning: Some profiling extensions may not be available. ';
-            if (! $hasXdebug && ! $hasXHProf) {
-                $warningMsg .= 'Neither Xdebug nor XHProf extensions are loaded. ';
-            }
-
-            if (! $hasXdebug && $hasXHProf) {
-                $warningMsg .= 'Xdebug extension is not loaded. ';
-            }
-
-            if ($hasXdebug && ! $hasXHProf) {
-                $warningMsg .= 'XHProf extension is not loaded. ';
-            }
-
-            $warningMsg .= "Semantic logging will continue with basic functionality.\n";
-            $output = $warningMsg . $output;
+    private function processExecutionOutput(string|null $output): string
+    {
+        if ($output === null || $output === false || strpos($output, 'Unable to load dynamic library') === false) {
+            return (string) $output;
         }
 
-        // Find semantic log files created during script execution
+        $hasXdebug = extension_loaded('xdebug');
+        $hasXHProf = extension_loaded('xhprof');
+
+        $warningMsg = 'Warning: Some profiling extensions may not be available. ';
+
+        if (! $hasXdebug && ! $hasXHProf) {
+            $warningMsg .= 'Neither Xdebug nor XHProf extensions are loaded. ';
+        } elseif (! $hasXdebug) {
+            $warningMsg .= 'Xdebug extension is not loaded. ';
+        } elseif (! $hasXHProf) {
+            $warningMsg .= 'XHProf extension is not loaded. ';
+        }
+
+        $warningMsg .= "Semantic logging will continue with basic functionality.\n";
+
+        return $warningMsg . $output;
+    }
+
+    private function findNewLogFiles(int $beforeExecution): array
+    {
         $pattern = rtrim($this->logDirectory, '/') . '/semantic-log-*.json';
         $files = glob($pattern);
         if ($files === false) {
-            $files = [];
+            return [];
         }
 
-        $newLogFiles = array_filter($files, static fn (string $file): bool => filemtime($file) >= $beforeExecution);
+        return array_filter($files, static fn (string $file): bool => filemtime($file) >= $beforeExecution);
+    }
 
-        if (empty($newLogFiles)) {
-            return "Script executed but no new semantic log generated.\nOutput:\n$output";
-        }
-
-        // Get the newest log file from this execution
+    private function formatAnalysisResult(array $newLogFiles): string
+    {
         usort($newLogFiles, static fn (string $a, string $b): int => filemtime($b) <=> filemtime($a));
         $executionLog = $newLogFiles[0];
 
-        // Load and return the log data with analysis prompt
         $logData = $this->getLog($executionLog);
         $analysisPrompt = $this->getAnalysisPrompt();
 

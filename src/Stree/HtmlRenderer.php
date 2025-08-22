@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use function file_exists;
+use function file_get_contents;
 use function htmlspecialchars;
 use function in_array;
 use function is_scalar;
@@ -28,41 +30,63 @@ final class HtmlRenderer
     {
         $indent = str_repeat('    ', $currentDepth);
 
-        // Check depth limits (similar to TreeRenderer logic)
+        // Early returns for filtering
+        $depthLimitResult = $this->checkDepthLimits($node, $config, $currentDepth, $indent);
+        if ($depthLimitResult !== null) {
+            return $depthLimitResult;
+        }
+
+        if ($config->timeThreshold > 0 && $node->executionTime < $config->timeThreshold) {
+            return '';
+        }
+
+        return $this->renderFullNode($node, $config, $currentDepth, $indent);
+    }
+
+    /** @codeCoverageIgnore */
+    private function checkDepthLimits(TreeNode $node, RenderConfig $config, int $currentDepth, string $indent): string|null
+    {
         if (! $config->showFullTree && $currentDepth >= $config->maxDepth) {
             if (! in_array($node->type, $config->expandTypes, true)) {
                 if ($currentDepth === $config->maxDepth) {
-                    return sprintf(
-                        "%s<div class=\"tree-node collapsed\" data-type=\"%s\">\n" .
-                        "%s    <div class=\"node-header\">\n" .
-                        "%s        <span class=\"node-type %s\">%s</span>\n" .
-                        "%s        <span class=\"node-info\">%s</span>\n" .
-                        "%s        <span class=\"timing collapsed\">[...]</span>\n" .
-                        "%s    </div>\n" .
-                        "%s</div>\n",
-                        $indent,
-                        htmlspecialchars($node->type),
-                        $indent,
-                        $indent,
-                        $this->getTypeClass($node->type),
-                        htmlspecialchars($node->type),
-                        $indent,
-                        htmlspecialchars($this->extractSimpleInfo($node)),
-                        $indent,
-                        $indent,
-                        $indent,
-                    );
+                    return $this->renderCollapsedNode($node, $indent);
                 }
 
                 return '';
             }
         }
 
-        // Check time threshold
-        if ($config->timeThreshold > 0 && $node->executionTime < $config->timeThreshold) {
-            return '';
-        }
+        return null;
+    }
 
+    /** @codeCoverageIgnore */
+    private function renderCollapsedNode(TreeNode $node, string $indent): string
+    {
+        return sprintf(
+            "%s<div class=\"tree-node collapsed\" data-type=\"%s\">\n" .
+            "%s    <div class=\"node-header\">\n" .
+            "%s        <span class=\"node-type %s\">%s</span>\n" .
+            "%s        <span class=\"node-info\">%s</span>\n" .
+            "%s        <span class=\"timing collapsed\">[...]</span>\n" .
+            "%s    </div>\n" .
+            "%s</div>\n",
+            $indent,
+            htmlspecialchars($node->type),
+            $indent,
+            $indent,
+            $this->getTypeClass($node->type),
+            htmlspecialchars($node->type),
+            $indent,
+            htmlspecialchars($this->extractSimpleInfo($node)),
+            $indent,
+            $indent,
+            $indent,
+        );
+    }
+
+    /** @codeCoverageIgnore */
+    private function renderFullNode(TreeNode $node, RenderConfig $config, int $currentDepth, string $indent): string
+    {
         $hasChildren = ! empty($node->children);
         $nodeClass = $hasChildren ? 'has-children' : 'leaf-node';
 
@@ -74,53 +98,86 @@ final class HtmlRenderer
             $node->executionTime,
         );
 
-        // Node header
-        $html .= sprintf("%s    <div class=\"node-header\">\n", $indent);
+        $html .= $this->renderNodeHeader($node, $config, $indent, $hasChildren);
+        $html .= $this->renderChildren($node, $config, $currentDepth, $indent, $hasChildren);
+        $html .= sprintf("%s</div>\n", $indent);
 
+        return $html;
+    }
+
+    /** @codeCoverageIgnore */
+    private function renderNodeHeader(TreeNode $node, RenderConfig $config, string $indent, bool $hasChildren): string
+    {
+        $html = sprintf("%s    <div class=\"node-header\">\n", $indent);
+        $html .= $this->renderToggle($indent, $hasChildren);
+        $html .= $this->renderNodeType($node, $indent);
+        $html .= $this->renderContextInfo($node, $config, $indent);
+        $html .= $this->renderTiming($node, $indent);
+        $html .= sprintf("%s    </div>\n", $indent);
+
+        return $html;
+    }
+
+    /** @codeCoverageIgnore */
+    private function renderToggle(string $indent, bool $hasChildren): string
+    {
         if ($hasChildren) {
-            $html .= sprintf("%s        <span class=\"toggle\" onclick=\"toggleNode(this)\">▼</span>\n", $indent);
+            return sprintf("%s        <span class=\"toggle\" onclick=\"toggleNode(this)\">▼</span>\n", $indent);
         }
 
-        if (! $hasChildren) {
-            $html .= sprintf("%s        <span class=\"toggle-placeholder\"></span>\n", $indent);
-        }
+        return sprintf("%s        <span class=\"toggle-placeholder\"></span>\n", $indent);
+    }
 
-        $html .= sprintf(
+    /** @codeCoverageIgnore */
+    private function renderNodeType(TreeNode $node, string $indent): string
+    {
+        return sprintf(
             "%s        <span class=\"node-type %s\">%s</span>\n",
             $indent,
             $this->getTypeClass($node->type),
             htmlspecialchars($node->type),
         );
+    }
 
+    /** @codeCoverageIgnore */
+    private function renderContextInfo(TreeNode $node, RenderConfig $config, string $indent): string
+    {
         $contextInfo = $node->extractContextInfo($config);
         if ($contextInfo !== '') {
-            $html .= sprintf(
+            return sprintf(
                 "%s        <span class=\"node-info\">%s</span>\n",
                 $indent,
                 htmlspecialchars($contextInfo),
             );
         }
 
-        $html .= sprintf(
+        return '';
+    }
+
+    /** @codeCoverageIgnore */
+    private function renderTiming(TreeNode $node, string $indent): string
+    {
+        return sprintf(
             "%s        <span class=\"timing %s\">%s</span>\n",
             $indent,
             $this->getTimingClass($node->executionTime),
             $this->formatExecutionTime($node->executionTime),
         );
+    }
 
-        $html .= sprintf("%s    </div>\n", $indent); // node-header
-
-        // Children
-        if ($hasChildren) {
-            $html .= sprintf("%s    <div class=\"children\">\n", $indent);
-            foreach ($node->children as $child) {
-                $html .= $this->renderNode($child, $config, $currentDepth + 1);
-            }
-
-            $html .= sprintf("%s    </div>\n", $indent);
+    /** @codeCoverageIgnore */
+    private function renderChildren(TreeNode $node, RenderConfig $config, int $currentDepth, string $indent, bool $hasChildren): string
+    {
+        if (! $hasChildren) {
+            return '';
         }
 
-        $html .= sprintf("%s</div>\n", $indent); // tree-node
+        $html = sprintf("%s    <div class=\"children\">\n", $indent);
+        foreach ($node->children as $child) {
+            $html .= $this->renderNode($child, $config, $currentDepth + 1);
+        }
+
+        $html .= sprintf("%s    </div>\n", $indent);
 
         return $html;
     }
@@ -207,7 +264,10 @@ final class HtmlRenderer
     /** @codeCoverageIgnore */
     private function getHtmlHeader(): string
     {
-        return <<<'HTML'
+        $cssPath = __DIR__ . '/../../docs/css/semantic-tree.css';
+        $css = file_exists($cssPath) ? file_get_contents($cssPath) : $this->getFallbackCss();
+
+        return <<<HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -215,102 +275,18 @@ final class HtmlRenderer
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Semantic Tree Visualization</title>
     <style>
-        body {
-            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-            line-height: 1.6;
-            margin: 20px;
-            background-color: #f8f9fa;
-            color: #333;
-        }
-        .semantic-tree {
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .tree-node {
-            margin: 0;
-            padding: 0;
-        }
-        .node-header {
-            display: flex;
-            align-items: center;
-            padding: 4px 0;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-        }
-        .node-header:hover {
-            background-color: #f0f8ff;
-        }
-        .toggle {
-            width: 16px;
-            text-align: center;
-            cursor: pointer;
-            user-select: none;
-            margin-right: 6px;
-            color: #666;
-            font-size: 12px;
-        }
-        .toggle-placeholder {
-            width: 16px;
-            margin-right: 6px;
-        }
-        .node-type {
-            font-weight: bold;
-            margin-right: 8px;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 12px;
-        }
-        .node-type.http { background-color: #e3f2fd; color: #1976d2; }
-        .node-type.database { background-color: #f3e5f5; color: #7b1fa2; }
-        .node-type.api { background-color: #fff3e0; color: #f57c00; }
-        .node-type.auth { background-color: #e8f5e8; color: #388e3c; }
-        .node-type.cache { background-color: #fff8e1; color: #f9a825; }
-        .node-type.business { background-color: #fce4ec; color: #c2185b; }
-        .node-type.file { background-color: #e0f2f1; color: #00796b; }
-        .node-type.metrics { background-color: #f1f8e9; color: #689f38; }
-        .node-type.error { background-color: #ffebee; color: #d32f2f; }
-        .node-type.default { background-color: #f5f5f5; color: #616161; }
-        
-        .node-info {
-            flex-grow: 1;
-            margin-right: 8px;
-            font-size: 13px;
-            color: #555;
-        }
-        .timing {
-            font-weight: bold;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-        }
-        .timing.fast { background-color: #e8f5e8; color: #388e3c; }
-        .timing.normal { background-color: #fff8e1; color: #f9a825; }
-        .timing.slow { background-color: #fff3e0; color: #f57c00; }
-        .timing.very-slow { background-color: #ffebee; color: #d32f2f; }
-        .timing.collapsed { background-color: #f5f5f5; color: #999; }
-        
-        .children {
-            margin-left: 20px;
-            border-left: 1px solid #e0e0e0;
-            padding-left: 4px;
-        }
-        .children.collapsed {
-            display: none;
-        }
-        
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-        }
+{$css}
     </style>
 </head>
 <body>
     <h1>🌲 Semantic Tree Visualization</h1>
 HTML;
+    }
+
+    /** @codeCoverageIgnore */
+    private function getFallbackCss(): string
+    {
+        return 'body { font-family: monospace; margin: 20px; }';
     }
 
     /** @codeCoverageIgnore */

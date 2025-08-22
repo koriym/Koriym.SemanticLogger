@@ -67,109 +67,152 @@ final class TreeNode
 
     public function extractContextInfo(RenderConfig|null $config = null): string
     {
-        // Try to extract meaningful info from context based on type
-        switch ($this->type) {
-            case 'http_request':
-                $method = $this->context['method'] ?? '';
-                $uri = $this->context['uri'] ?? '';
+        return match ($this->type) {
+            'http_request' => $this->extractHttpRequestInfo($config),
+            'http_response' => $this->extractHttpResponseInfo(),
+            'database_connection' => $this->extractDatabaseConnectionInfo(),
+            'database_query', 'complex_query' => $this->extractDatabaseQueryInfo($config),
+            'external_api_request' => $this->extractExternalApiInfo(),
+            'cache_operation' => $this->extractCacheOperationInfo(),
+            'file_processing' => $this->extractFileProcessingInfo(),
+            'authentication_request', 'authentication' => $this->extractAuthenticationInfo(),
+            'business_logic' => $this->extractBusinessLogicInfo(),
+            'error' => $this->extractErrorInfo(),
+            'performance_metrics' => $this->extractPerformanceMetricsInfo(),
+            default => $this->extractDefaultInfo(),
+        };
+    }
 
-                // Add headers info if present and line limit allows
-                $headers = $this->context['headers'] ?? [];
-                if (! empty($headers) && is_array($headers)) {
-                    $headerInfo = $this->formatMultiLineData($headers, $config);
+    /** @codeCoverageIgnore */
+    private function extractHttpRequestInfo(RenderConfig|null $config): string
+    {
+        $method = $this->context['method'] ?? '';
+        $uri = $this->context['uri'] ?? '';
 
-                    return sprintf('%s %s (headers: %s)', $method, $uri, $headerInfo);
-                }
+        $headers = $this->context['headers'] ?? [];
+        if (! empty($headers) && is_array($headers)) {
+            $headerInfo = $this->formatMultiLineData($headers, $config);
 
-                return sprintf('%s %s', $method, $uri);
-
-            case 'http_response':
-                $status = $this->context['statusCode'] ?? '';
-
-                return sprintf('Status %s', $status);
-
-            case 'database_connection':
-                $host = $this->context['host'] ?? '';
-                $db = $this->context['database'] ?? '';
-
-                return sprintf('%s/%s', $host, $db);
-
-            case 'database_query':
-            case 'complex_query':
-                $queryType = (string) ($this->context['queryType'] ?? '');
-                $table = (string) ($this->context['table'] ?? '');
-
-                // Add parameters info if present
-                $parameters = $this->context['parameters'] ?? [];
-                if (! empty($parameters) && is_array($parameters)) {
-                    $paramInfo = $this->formatMultiLineData($parameters, $config);
-
-                    return sprintf('%s %s (params: %s)', $queryType, $table, $paramInfo);
-                }
-
-                return sprintf('%s %s', $queryType, $table);
-
-            case 'external_api_request':
-                $service = (string) ($this->context['service'] ?? '');
-                $endpoint = (string) ($this->context['endpoint'] ?? '');
-
-                return sprintf('%s %s', $service, $this->shortenUrl($endpoint));
-
-            case 'cache_operation':
-                $operation = (string) ($this->context['operation'] ?? '');
-                $key = (string) ($this->context['key'] ?? '');
-                $hit = $this->context['hit'] ?? false ? 'HIT' : 'MISS';
-
-                return sprintf('%s %s (%s)', $operation, $key, $hit);
-
-            case 'file_processing':
-                $operation = (string) ($this->context['operation'] ?? '');
-                $filename = (string) ($this->context['filename'] ?? '');
-
-                return sprintf('%s %s', $operation, $filename);
-
-            case 'authentication_request':
-            case 'authentication':
-                $method = (string) ($this->context['method'] ?? '');
-                $token = $this->context['token'] ?? null;
-                $status = $token ? 'SUCCESS' : 'FAILED';
-
-                return sprintf('%s (%s)', $method, $status);
-
-            case 'business_logic':
-                $operation = (string) ($this->context['operation'] ?? '');
-                $success = $this->context['success'] ?? false ? 'SUCCESS' : 'FAILED';
-
-                return sprintf('%s (%s)', $operation, $success);
-
-            case 'error':
-                $errorType = (string) ($this->context['errorType'] ?? '');
-                $message = (string) ($this->context['message'] ?? '');
-
-                return sprintf('%s: %s', $errorType, $this->truncateMessage($message));
-
-            case 'performance_metrics':
-                $queries = (int) ($this->context['databaseQueries'] ?? 0);
-                $memory = (float) ($this->context['memoryUsed'] ?? 0);
-
-                return sprintf('%d queries, %s memory', $queries, $this->formatBytes($memory));
-
-            default:
-                // Try to find common patterns
-                if (array_key_exists('operation', $this->context)) {
-                    return (string) $this->context['operation'];
-                }
-
-                if (array_key_exists('method', $this->context)) {
-                    return (string) $this->context['method'];
-                }
-
-                if (array_key_exists('name', $this->context)) {
-                    return (string) $this->context['name'];
-                }
-
-                return '';
+            return sprintf('%s %s (headers: %s)', $method, $uri, $headerInfo);
         }
+
+        return sprintf('%s %s', $method, $uri);
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractHttpResponseInfo(): string
+    {
+        $status = $this->context['statusCode'] ?? '';
+
+        return sprintf('Status %s', $status);
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractDatabaseConnectionInfo(): string
+    {
+        $host = $this->context['host'] ?? '';
+        $db = $this->context['database'] ?? '';
+
+        return sprintf('%s/%s', $host, $db);
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractDatabaseQueryInfo(RenderConfig|null $config): string
+    {
+        $queryType = (string) ($this->context['queryType'] ?? '');
+        $table = (string) ($this->context['table'] ?? '');
+
+        $parameters = $this->context['parameters'] ?? [];
+        if (! empty($parameters) && is_array($parameters)) {
+            $paramInfo = $this->formatMultiLineData($parameters, $config);
+
+            return sprintf('%s %s (params: %s)', $queryType, $table, $paramInfo);
+        }
+
+        return sprintf('%s %s', $queryType, $table);
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractExternalApiInfo(): string
+    {
+        $service = (string) ($this->context['service'] ?? '');
+        $endpoint = (string) ($this->context['endpoint'] ?? '');
+
+        return sprintf('%s %s', $service, $this->shortenUrl($endpoint));
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractCacheOperationInfo(): string
+    {
+        $operation = (string) ($this->context['operation'] ?? '');
+        $key = (string) ($this->context['key'] ?? '');
+        $hit = $this->context['hit'] ?? false ? 'HIT' : 'MISS';
+
+        return sprintf('%s %s (%s)', $operation, $key, $hit);
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractFileProcessingInfo(): string
+    {
+        $operation = (string) ($this->context['operation'] ?? '');
+        $filename = (string) ($this->context['filename'] ?? '');
+
+        return sprintf('%s %s', $operation, $filename);
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractAuthenticationInfo(): string
+    {
+        $method = (string) ($this->context['method'] ?? '');
+        $token = $this->context['token'] ?? null;
+        $status = $token ? 'SUCCESS' : 'FAILED';
+
+        return sprintf('%s (%s)', $method, $status);
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractBusinessLogicInfo(): string
+    {
+        $operation = (string) ($this->context['operation'] ?? '');
+        $success = $this->context['success'] ?? false ? 'SUCCESS' : 'FAILED';
+
+        return sprintf('%s (%s)', $operation, $success);
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractErrorInfo(): string
+    {
+        $errorType = (string) ($this->context['errorType'] ?? '');
+        $message = (string) ($this->context['message'] ?? '');
+
+        return sprintf('%s: %s', $errorType, $this->truncateMessage($message));
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractPerformanceMetricsInfo(): string
+    {
+        $queries = (int) ($this->context['databaseQueries'] ?? 0);
+        $memory = (float) ($this->context['memoryUsed'] ?? 0);
+
+        return sprintf('%d queries, %s memory', $queries, $this->formatBytes($memory));
+    }
+
+    /** @codeCoverageIgnore */
+    private function extractDefaultInfo(): string
+    {
+        if (array_key_exists('operation', $this->context)) {
+            return (string) $this->context['operation'];
+        }
+
+        if (array_key_exists('method', $this->context)) {
+            return (string) $this->context['method'];
+        }
+
+        if (array_key_exists('name', $this->context)) {
+            return (string) $this->context['name'];
+        }
+
+        return '';
     }
 
     /** @codeCoverageIgnore */

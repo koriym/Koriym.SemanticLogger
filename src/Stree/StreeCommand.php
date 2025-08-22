@@ -94,123 +94,82 @@ final class StreeCommand
 
         for ($i = 0; $i < count($args); $i++) {
             $arg = $args[$i];
+            $result = $this->parseArgument($arg, $args, $i);
 
-            if ($arg === '--help' || $arg === '-h') {
-                $options['help'] = true;
-            } elseif ($arg === '--full' || $arg === '-f') {
-                $options['full'] = true;
-            } elseif ($arg === '--format') {
-                if (! isset($args[$i + 1])) {
-                    throw new RuntimeException('--format requires a value');
-                }
+            if ($result['consumed']) {
+                $i = $result['index'];
+            }
 
-                $formatValue = $args[++$i];
-                if (! in_array($formatValue, ['text', 'html'], true)) {
-                    throw new RuntimeException('--format must be "text" or "html"');
-                }
-
-                $options['format'] = $formatValue;
-            } elseif (str_starts_with($arg, '--format=')) {
-                $value = substr($arg, 9);
-                if (! in_array($value, ['text', 'html'], true)) {
-                    throw new RuntimeException('--format must be "text" or "html"');
-                }
-
-                $options['format'] = $value;
-            } elseif ($arg === '--depth' || $arg === '-d') {
-                if (! isset($args[$i + 1])) {
-                    throw new RuntimeException('--depth requires a value');
-                }
-
-                $depthValue = $args[++$i];
-                if (! is_numeric($depthValue)) {
-                    throw new RuntimeException(sprintf('--depth must be a number, got: %s', $depthValue));
-                }
-
-                $depth = (int) $depthValue;
-                if ($depth < 0) {
-                    throw new RuntimeException('--depth must be 0 or greater');
-                }
-
-                $options['depth'] = $depth;
-            } elseif (str_starts_with($arg, '--depth=')) {
-                $value = substr($arg, 8);
-                if (! is_numeric($value)) {
-                    throw new RuntimeException(sprintf('--depth must be a number, got: %s', $value));
-                }
-
-                $depth = (int) $value;
-                if ($depth < 0) {
-                    throw new RuntimeException('--depth must be 0 or greater');
-                }
-
-                $options['depth'] = $depth;
-            } elseif ($arg === '--expand' || $arg === '-e') {
-                if (! isset($args[$i + 1])) {
-                    throw new RuntimeException('--expand requires a value');
-                }
-
-                $expandType = $args[++$i];
-                // Context types are user-defined, so we accept any non-empty string
-                if (empty($expandType)) {
-                    throw new RuntimeException('--expand context type cannot be empty');
-                }
-
-                $options['expand'][] = $expandType;
-            } elseif (str_starts_with($arg, '--expand=')) {
-                $value = substr($arg, 9);
-                if (empty($value)) {
-                    throw new RuntimeException('--expand context type cannot be empty');
-                }
-
-                $options['expand'][] = $value;
-            } elseif ($arg === '--threshold' || $arg === '-t') {
-                if (! isset($args[$i + 1])) {
-                    throw new RuntimeException('--threshold requires a value');
-                }
-
-                $value = $args[++$i];
-                $options['threshold'] = $this->parseThreshold($value);
-            } elseif (str_starts_with($arg, '--threshold=')) {
-                $value = substr($arg, 12);
-                $options['threshold'] = $this->parseThreshold($value);
-            } elseif ($arg === '--lines' || $arg === '-l') {
-                if (! isset($args[$i + 1])) {
-                    throw new RuntimeException('--lines requires a value');
-                }
-
-                $linesValue = $args[++$i];
-                if (! is_numeric($linesValue)) {
-                    throw new RuntimeException(sprintf('--lines must be a number, got: %s', $linesValue));
-                }
-
-                $lines = (int) $linesValue;
-                if ($lines < 0) {
-                    throw new RuntimeException('--lines must be 0 or greater (0 = no limit)');
-                }
-
-                $options['lines'] = $lines;
-            } elseif (str_starts_with($arg, '--lines=')) {
-                $value = substr($arg, 8);
-                if (! is_numeric($value)) {
-                    throw new RuntimeException(sprintf('--lines must be a number, got: %s', $value));
-                }
-
-                $lines = (int) $value;
-                if ($lines < 0) {
-                    throw new RuntimeException('--lines must be 0 or greater (0 = no limit)');
-                }
-
-                $options['lines'] = $lines;
-            } elseif ($arg[0] !== '-') {
-                // This is the log file
-                $options['file'] = $arg;
-            } elseif ($arg[0] === '-') {
-                throw new RuntimeException(sprintf('Unknown option: %s', $arg));
+            if (isset($result['option'])) {
+                $options = $this->mergeOptions($options, $result['option']);
             }
         }
 
         return $options;
+    }
+
+    /**
+     * @param string[] $args
+     *
+     * @SuppressWarnings(PHPMD.NPathComplexity)
+     */
+    private function parseArgument(string $arg, array $args, int $index): array
+    {
+        // Handle simple flags
+        $simpleFlags = ['--help' => 'help', '-h' => 'help', '--full' => 'full', '-f' => 'full'];
+        if (isset($simpleFlags[$arg])) {
+            return ['option' => [$simpleFlags[$arg] => true], 'consumed' => false, 'index' => $index];
+        }
+
+        // Handle option with value
+        if ($arg === '--format') {
+            return $this->parseFormatOption($args, $index);
+        }
+
+        if ($arg === '--depth' || $arg === '-d') {
+            return $this->parseDepthOption($args, $index);
+        }
+
+        if ($arg === '--expand' || $arg === '-e') {
+            return $this->parseExpandOption($args, $index);
+        }
+
+        if ($arg === '--threshold' || $arg === '-t') {
+            return $this->parseThresholdOption($args, $index);
+        }
+
+        if ($arg === '--lines' || $arg === '-l') {
+            return $this->parseLinesOption($args, $index);
+        }
+
+        // Handle assignment format
+        if (str_starts_with($arg, '--format=')) {
+            return $this->parseFormatAssignment($arg);
+        }
+
+        if (str_starts_with($arg, '--depth=')) {
+            return $this->parseDepthAssignment($arg);
+        }
+
+        if (str_starts_with($arg, '--expand=')) {
+            return $this->parseExpandAssignment($arg);
+        }
+
+        if (str_starts_with($arg, '--threshold=')) {
+            return $this->parseThresholdAssignment($arg);
+        }
+
+        if (str_starts_with($arg, '--lines=')) {
+            return $this->parseLinesAssignment($arg);
+        }
+
+        // Handle log file
+        if ($arg[0] !== '-') {
+            return ['option' => ['file' => $arg], 'consumed' => false, 'index' => $index];
+        }
+
+        // Unknown option
+        throw new RuntimeException(sprintf('Unknown option: %s', $arg));
     }
 
     private function parseThreshold(string $value): float
@@ -275,6 +234,166 @@ final class StreeCommand
         } catch (JsonException $e) {
             throw new RuntimeException(sprintf('Invalid JSON in log file: %s', $e->getMessage()));
         }
+    }
+
+    /** @param string[] $args */
+    private function parseFormatOption(array $args, int $index): array
+    {
+        if (! isset($args[$index + 1])) {
+            throw new RuntimeException('--format requires a value');
+        }
+
+        $formatValue = $args[$index + 1];
+        if (! in_array($formatValue, ['text', 'html'], true)) {
+            throw new RuntimeException('--format must be "text" or "html"');
+        }
+
+        return ['option' => ['format' => $formatValue], 'consumed' => true, 'index' => $index + 1];
+    }
+
+    private function parseFormatAssignment(string $arg): array
+    {
+        $value = substr($arg, 9);
+        if (! in_array($value, ['text', 'html'], true)) {
+            throw new RuntimeException('--format must be "text" or "html"');
+        }
+
+        return ['option' => ['format' => $value], 'consumed' => false, 'index' => 0];
+    }
+
+    /** @param string[] $args */
+    private function parseDepthOption(array $args, int $index): array
+    {
+        if (! isset($args[$index + 1])) {
+            throw new RuntimeException('--depth requires a value');
+        }
+
+        $depthValue = $args[$index + 1];
+        if (! is_numeric($depthValue)) {
+            throw new RuntimeException(sprintf('--depth must be a number, got: %s', $depthValue));
+        }
+
+        $depth = (int) $depthValue;
+        if ($depth < 0) {
+            throw new RuntimeException('--depth must be 0 or greater');
+        }
+
+        return ['option' => ['depth' => $depth], 'consumed' => true, 'index' => $index + 1];
+    }
+
+    private function parseDepthAssignment(string $arg): array
+    {
+        $value = substr($arg, 8);
+        if (! is_numeric($value)) {
+            throw new RuntimeException(sprintf('--depth must be a number, got: %s', $value));
+        }
+
+        $depth = (int) $value;
+        if ($depth < 0) {
+            throw new RuntimeException('--depth must be 0 or greater');
+        }
+
+        return ['option' => ['depth' => $depth], 'consumed' => false, 'index' => 0];
+    }
+
+    /** @param string[] $args */
+    private function parseExpandOption(array $args, int $index): array
+    {
+        if (! isset($args[$index + 1])) {
+            throw new RuntimeException('--expand requires a value');
+        }
+
+        $expandType = $args[$index + 1];
+        if (empty($expandType)) {
+            throw new RuntimeException('--expand context type cannot be empty');
+        }
+
+        return ['option' => ['expand' => $expandType], 'consumed' => true, 'index' => $index + 1];
+    }
+
+    private function parseExpandAssignment(string $arg): array
+    {
+        $value = substr($arg, 9);
+        if (empty($value)) {
+            throw new RuntimeException('--expand context type cannot be empty');
+        }
+
+        return ['option' => ['expand' => $value], 'consumed' => false, 'index' => 0];
+    }
+
+    /** @param string[] $args */
+    private function parseThresholdOption(array $args, int $index): array
+    {
+        if (! isset($args[$index + 1])) {
+            throw new RuntimeException('--threshold requires a value');
+        }
+
+        $value = $args[$index + 1];
+        $threshold = $this->parseThreshold($value);
+
+        return ['option' => ['threshold' => $threshold], 'consumed' => true, 'index' => $index + 1];
+    }
+
+    private function parseThresholdAssignment(string $arg): array
+    {
+        $value = substr($arg, 12);
+        $threshold = $this->parseThreshold($value);
+
+        return ['option' => ['threshold' => $threshold], 'consumed' => false, 'index' => 0];
+    }
+
+    /** @param string[] $args */
+    private function parseLinesOption(array $args, int $index): array
+    {
+        if (! isset($args[$index + 1])) {
+            throw new RuntimeException('--lines requires a value');
+        }
+
+        $linesValue = $args[$index + 1];
+        if (! is_numeric($linesValue)) {
+            throw new RuntimeException(sprintf('--lines must be a number, got: %s', $linesValue));
+        }
+
+        $lines = (int) $linesValue;
+        if ($lines < 0) {
+            throw new RuntimeException('--lines must be 0 or greater (0 = no limit)');
+        }
+
+        return ['option' => ['lines' => $lines], 'consumed' => true, 'index' => $index + 1];
+    }
+
+    private function parseLinesAssignment(string $arg): array
+    {
+        $value = substr($arg, 8);
+        if (! is_numeric($value)) {
+            throw new RuntimeException(sprintf('--lines must be a number, got: %s', $value));
+        }
+
+        $lines = (int) $value;
+        if ($lines < 0) {
+            throw new RuntimeException('--lines must be 0 or greater (0 = no limit)');
+        }
+
+        return ['option' => ['lines' => $lines], 'consumed' => false, 'index' => 0];
+    }
+
+    private function mergeOptions(array $existing, array $new): array
+    {
+        foreach ($new as $key => $value) {
+            if ($key === 'expand') {
+                if (! isset($existing['expand'])) {
+                    $existing['expand'] = [];
+                }
+
+                $existing['expand'][] = $value;
+
+                continue;
+            }
+
+            $existing[$key] = $value;
+        }
+
+        return $existing;
     }
 
     /** @codeCoverageIgnore */
