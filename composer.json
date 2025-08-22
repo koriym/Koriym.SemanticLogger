@@ -14,7 +14,8 @@
     },
     "require-dev": {
         "bamarni/composer-bin-plugin": "^1.8",
-        "phpunit/phpunit": "^10.5"
+        "phpunit/phpunit": "^10.5",
+        "koriym/xdebug-mcp": "1.x-dev"
     },
     "autoload": {
         "psr-4": {
@@ -33,7 +34,8 @@
     },
     "bin": [
         "bin/semantic-mcp",
-        "bin/validate-semantic-log.php"
+        "bin/validate-semantic-log.php",
+        "bin/stree"
     ],
     "scripts": {
         "bin": "echo 'bin not installed'",
@@ -72,9 +74,14 @@
         ],
         "demo": [
             "XDEBUG_MODE=profile,trace php -d zend_extension=xdebug -d extension=xhprof -d xdebug.mode=profile,trace -d xdebug.start_with_request=no -d xdebug.output_dir=/tmp -d xhprof.output_dir=/tmp -d xdebug.profiler_output_name=cachegrind.out.%H-%R-%t -d xdebug.trace_output_name=trace.%H-%R-%t -d xdebug.profiler_append=0 -d xdebug.collect_params=1 -d xdebug.collect_return=1 -d xdebug.collect_assignments=1 demo/run.php",
-            "php bin/validate-semantic-log.php demo/semantic-log-demo.json demo/schemas"
+            "php bin/validate-semantic-log.php demo/semantic-log-demo.json demo/schemas",
+            "php bin/stree demo/semantic-log-demo.json"
         ],
         "sgen": "php demo/generate-schema.php && mv demo/semantic-log-generated.json demo/schemas/combined.json",
+        "stree": "php bin/stree demo/semantic-log-demo.json",
+        "stree:full": "php bin/stree --full demo/semantic-log-demo.json",
+        "stree:perf": "php bin/stree --threshold=5ms --full demo/semantic-log-demo.json",
+        "stree:db": "php bin/stree --expand=complex_query --expand=database_connection demo/semantic-log-demo.json",
         "post-install-cmd": "@composer bin all install --ansi",
         "post-update-cmd": "@composer bin all update --ansi"
     },
@@ -97,7 +104,11 @@
         "tests": "Run tests and quality checks",
         "build": "Build project",
         "demo": "Run semantic logging demonstration with validation",
-        "sgen": "Generate combined JSON Schema from individual context schemas"
+        "sgen": "Generate combined JSON Schema from individual context schemas",
+        "stree": "Display semantic log tree visualization (default 2-level depth)",
+        "stree:full": "Display complete semantic log tree (all levels)",
+        "stree:perf": "Display performance-focused tree (operations > 5ms)",
+        "stree:db": "Display database-focused tree (expand database operations)"
     },
     "config": {
         "allow-plugins": {

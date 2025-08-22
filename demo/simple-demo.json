@@ -1,0 +1,88 @@
+{
+    "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json",
+    "open": {
+        "id": "http_request_1",
+        "type": "http_request",
+        "schemaUrl": "./schemas/http_request.json",
+        "context": {
+            "method": "POST",
+            "uri": "/api/users",
+            "headers": {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer <TOKEN_REDACTED>"
+            },
+            "responseTime": 0.125
+        },
+        "open": {
+            "id": "business_logic_1", 
+            "type": "business_logic",
+            "schemaUrl": "./schemas/business_logic.json",
+            "context": {
+                "operation": "create_user",
+                "success": true,
+                "executionTime": 0.095
+            },
+            "open": {
+                "id": "database_connection_1",
+                "type": "database_connection", 
+                "schemaUrl": "./schemas/database_connection.json",
+                "context": {
+                    "driver": "postgresql",
+                    "host": "db.example.com",
+                    "database": "users_db",
+                    "connectionTime": 0.005
+                },
+                "open": {
+                    "id": "database_query_1",
+                    "type": "complex_query",
+                    "schemaUrl": "./schemas/complex_query.json", 
+                    "context": {
+                        "queryType": "INSERT",
+                        "table": "users",
+                        "executionTime": 0.015,
+                        "affectedRows": 1
+                    }
+                }
+            }
+        }
+    },
+    "close": {
+        "id": "http_response_1",
+        "type": "http_response",
+        "schemaUrl": "./schemas/http_response.json",
+        "context": {
+            "statusCode": 201,
+            "contentType": "application/json", 
+            "responseTime": 0.125
+        },
+        "openId": "http_request_1"
+    },
+    "events": [
+        {
+            "id": "cache_operation_1",
+            "type": "cache_operation",
+            "schemaUrl": "./schemas/cache_operation.json",
+            "context": {
+                "operation": "set",
+                "key": "user_profile_12345",
+                "hit": true,
+                "duration": 0.002
+            },
+            "openId": "business_logic_1"
+        },
+        {
+            "id": "external_api_1", 
+            "type": "external_api_request",
+            "schemaUrl": "./schemas/external_api_request.json",
+            "context": {
+                "service": "EmailService",
+                "endpoint": "https://api.sendgrid.com/v3/mail/send",
+                "method": "POST",
+                "statusCode": 200,
+                "responseTime": 0.045
+            },
+            "openId": "business_logic_1"
+        }
+    ],
+    "links": []
+}

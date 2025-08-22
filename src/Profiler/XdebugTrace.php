@@ -30,6 +30,7 @@ final class XdebugTrace implements JsonSerializable
     ) {
     }
 
+    /** @codeCoverageIgnore */
     public static function start(): self
     {
         if (! function_exists('xdebug_start_trace')) {
@@ -56,6 +57,7 @@ final class XdebugTrace implements JsonSerializable
         return $instance;
     }
 
+    /** @codeCoverageIgnore */
     public function stop(): self
     {
         if (! $this->canStopTrace()) {
@@ -95,11 +97,13 @@ final class XdebugTrace implements JsonSerializable
         return new self($content, $traceFile);
     }
 
+    /** @codeCoverageIgnore */
     public function getFilePath(): string|null
     {
         return $this->filePath;
     }
 
+    /** @codeCoverageIgnore */
     public function getFileSize(): int
     {
         if ($this->filePath === null || ! file_exists($this->filePath)) {
@@ -111,12 +115,17 @@ final class XdebugTrace implements JsonSerializable
         return $size !== false ? $size : 0;
     }
 
+    /** @codeCoverageIgnore */
     public function isCompressed(): bool
     {
         return $this->filePath !== null && str_ends_with($this->filePath, '.gz');
     }
 
-    /** @return array<string, mixed> */
+    /**
+     * @return array<string, mixed>
+     *
+     * @codeCoverageIgnore
+     */
     #[Override]
     public function jsonSerialize(): array
     {

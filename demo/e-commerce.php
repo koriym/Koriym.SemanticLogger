@@ -6,6 +6,7 @@ namespace Koriym\SemanticLogger;
 
 use Throwable;
 
+use function basename;
 use function file_put_contents;
 use function function_exists;
 use function get_class;
@@ -54,322 +55,376 @@ class ComplexWebRequestSimulation
         echo "Debug: About to call first logger->open()...\n";
         echo 'Debug: Logger instance: ' . get_class($this->logger) . "\n";
 
-        // 1. HTTP Request arrives
-        $httpRequestId = $this->logger->open(new HttpRequestContext(
-            'POST',
-            '/api/orders',
+        // Start processing the request
+        $requestProcessingId = $this->logger->open(new BusinessLogicContext(
+            'order_validation',
             [
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
-                'User-Agent' => 'ECommerceApp/2.1.0',
-                'X-Request-ID' => 'req_' . uniqid(),
-            ],
-            [
+                'endpoint' => '/api/orders',
+                'method' => 'POST',
                 'customerId' => 12345,
-                'items' => [
-                    ['productId' => 'P001', 'quantity' => 2, 'price' => 29.99],
-                    ['productId' => 'P045', 'quantity' => 1, 'price' => 149.99],
+            ],
+            [],
+            [
+                'customer_exists' => true,
+                'items_available' => true,
+                'payment_valid' => true,
+                'shipping_valid' => true,
+            ],
+            false,
+        ));
+
+        try {
+            // 1. HTTP Request arrives - log as event within the request processing context
+            $this->logger->event(new HttpRequestContext(
+                'POST',
+                '/api/orders',
+                [
+                    'Content-Type' => 'application/json',
+                    'Authorization' => 'Bearer ' . ($_ENV['JWT_TOKEN'] ?? '<TOKEN_REDACTED>'),
+                    'User-Agent' => 'ECommerceApp/2.1.0',
+                    'X-Request-ID' => 'req_' . uniqid(),
                 ],
-                'shippingAddress' => ['street' => '123 Main St', 'city' => 'Tokyo'],
-                'paymentMethod' => 'credit_card_ending_1234',
-            ],
-            'ECommerceApp/2.1.0 (iOS 17.0)',
-            '192.168.1.100',
-        ));
+                [
+                    'customerId' => 12345,
+                    'items' => [
+                        ['productId' => 'P001', 'quantity' => 2, 'price' => 29.99],
+                        ['productId' => 'P045', 'quantity' => 1, 'price' => 149.99],
+                    ],
+                    'shippingAddress' => ['street' => '123 Main St', 'city' => 'Tokyo'],
+                    'paymentMethod' => 'credit_card_ending_1234',
+                ],
+                'ECommerceApp/2.1.0 (iOS 17.0)',
+                '192.168.1.100',
+            ));
 
-        usleep(5000); // Initial request processing delay
+            usleep(5000); // Initial request processing delay
 
-        // 2. Authentication Process
-        $authId = $this->logger->open(new AuthenticationContext(
-            'JWT',
-            null, // Will be set after successful auth
-            [],
-            false,
-            0.0,
-        ));
+            // 2. Authentication Process
+            $authId = $this->logger->open(new AuthenticationContext(
+                'JWT',
+                null, // Will be set after successful auth
+                [],
+            ));
 
-        // Auth validation steps
-        $this->logger->event(new CacheOperationContext(
-            'get',
-            'jwt_blacklist_check',
-            true, // Cache hit
-            0.002,
-            3600,
-            128,
-        ));
+            try {
+                // Auth validation steps
+                $this->logger->event(new CacheOperationContext(
+                    'get',
+                    'jwt_blacklist_check',
+                    true, // Cache hit
+                    0.002,
+                    3600,
+                    128,
+                ));
 
-        usleep(8000); // JWT verification time
+                usleep(12000); // JWT verification time
+            } finally {
+                $this->logger->close(new AuthenticationContext(
+                    'JWT',
+                    'user_12345',
+                    ['role' => 'customer', 'premium' => true],
+                ), $authId);
+            }
 
-        $this->logger->close(new AuthenticationContext(
-            'JWT',
-            'user_12345',
-            ['role' => 'customer', 'premium' => true],
-            true,
-            0.015,
-        ), $authId);
+            // 3. Business Logic - Order Processing
+            $orderValidationId = $this->logger->open(new BusinessLogicContext(
+                'order_validation',
+                [
+                    'customerId' => 12345,
+                    'items' => ['P001', 'P045'],
+                    'total' => 209.97,
+                ],
+                [],
+                [
+                    'customer_exists' => true,
+                    'items_available' => true,
+                    'payment_valid' => true,
+                    'shipping_valid' => true,
+                ],
+                false,
+            ));
 
-        // 3. Business Logic - Order Validation
-        $orderValidationId = $this->logger->open(new BusinessLogicContext(
-            'order_validation',
-            [
-                'customerId' => 12345,
-                'items' => ['P001', 'P045'],
-                'total' => 209.97,
-            ],
-            [],
-            [
-                'customer_exists' => true,
-                'items_available' => true,
-                'payment_valid' => true,
-                'shipping_valid' => true,
-            ],
-            false,
-        ));
+            try {
+                // 4. Database Operations
+                $dbConnectionId = $this->logger->open(new DatabaseConnectionContext(
+                    'mysql',
+                    'db-cluster-1.example.com',
+                    'ecommerce_prod',
+                    0.045,
+                    true, // Using connection pool
+                ));
 
-        // 4. Database Operations
-        $dbConnectionId = $this->logger->open(new DatabaseConnectionContext(
-            'mysql',
-            'db-cluster-1.example.com',
-            'ecommerce_prod',
-            0.045,
-            true, // Using connection pool
-        ));
+                try {
+                    // Customer validation query
+                    $this->logger->event(new ComplexQueryContext(
+                        'SELECT',
+                        'customers',
+                        ['id' => 12345, 'active' => 1],
+                        1,
+                        0.012,
+                        1,
+                        false, // No error
+                        'customer_12345',
+                    ));
 
-        // Customer validation query
-        $this->logger->event(new ComplexQueryContext(
-            'SELECT',
-            'customers',
-            ['id' => 12345, 'active' => 1],
-            1,
-            0.012,
-            1,
-            true,
-            'customer_12345',
-        ));
+                    // Inventory check query
+                    $this->logger->event(new ComplexQueryContext(
+                        'SELECT',
+                        'inventory i JOIN products p ON i.product_id = p.id',
+                        ['product_id' => ['P001', 'P045'], 'available_quantity >' => 0],
+                        2,
+                        0.028,
+                        2,
+                        false,
+                    ));
 
-        // Inventory check query
-        $this->logger->event(new ComplexQueryContext(
-            'SELECT',
-            'inventory i JOIN products p ON i.product_id = p.id',
-            ['product_id' => ['P001', 'P045'], 'available_quantity >' => 0],
-            2,
-            0.028,
-            2,
-            false,
-        ));
+                    // Inventory update query
+                    $this->logger->event(new ComplexQueryContext(
+                        'UPDATE',
+                        'inventory',
+                        ['product_id' => ['P001', 'P045']],
+                        4, // 2 products, 2 fields each
+                        0.035,
+                        2,
+                        false,
+                    ));
 
-        // 5. External Service Call - Payment Gateway
-        $paymentId = $this->logger->open(new ExternalApiContext(
-            'PaymentGateway',
-            'https://api.payments.example.com/v2/authorize',
-            'POST',
-            0, // Will be set when closed
-            0.0,
-            512, // Request size
-            0,    // Response size TBD
-        ));
+                    // Order creation transaction
+                    $orderInsertId = $this->logger->open(new ComplexQueryContext(
+                        'INSERT',
+                        'orders',
+                        [],
+                        8, // Order fields
+                        0.0,
+                        0,
+                        false,
+                    ));
 
-        usleep(250000); // Payment gateway processing time
+                    try {
+                        // Order items insertion
+                        $this->logger->event(new ComplexQueryContext(
+                            'INSERT',
+                            'order_items',
+                            [],
+                            6, // 2 items * 3 fields each
+                            0.018,
+                            2,
+                            false,
+                        ));
 
-        // Payment authorization successful
-        $this->logger->close(new ExternalApiContext(
-            'PaymentGateway',
-            'https://api.payments.example.com/v2/authorize',
-            'POST',
-            200,
-            0.247,
-            512,
-            256,
-            0,
-        ), $paymentId);
+                        usleep(25000); // Order creation processing time
+                    } finally {
+                        $this->logger->close(new ComplexQueryContext(
+                            'INSERT',
+                            'orders',
+                            [],
+                            8,
+                            0.042,
+                            1,
+                            false,
+                        ), $orderInsertId);
+                    }
+                } finally {
+                    $this->logger->close(new DatabaseConnectionContext(
+                        'mysql',
+                        'db-cluster-1.example.com',
+                        'ecommerce_prod',
+                        0.045,
+                        true,
+                    ), $dbConnectionId);
+                }
 
-        // 6. Inventory Update
-        $this->logger->event(new ComplexQueryContext(
-            'UPDATE',
-            'inventory',
-            ['product_id' => ['P001', 'P045']],
-            4, // 2 products, 2 fields each
-            0.035,
-            2,
-            false,
-        ));
+                // 5. External Service Call - Payment Gateway
+                $paymentId = $this->logger->open(new ExternalApiContext(
+                    'PaymentGateway',
+                    'https://api.stripe.com/v1/charges',
+                    'POST',
+                    0, // Will be set when closed
+                    0.0,
+                    512, // Request size
+                    0,    // Response size TBD
+                ));
 
-        // 7. Order Creation
-        $orderInsertId = $this->logger->open(new ComplexQueryContext(
-            'INSERT',
-            'orders',
-            [],
-            8, // Order fields
-            0.0,
-            0,
-            false,
-        ));
+                try {
+                    usleep(180000); // Payment gateway processing time
+                } finally {
+                    // Payment authorization successful
+                    $this->logger->close(new ExternalApiContext(
+                        'PaymentGateway',
+                        'https://api.stripe.com/v1/charges',
+                        'POST',
+                        200,
+                        0.182,
+                        512,
+                        256,
+                        0,
+                    ), $paymentId);
+                }
 
-        // Order items insertion
-        $this->logger->event(new ComplexQueryContext(
-            'INSERT',
-            'order_items',
-            [],
-            6, // 2 items * 3 fields each
-            0.018,
-            2,
-            false,
-        ));
+                // 6. External Service - Shipping Label Generation
+                $shippingId = $this->logger->open(new ExternalApiContext(
+                    'ShippingService',
+                    'https://api.fedex.com/v1/shipments',
+                    'POST',
+                    0,
+                    0.0,
+                    1024,
+                    0,
+                ));
 
-        $this->logger->close(new ComplexQueryContext(
-            'INSERT',
-            'orders',
-            [],
-            8,
-            0.042,
-            1,
-            false,
-        ), $orderInsertId);
+                try {
+                    usleep(95000); // Shipping service processing
+                } finally {
+                    $this->logger->close(new ExternalApiContext(
+                        'ShippingService',
+                        'https://api.fedex.com/v1/shipments',
+                        'POST',
+                        201,
+                        0.098,
+                        1024,
+                        2048,
+                    ), $shippingId);
+                }
 
-        $this->logger->close(new DatabaseConnectionContext(
-            'mysql',
-            'db-cluster-1.example.com',
-            'ecommerce_prod',
-            0.045,
-            true,
-        ), $dbConnectionId);
+                // 7. File Processing - Invoice PDF Generation
+                $invoiceId = $this->logger->open(new FileProcessingContext(
+                    'pdf_generation',
+                    'invoice_ORD_' . uniqid() . '.pdf',
+                    'application/pdf',
+                    0,
+                    0.0,
+                    false,
+                ));
 
-        // 8. External Service - Shipping Label Generation
-        $shippingId = $this->logger->open(new ExternalApiContext(
-            'ShippingService',
-            'https://api.shipping.example.com/v1/labels',
-            'POST',
-            0,
-            0.0,
-            1024,
-            0,
-        ));
+                try {
+                    usleep(75000); // PDF generation time
+                } finally {
+                    $this->logger->close(new FileProcessingContext(
+                        'pdf_generation',
+                        'invoice_ORD_67890.pdf',
+                        'application/pdf',
+                        15360, // 15KB PDF
+                        0.078,
+                        true,
+                        '/tmp/invoices/invoice_ORD_67890.pdf',
+                    ), $invoiceId);
+                }
 
-        usleep(180000); // Shipping service processing
+                // 8. Cache Operations - Store order summary
+                $this->logger->event(new CacheOperationContext(
+                    'set',
+                    'order_summary_12345',
+                    true, // Successful set
+                    0.003,
+                    1800, // 30 minutes TTL
+                    512,
+                ));
 
-        $this->logger->close(new ExternalApiContext(
-            'ShippingService',
-            'https://api.shipping.example.com/v1/labels',
-            'POST',
-            201,
-            0.178,
-            1024,
-            2048,
-        ), $shippingId);
+                // 9. Notification - Email Service
+                $emailId = $this->logger->open(new ExternalApiContext(
+                    'EmailService',
+                    'https://api.sendgrid.com/v3/mail/send',
+                    'POST',
+                    0,
+                    0.0,
+                    2048,
+                    0,
+                ));
 
-        // 9. File Processing - Invoice PDF Generation
-        $invoiceId = $this->logger->open(new FileProcessingContext(
-            'pdf_generation',
-            'invoice_ORD_' . uniqid() . '.pdf',
-            'application/pdf',
-            0,
-            0.0,
-            false,
-        ));
+                try {
+                    usleep(65000); // Email service time
+                } finally {
+                    $this->logger->close(new ExternalApiContext(
+                        'EmailService',
+                        'https://api.sendgrid.com/v3/mail/send',
+                        'POST',
+                        202, // Accepted for delivery
+                        0.067,
+                        2048,
+                        128,
+                    ), $emailId);
+                }
 
-        usleep(120000); // PDF generation time
+                // 10. Performance Metrics Collection
+                $endTime = microtime(true);
+                $endMemory = memory_get_usage();
 
-        $this->logger->close(new FileProcessingContext(
-            'pdf_generation',
-            'invoice_ORD_67890.pdf',
-            'application/pdf',
-            15360, // 15KB PDF
-            0.118,
-            true,
-            '/tmp/invoices/invoice_ORD_67890.pdf',
-        ), $invoiceId);
+                $this->logger->event(new PerformanceMetricsContext(
+                    $endTime - $startTime,
+                    $endMemory - $startMemory,
+                    memory_get_peak_usage(),
+                    5, // Total queries
+                    0.093, // Total query time (sum of individual queries)
+                    2, // Cache hits
+                    0, // Cache misses
+                    [
+                        'mysql_query' => ['calls' => 5, 'time' => 0.093],
+                        'curl_exec' => ['calls' => 3, 'time' => 0.347],
+                        'json_encode' => ['calls' => 8, 'time' => 0.004],
+                        'pdf_create' => ['calls' => 1, 'time' => 0.078],
+                    ],
+                ));
+            } finally {
+                // Business Logic Completion
+                $this->logger->close(new BusinessLogicContext(
+                    'order_validation',
+                    [
+                        'customerId' => 12345,
+                        'items' => ['P001', 'P045'],
+                        'total' => 209.97,
+                    ],
+                    [
+                        'orderId' => 'ORD_67890',
+                        'status' => 'confirmed',
+                        'estimatedDelivery' => '2025-08-12',
+                    ],
+                    [
+                        'customer_exists' => true,
+                        'items_available' => true,
+                        'payment_valid' => true,
+                        'shipping_valid' => true,
+                    ],
+                    true,
+                ), $orderValidationId);
+            }
+        } finally {
+            // HTTP Response - log as event
+            $endTime = microtime(true);
+            $this->logger->event(new HttpResponseContext(
+                201, // Created
+                [
+                    'Content-Type' => 'application/json',
+                    'X-Response-Time' => number_format(($endTime - $startTime) * 1000, 2) . 'ms',
+                    'X-Request-ID' => 'req_' . uniqid(),
+                ],
+                512, // Response size
+                'application/json',
+                $endTime - $startTime,
+                false,
+            ));
 
-        // 10. Cache Operations - Store order summary
-        $this->logger->event(new CacheOperationContext(
-            'set',
-            'order_summary_12345',
-            true, // Successful set
-            0.003,
-            1800, // 30 minutes TTL
-            512,
-        ));
-
-        // 11. Notification - Email Service
-        $emailId = $this->logger->open(new ExternalApiContext(
-            'EmailService',
-            'https://api.email.example.com/v1/send',
-            'POST',
-            0,
-            0.0,
-            2048,
-            0,
-        ));
-
-        usleep(95000); // Email service time
-
-        $this->logger->close(new ExternalApiContext(
-            'EmailService',
-            'https://api.email.example.com/v1/send',
-            'POST',
-            202, // Accepted for delivery
-            0.092,
-            2048,
-            128,
-        ), $emailId);
-
-        // 12. Business Logic Completion
-        $endTime = microtime(true);
-        $endMemory = memory_get_usage();
-
-        $this->logger->close(new BusinessLogicContext(
-            'order_validation',
-            [
-                'customerId' => 12345,
-                'items' => ['P001', 'P045'],
-                'total' => 209.97,
-            ],
-            [
-                'orderId' => 'ORD_67890',
-                'status' => 'confirmed',
-                'estimatedDelivery' => '2025-08-09',
-            ],
-            [
-                'customer_exists' => true,
-                'items_available' => true,
-                'payment_valid' => true,
-                'shipping_valid' => true,
-            ],
-            true,
-        ), $orderValidationId);
-
-        // 13. Performance Metrics
-        $this->logger->event(new PerformanceMetricsContext(
-            $endTime - $startTime,
-            $endMemory - $startMemory,
-            memory_get_peak_usage(),
-            5, // Total queries
-            0.135, // Total query time
-            2, // Cache hits
-            0, // Cache misses
-            [
-                'mysql_query' => ['calls' => 5, 'time' => 0.135],
-                'curl_exec' => ['calls' => 3, 'time' => 0.517],
-                'json_encode' => ['calls' => 8, 'time' => 0.004],
-                'password_verify' => ['calls' => 1, 'time' => 0.015],
-                'pdf_create' => ['calls' => 1, 'time' => 0.118],
-            ],
-        ));
-
-        // 14. HTTP Response
-        $this->logger->close(new HttpResponseContext(
-            201, // Created
-            [
-                'Content-Type' => 'application/json',
-                'X-Response-Time' => number_format(($endTime - $startTime) * 1000, 2) . 'ms',
-                'X-Request-ID' => 'req_' . uniqid(),
-            ],
-            256, // Response size
-            'application/json',
-            $endTime - $startTime,
-            false,
-        ), $httpRequestId);
-
-        // Don't flush here - save for final flush
+            // Close the request processing
+            $this->logger->close(new BusinessLogicContext(
+                'order_validation',
+                [
+                    'endpoint' => '/api/orders',
+                    'method' => 'POST',
+                    'customerId' => 12345,
+                ],
+                [
+                    'orderId' => 'ORD_67890',
+                    'status' => 'confirmed',
+                    'responseCode' => 201,
+                ],
+                [
+                    'customer_exists' => true,
+                    'items_available' => true,
+                    'payment_valid' => true,
+                    'shipping_valid' => true,
+                ],
+                true,
+            ), $requestProcessingId);
+        }
 
         echo "E-Commerce order processing completed!\n";
         echo 'Total execution time: ' . number_format(($endTime - $startTime) * 1000, 2) . "ms\n";
@@ -398,8 +453,6 @@ class ComplexWebRequestSimulation
             'JWT',
             null,
             [],
-            false,
-            0.0,
         ));
 
         $this->logger->event(new ErrorContext(
@@ -413,15 +466,13 @@ class ComplexWebRequestSimulation
                 '/src/Middleware/AuthMiddleware.php:78',
                 '/src/Controllers/OrderController.php:23',
             ],
-            ['token_header' => 'Bearer invalid_token'],
+            ['token_header' => 'Bearer <TOKEN_REDACTED>'],
         ));
 
         $this->logger->close(new AuthenticationContext(
             'JWT',
             null,
             [],
-            false,
-            0.008,
         ), $authId);
 
         $endTime = microtime(true);
@@ -452,8 +503,8 @@ class ComplexWebRequestSimulation
             echo "Xdebug trace started: {$traceFile}.xt\n";
         }
 
+        // Only run the main e-commerce scenario - no mixed HTTP requests
         $this->simulateECommerceOrderProcessing();
-        $this->simulateErrorScenario();
 
         // Stop Xdebug trace
         if (function_exists('xdebug_stop_trace')) {
@@ -485,8 +536,20 @@ class ComplexWebRequestSimulation
         $outputPath = __DIR__ . '/semantic-log-demo.json';
         file_put_contents($outputPath, $jsonString);
 
-        echo "\nAll complex web request tests completed!\n";
+        echo "\nE-Commerce order processing completed!\n";
         echo "Generated semantic log saved to: {$outputPath}\n";
         echo "Check /tmp for semantic-dev-*.json files with complex nested data.\n";
+        echo "\nTo view the beautiful tree structure:\n";
+        echo "  php bin/stree demo/semantic-log-demo.json\n";
+        echo "  php bin/stree --full demo/semantic-log-demo.json\n";
+        echo "  php bin/stree --threshold=50ms --full demo/semantic-log-demo.json\n";
     }
+}
+
+// Execute the simulation if run directly
+if (basename(__FILE__) === basename($_SERVER['SCRIPT_NAME'])) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+
+    $simulation = new ComplexWebRequestSimulation();
+    $simulation->run();
 }

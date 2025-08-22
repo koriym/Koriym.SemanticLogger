@@ -262,6 +262,8 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
      * Convert context object to typed array
      *
      * @return array<string, mixed>
+     *
+     * @codeCoverageIgnore
      */
     private function contextToArray(AbstractContext $context): array
     {

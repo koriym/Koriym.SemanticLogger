@@ -38,7 +38,7 @@ class SlowPerformanceScenarios
         $httpRequestId = $this->logger->open(new HttpRequestContext(
             'GET',
             '/api/users/dashboard',
-            ['Authorization' => 'Bearer token123'],
+            ['Authorization' => 'Bearer <TOKEN_REDACTED>'],
             null,
             'Dashboard/1.0',
             '192.168.1.50'
