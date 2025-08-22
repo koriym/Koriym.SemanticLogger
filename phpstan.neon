@@ -5,3 +5,5 @@ parameters:
     - tests
   excludePaths:
     - tests/Fake/*
+includes:
+  - phpstan-baseline.neon
