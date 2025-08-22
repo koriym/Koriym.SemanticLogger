@@ -7,7 +7,7 @@
 `stree` is included with the SemanticLogger package:
 
 ```bash
-composer install koriym/semantic-logger
+composer require koriym/semantic-logger
 ```
 
 The `stree` binary will be available in your `vendor/bin` directory or globally if installed system-wide.

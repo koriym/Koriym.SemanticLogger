@@ -104,8 +104,6 @@ class ComplexWebRequestSimulation
                 'JWT',
                 null, // Will be set after successful auth
                 [],
-                false,
-                0.0,
             ));
 
             try {
@@ -125,8 +123,6 @@ class ComplexWebRequestSimulation
                     'JWT',
                     'user_12345',
                     ['role' => 'customer', 'premium' => true],
-                    true,
-                    0.015,
                 ), $authId);
             }
 
@@ -457,8 +453,6 @@ class ComplexWebRequestSimulation
             'JWT',
             null,
             [],
-            false,
-            0.0,
         ));
 
         $this->logger->event(new ErrorContext(
@@ -472,15 +466,13 @@ class ComplexWebRequestSimulation
                 '/src/Middleware/AuthMiddleware.php:78',
                 '/src/Controllers/OrderController.php:23',
             ],
-            ['token_header' => 'Bearer invalid_token'],
+            ['token_header' => 'Bearer <TOKEN_REDACTED>'],
         ));
 
         $this->logger->close(new AuthenticationContext(
             'JWT',
             null,
             [],
-            false,
-            0.008,
         ), $authId);
 
         $endTime = microtime(true);

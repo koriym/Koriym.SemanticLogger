@@ -176,17 +176,22 @@ final class HtmlRenderer
     {
         switch ($node->type) {
             case 'http_request':
-                $method = (string) ($node->context['method'] ?? '');
-                $uri = (string) ($node->context['uri'] ?? '');
+                $methodValue = $node->context['method'] ?? null;
+                $uriValue = $node->context['uri'] ?? null;
+                $method = is_scalar($methodValue) ? (string) $methodValue : '';
+                $uri = is_scalar($uriValue) ? (string) $uriValue : '';
 
                 return sprintf('%s %s', $method, $uri);
 
             case 'external_api_request':
-                return (string) ($node->context['service'] ?? '');
+                $serviceValue = $node->context['service'] ?? null;
+                return is_scalar($serviceValue) ? (string) $serviceValue : '';
 
             case 'database_connection':
-                $host = (string) ($node->context['host'] ?? '');
-                $db = (string) ($node->context['database'] ?? '');
+                $hostValue = $node->context['host'] ?? null;
+                $dbValue = $node->context['database'] ?? null;
+                $host = is_scalar($hostValue) ? (string) $hostValue : '';
+                $db = is_scalar($dbValue) ? (string) $dbValue : '';
 
                 return sprintf('%s/%s', $host, $db);
 

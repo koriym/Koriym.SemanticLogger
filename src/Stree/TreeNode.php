@@ -55,11 +55,11 @@ final class TreeNode
     private function formatExecutionTime(): string
     {
         if ($this->executionTime < 0.001) {
-            return sprintf('%.1fμs', $this->executionTime * 1_000_000);
+            return sprintf('%.1fμs', $this->executionTime * 1_000_000.0);
         }
 
         if ($this->executionTime < 1.0) {
-            return sprintf('%.1fms', $this->executionTime * 1000);
+            return sprintf('%.1fms', $this->executionTime * 1000.0);
         }
 
         return sprintf('%.1fs', $this->executionTime);
@@ -271,14 +271,14 @@ final class TreeNode
     {
         $bytes = (float) $bytes;
 
-        if ($bytes < 1024) {
+        if ($bytes < 1024.0) {
             return sprintf('%.0fB', $bytes);
         }
 
-        if ($bytes < 1024 * 1024) {
-            return sprintf('%.1fKB', $bytes / 1024);
+        if ($bytes < 1024.0 * 1024.0) {
+            return sprintf('%.1fKB', $bytes / 1024.0);
         }
 
-        return sprintf('%.1fMB', $bytes / (1024 * 1024));
+        return sprintf('%.1fMB', $bytes / (1024.0 * 1024.0));
     }
 }

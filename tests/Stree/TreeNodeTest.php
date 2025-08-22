@@ -222,7 +222,7 @@ final class TreeNodeTest extends TestCase
             'uri' => '/api/orders',
             'headers' => [
                 'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer token123',
+                'Authorization' => 'Bearer <TOKEN_REDACTED>',
             ],
         ];
         $config = new RenderConfig(2, [], 0.0, false, 5);

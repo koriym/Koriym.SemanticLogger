@@ -9,7 +9,7 @@
             "uri": "/api/users",
             "headers": {
                 "Content-Type": "application/json",
-                "Authorization": "Bearer valid_token"
+                "Authorization": "Bearer <TOKEN_REDACTED>"
             },
             "responseTime": 0.125
         },
