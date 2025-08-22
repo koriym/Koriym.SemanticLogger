@@ -328,9 +328,10 @@ final class LogDataParserTest extends TestCase
         $parser = new LogDataParser();
         $tree = $parser->parseLogData($logData);
 
-        // Only the valid event should be processed
-        $this->assertCount(1, $tree->children);
-        $this->assertSame('valid', $tree->children[0]->type);
+        // Both events are processed, invalid_event_string becomes 'unknown' type event
+        $this->assertCount(2, $tree->children);
+        $this->assertSame('unknown', $tree->children[0]->type);
+        $this->assertSame('valid', $tree->children[1]->type);
     }
 
     public function testEventWithNonArrayContext(): void

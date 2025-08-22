@@ -67,10 +67,6 @@ final class LogDataParser
     private function attachEvents(TreeNode $rootNode, array $events): void
     {
         foreach ($events as $event) {
-            if (! is_array($event)) {
-                continue;
-            }
-
             $eventId = (string) ($event['id'] ?? 'unknown');
             $eventType = (string) ($event['type'] ?? 'unknown');
             $eventContext = $event['context'] ?? [];

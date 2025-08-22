@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<files psalm-version="6.13.1@1e3b7f0a8ab32b23197b91107adc0a7ed8a05b51">
+  <file src="src/SemanticProfilerMcpServer.php">
+    <ClassMustBeFinal>
+      <code><![CDATA[SemanticProfilerMcpServer]]></code>
+    </ClassMustBeFinal>
+    <ForbiddenCode>
+      <code><![CDATA[shell_exec($command)]]></code>
+    </ForbiddenCode>
+    <MixedAssignment>
+      <code><![CDATA[$decoded]]></code>
+      <code><![CDATA[$id]]></code>
+    </MixedAssignment>
+    <PossiblyFalseOperand>
+      <code><![CDATA[json_encode($error)]]></code>
+      <code><![CDATA[json_encode($response)]]></code>
+    </PossiblyFalseOperand>
+  </file>
+  <file src="src/Stree/HtmlRenderer.php">
+    <InvalidOperand>
+      <code><![CDATA[$time * 1000]]></code>
+      <code><![CDATA[$time * 1_000_000]]></code>
+    </InvalidOperand>
+  </file>
+  <file src="src/Stree/LogDataParser.php">
+    <MixedAssignment>
+      <code><![CDATA[$context]]></code>
+      <code><![CDATA[$eventContext]]></code>
+      <code><![CDATA[$value]]></code>
+    </MixedAssignment>
+  </file>
+  <file src="src/Stree/StreeCommand.php">
+    <InvalidOperand>
+      <code><![CDATA[(float) $numericValue / 1000]]></code>
+    </InvalidOperand>
+    <MixedArgument>
+      <code><![CDATA[$options['file']]]></code>
+    </MixedArgument>
+    <MixedArgumentTypeCoercion>
+      <code><![CDATA[(array) ($options['expand'] ?? [])]]></code>
+    </MixedArgumentTypeCoercion>
+    <MixedAssignment>
+      <code><![CDATA[$format]]></code>
+    </MixedAssignment>
+  </file>
+  <file src="src/Stree/TreeNode.php">
+    <InvalidOperand>
+      <code><![CDATA[$bytes / (1024 * 1024)]]></code>
+      <code><![CDATA[$bytes / 1024]]></code>
+      <code><![CDATA[$this->executionTime * 1000]]></code>
+      <code><![CDATA[$this->executionTime * 1_000_000]]></code>
+    </InvalidOperand>
+    <MixedArgument>
+      <code><![CDATA[$db]]></code>
+      <code><![CDATA[$host]]></code>
+      <code><![CDATA[$method]]></code>
+      <code><![CDATA[$method]]></code>
+      <code><![CDATA[$status]]></code>
+      <code><![CDATA[$uri]]></code>
+      <code><![CDATA[$uri]]></code>
+    </MixedArgument>
+    <MixedAssignment>
+      <code><![CDATA[$db]]></code>
+      <code><![CDATA[$headers]]></code>
+      <code><![CDATA[$host]]></code>
+      <code><![CDATA[$method]]></code>
+      <code><![CDATA[$parameters]]></code>
+      <code><![CDATA[$status]]></code>
+      <code><![CDATA[$token]]></code>
+      <code><![CDATA[$uri]]></code>
+      <code><![CDATA[$value]]></code>
+      <code><![CDATA[$value]]></code>
+    </MixedAssignment>
+    <RiskyTruthyFalsyComparison>
+      <code><![CDATA[$this->context['hit'] ?? false]]></code>
+      <code><![CDATA[$this->context['success'] ?? false]]></code>
+      <code><![CDATA[$token]]></code>
+      <code><![CDATA[empty($headers)]]></code>
+      <code><![CDATA[empty($parameters)]]></code>
+    </RiskyTruthyFalsyComparison>
+  </file>
+</files>

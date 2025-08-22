@@ -176,17 +176,17 @@ final class HtmlRenderer
     {
         switch ($node->type) {
             case 'http_request':
-                $method = $node->context['method'] ?? '';
-                $uri = $node->context['uri'] ?? '';
+                $method = (string) ($node->context['method'] ?? '');
+                $uri = (string) ($node->context['uri'] ?? '');
 
                 return sprintf('%s %s', $method, $uri);
 
             case 'external_api_request':
-                return $node->context['service'] ?? '';
+                return (string) ($node->context['service'] ?? '');
 
             case 'database_connection':
-                $host = $node->context['host'] ?? '';
-                $db = $node->context['database'] ?? '';
+                $host = (string) ($node->context['host'] ?? '');
+                $db = (string) ($node->context['database'] ?? '');
 
                 return sprintf('%s/%s', $host, $db);
 

@@ -8,7 +8,6 @@ use function array_key_exists;
 use function count;
 use function implode;
 use function is_array;
-use function is_numeric;
 use function is_scalar;
 use function is_string;
 use function parse_url;
@@ -97,8 +96,8 @@ final class TreeNode
 
             case 'database_query':
             case 'complex_query':
-                $queryType = $this->context['queryType'] ?? '';
-                $table = $this->context['table'] ?? '';
+                $queryType = (string) ($this->context['queryType'] ?? '');
+                $table = (string) ($this->context['table'] ?? '');
 
                 // Add parameters info if present
                 $parameters = $this->context['parameters'] ?? [];
@@ -111,47 +110,47 @@ final class TreeNode
                 return sprintf('%s %s', $queryType, $table);
 
             case 'external_api_request':
-                $service = $this->context['service'] ?? '';
-                $endpoint = $this->context['endpoint'] ?? '';
+                $service = (string) ($this->context['service'] ?? '');
+                $endpoint = (string) ($this->context['endpoint'] ?? '');
 
                 return sprintf('%s %s', $service, $this->shortenUrl($endpoint));
 
             case 'cache_operation':
-                $operation = $this->context['operation'] ?? '';
-                $key = $this->context['key'] ?? '';
+                $operation = (string) ($this->context['operation'] ?? '');
+                $key = (string) ($this->context['key'] ?? '');
                 $hit = $this->context['hit'] ?? false ? 'HIT' : 'MISS';
 
                 return sprintf('%s %s (%s)', $operation, $key, $hit);
 
             case 'file_processing':
-                $operation = $this->context['operation'] ?? '';
-                $filename = $this->context['filename'] ?? '';
+                $operation = (string) ($this->context['operation'] ?? '');
+                $filename = (string) ($this->context['filename'] ?? '');
 
                 return sprintf('%s %s', $operation, $filename);
 
             case 'authentication_request':
             case 'authentication':
-                $method = $this->context['method'] ?? '';
+                $method = (string) ($this->context['method'] ?? '');
                 $token = $this->context['token'] ?? null;
                 $status = $token ? 'SUCCESS' : 'FAILED';
 
                 return sprintf('%s (%s)', $method, $status);
 
             case 'business_logic':
-                $operation = $this->context['operation'] ?? '';
+                $operation = (string) ($this->context['operation'] ?? '');
                 $success = $this->context['success'] ?? false ? 'SUCCESS' : 'FAILED';
 
                 return sprintf('%s (%s)', $operation, $success);
 
             case 'error':
-                $errorType = $this->context['errorType'] ?? '';
-                $message = $this->context['message'] ?? '';
+                $errorType = (string) ($this->context['errorType'] ?? '');
+                $message = (string) ($this->context['message'] ?? '');
 
                 return sprintf('%s: %s', $errorType, $this->truncateMessage($message));
 
             case 'performance_metrics':
-                $queries = $this->context['databaseQueries'] ?? 0;
-                $memory = $this->context['memoryUsed'] ?? 0;
+                $queries = (int) ($this->context['databaseQueries'] ?? 0);
+                $memory = (float) ($this->context['memoryUsed'] ?? 0);
 
                 return sprintf('%d queries, %s memory', $queries, $this->formatBytes($memory));
 
@@ -207,7 +206,7 @@ final class TreeNode
      */
     private function formatMultiLineData(mixed $data, RenderConfig|null $config = null): string
     {
-        $maxLines = $config?->maxLines ?? 5;
+        $maxLines = $config->maxLines ?? 5;
 
         if ($maxLines <= 0) {
             // No limit
@@ -270,10 +269,6 @@ final class TreeNode
     /** @codeCoverageIgnore */
     private function formatBytes(int|float $bytes): string
     {
-        if (! is_numeric($bytes)) {
-            return '0B';
-        }
-
         $bytes = (float) $bytes;
 
         if ($bytes < 1024) {
