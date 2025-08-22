@@ -6,6 +6,7 @@ namespace Koriym\SemanticLogger\Stree;
 
 use function htmlspecialchars;
 use function in_array;
+use function is_scalar;
 use function sprintf;
 use function str_repeat;
 
@@ -185,6 +186,7 @@ final class HtmlRenderer
 
             case 'external_api_request':
                 $serviceValue = $node->context['service'] ?? null;
+
                 return is_scalar($serviceValue) ? (string) $serviceValue : '';
 
             case 'database_connection':

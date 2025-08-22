@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Standalone Semantic Profiler MCP Server
  *
@@ -16,6 +14,8 @@ declare(strict_types=1);
  * @psalm-import-type McpToolCallParams from Types
  * @psalm-import-type McpLogData from Types
  */
+
+declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
