@@ -97,11 +97,15 @@ final class StreeCommand
             $result = $this->parseArgument($arg, $args, $i);
 
             if ($result['consumed']) {
-                $i = $result['index'];
+                /** @var int $index */
+                $index = $result['index'];
+                $i = $index;
             }
 
             if (isset($result['option'])) {
-                $options = $this->mergeOptions($options, $result['option']);
+                /** @var array<string, mixed> $option */
+                $option = $result['option'];
+                $options = $this->mergeOptions($options, $option);
             }
         }
 
@@ -111,7 +115,9 @@ final class StreeCommand
     /**
      * @param string[] $args
      *
-     * @SuppressWarnings(PHPMD.NPathComplexity)
+     * @return array<string, mixed>
+     *
+     * @SuppressWarnings(PHPMD)
      */
     private function parseArgument(string $arg, array $args, int $index): array
     {
@@ -236,7 +242,11 @@ final class StreeCommand
         }
     }
 
-    /** @param string[] $args */
+    /**
+     * @param string[] $args
+     *
+     * @return array<string, mixed>
+     */
     private function parseFormatOption(array $args, int $index): array
     {
         if (! isset($args[$index + 1])) {
@@ -251,6 +261,7 @@ final class StreeCommand
         return ['option' => ['format' => $formatValue], 'consumed' => true, 'index' => $index + 1];
     }
 
+    /** @return array<string, mixed> */
     private function parseFormatAssignment(string $arg): array
     {
         $value = substr($arg, 9);
@@ -261,7 +272,11 @@ final class StreeCommand
         return ['option' => ['format' => $value], 'consumed' => false, 'index' => 0];
     }
 
-    /** @param string[] $args */
+    /**
+     * @param string[] $args
+     *
+     * @return array<string, mixed>
+     */
     private function parseDepthOption(array $args, int $index): array
     {
         if (! isset($args[$index + 1])) {
@@ -281,6 +296,7 @@ final class StreeCommand
         return ['option' => ['depth' => $depth], 'consumed' => true, 'index' => $index + 1];
     }
 
+    /** @return array<string, mixed> */
     private function parseDepthAssignment(string $arg): array
     {
         $value = substr($arg, 8);
@@ -296,7 +312,11 @@ final class StreeCommand
         return ['option' => ['depth' => $depth], 'consumed' => false, 'index' => 0];
     }
 
-    /** @param string[] $args */
+    /**
+     * @param string[] $args
+     *
+     * @return array<string, mixed>
+     */
     private function parseExpandOption(array $args, int $index): array
     {
         if (! isset($args[$index + 1])) {
@@ -311,6 +331,7 @@ final class StreeCommand
         return ['option' => ['expand' => $expandType], 'consumed' => true, 'index' => $index + 1];
     }
 
+    /** @return array<string, mixed> */
     private function parseExpandAssignment(string $arg): array
     {
         $value = substr($arg, 9);
@@ -321,7 +342,11 @@ final class StreeCommand
         return ['option' => ['expand' => $value], 'consumed' => false, 'index' => 0];
     }
 
-    /** @param string[] $args */
+    /**
+     * @param string[] $args
+     *
+     * @return array<string, mixed>
+     */
     private function parseThresholdOption(array $args, int $index): array
     {
         if (! isset($args[$index + 1])) {
@@ -334,6 +359,7 @@ final class StreeCommand
         return ['option' => ['threshold' => $threshold], 'consumed' => true, 'index' => $index + 1];
     }
 
+    /** @return array<string, mixed> */
     private function parseThresholdAssignment(string $arg): array
     {
         $value = substr($arg, 12);
@@ -342,7 +368,11 @@ final class StreeCommand
         return ['option' => ['threshold' => $threshold], 'consumed' => false, 'index' => 0];
     }
 
-    /** @param string[] $args */
+    /**
+     * @param string[] $args
+     *
+     * @return array<string, mixed>
+     */
     private function parseLinesOption(array $args, int $index): array
     {
         if (! isset($args[$index + 1])) {
@@ -362,6 +392,7 @@ final class StreeCommand
         return ['option' => ['lines' => $lines], 'consumed' => true, 'index' => $index + 1];
     }
 
+    /** @return array<string, mixed> */
     private function parseLinesAssignment(string $arg): array
     {
         $value = substr($arg, 8);
@@ -377,6 +408,14 @@ final class StreeCommand
         return ['option' => ['lines' => $lines], 'consumed' => false, 'index' => 0];
     }
 
+    /**
+     * @param array<string, mixed> $existing
+     * @param array<string, mixed> $new
+     *
+     * @return array<string, mixed>
+     *
+     * @psalm-suppress MixedAssignment
+     */
     private function mergeOptions(array $existing, array $new): array
     {
         foreach ($new as $key => $value) {
@@ -385,7 +424,10 @@ final class StreeCommand
                     $existing['expand'] = [];
                 }
 
-                $existing['expand'][] = $value;
+                /** @var mixed[] $expandArray */
+                $expandArray = $existing['expand'];
+                $expandArray[] = $value;
+                $existing['expand'] = $expandArray;
 
                 continue;
             }

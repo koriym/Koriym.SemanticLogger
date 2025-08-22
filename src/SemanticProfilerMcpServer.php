@@ -358,6 +358,7 @@ final class SemanticProfilerMcpServer
         return $this->processExecutionOutput($output);
     }
 
+    /** @return string[] */
     private function buildPhpOptions(): array
     {
         $hasXdebug = extension_loaded('xdebug');
@@ -390,7 +391,7 @@ final class SemanticProfilerMcpServer
         ]);
     }
 
-    private function processExecutionOutput(string|null $output): string
+    private function processExecutionOutput(string|false|null $output): string
     {
         if ($output === null || $output === false || strpos($output, 'Unable to load dynamic library') === false) {
             return (string) $output;
@@ -414,6 +415,7 @@ final class SemanticProfilerMcpServer
         return $warningMsg . $output;
     }
 
+    /** @return string[] */
     private function findNewLogFiles(int $beforeExecution): array
     {
         $pattern = rtrim($this->logDirectory, '/') . '/semantic-log-*.json';
@@ -425,6 +427,7 @@ final class SemanticProfilerMcpServer
         return array_filter($files, static fn (string $file): bool => filemtime($file) >= $beforeExecution);
     }
 
+    /** @param string[] $newLogFiles */
     private function formatAnalysisResult(array $newLogFiles): string
     {
         usort($newLogFiles, static fn (string $a, string $b): int => filemtime($b) <=> filemtime($a));
