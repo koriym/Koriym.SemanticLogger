@@ -31,7 +31,7 @@ final class StreeCommand
     private const DEFAULT_MAX_LINES = 5;
 
     /** @param string[] $argv */
-    public function run(array $argv): int
+    public function __invoke(array $argv): int
     {
         try {
             $options = $this->parseOptions($argv);

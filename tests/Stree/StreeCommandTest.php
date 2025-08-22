@@ -33,7 +33,7 @@ final class StreeCommandTest extends TestCase
     public function testShowHelp(): void
     {
         $command = new StreeCommand();
-        $exitCode = $command->run(['stree', '--help']);
+        $exitCode = $command->__invoke(['stree', '--help']);
 
         $this->assertSame(0, $exitCode);
     }
@@ -41,7 +41,7 @@ final class StreeCommandTest extends TestCase
     public function testMissingFile(): void
     {
         $command = new StreeCommand();
-        $exitCode = $command->run(['stree']);
+        $exitCode = $command->__invoke(['stree']);
 
         $this->assertSame(1, $exitCode);
     }
@@ -49,7 +49,7 @@ final class StreeCommandTest extends TestCase
     public function testNonExistentFile(): void
     {
         $command = new StreeCommand();
-        $exitCode = $command->run(['stree', 'nonexistent.json']);
+        $exitCode = $command->__invoke(['stree', 'nonexistent.json']);
 
         $this->assertSame(1, $exitCode);
     }
@@ -60,7 +60,7 @@ final class StreeCommandTest extends TestCase
         file_put_contents($this->tempFile, 'invalid json');
 
         $command = new StreeCommand();
-        $exitCode = $command->run(['stree', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', $this->tempFile]);
 
         $this->assertSame(1, $exitCode);
     }
@@ -89,7 +89,7 @@ final class StreeCommandTest extends TestCase
         $command = new StreeCommand();
 
         ob_start();
-        $exitCode = $command->run(['stree', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', $this->tempFile]);
         $output = ob_get_clean() ?: '';
 
         $this->assertSame(0, $exitCode);
@@ -134,7 +134,7 @@ final class StreeCommandTest extends TestCase
 
         // Test depth=1
         ob_start();
-        $exitCode = $command->run(['stree', '--depth=1', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--depth=1', $this->tempFile]);
         $output = ob_get_clean() ?: '';
 
         $this->assertSame(0, $exitCode);
@@ -179,7 +179,7 @@ final class StreeCommandTest extends TestCase
         $command = new StreeCommand();
 
         ob_start();
-        $exitCode = $command->run(['stree', '--full', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--full', $this->tempFile]);
         $output = ob_get_clean() ?: '';
 
         $this->assertSame(0, $exitCode);
@@ -224,7 +224,7 @@ final class StreeCommandTest extends TestCase
         $command = new StreeCommand();
 
         ob_start();
-        $exitCode = $command->run(['stree', '--depth=2', '--expand=special_type', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--depth=2', '--expand=special_type', $this->tempFile]);
         $output = ob_get_clean() ?: '';
 
         $this->assertSame(0, $exitCode);
@@ -262,7 +262,7 @@ final class StreeCommandTest extends TestCase
         $command = new StreeCommand();
 
         ob_start();
-        $exitCode = $command->run(['stree', '--threshold=10ms', '--full', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--threshold=10ms', '--full', $this->tempFile]);
         $output = ob_get_clean() ?: '';
 
         $this->assertSame(0, $exitCode);
@@ -283,36 +283,36 @@ final class StreeCommandTest extends TestCase
         $command = new StreeCommand();
 
         // Test -h (help)
-        $exitCode = $command->run(['stree', '-h']);
+        $exitCode = $command->__invoke(['stree', '-h']);
         $this->assertSame(0, $exitCode);
 
         // Test -f (full)
         ob_start();
-        $exitCode = $command->run(['stree', '-f', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '-f', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
 
         // Test -d (depth)
         ob_start();
-        $exitCode = $command->run(['stree', '-d', '3', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '-d', '3', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
 
         // Test -e (expand)
         ob_start();
-        $exitCode = $command->run(['stree', '-e', 'database', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '-e', 'database', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
 
         // Test -t (threshold)
         ob_start();
-        $exitCode = $command->run(['stree', '-t', '10ms', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '-t', '10ms', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
 
         // Test -l (lines)
         ob_start();
-        $exitCode = $command->run(['stree', '-l', '10', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '-l', '10', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
     }
@@ -332,14 +332,14 @@ final class StreeCommandTest extends TestCase
 
         // Test --format=html
         ob_start();
-        $exitCode = $command->run(['stree', '--format=html', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--format=html', $this->tempFile]);
         $output = ob_get_clean() ?: '';
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('<!DOCTYPE html>', $output);
 
         // Test --format text (separate argument)
         ob_start();
-        $exitCode = $command->run(['stree', '--format', 'text', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--format', 'text', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
     }
@@ -359,19 +359,19 @@ final class StreeCommandTest extends TestCase
 
         // Test milliseconds
         ob_start();
-        $exitCode = $command->run(['stree', '--threshold=100ms', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--threshold=100ms', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
 
         // Test seconds
         ob_start();
-        $exitCode = $command->run(['stree', '--threshold=0.1s', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--threshold=0.1s', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
 
         // Test plain number (treated as seconds)
         ob_start();
-        $exitCode = $command->run(['stree', '--threshold=0.1', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--threshold=0.1', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
     }
@@ -391,7 +391,7 @@ final class StreeCommandTest extends TestCase
 
         // Test multiple --expand options
         ob_start();
-        $exitCode = $command->run(['stree', '-e', 'database', '-e', 'api', '--expand=cache', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '-e', 'database', '-e', 'api', '--expand=cache', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
     }
@@ -404,67 +404,67 @@ final class StreeCommandTest extends TestCase
         $command = new StreeCommand();
 
         // Test missing depth value
-        $exitCode = $command->run(['stree', '--depth']);
+        $exitCode = $command->__invoke(['stree', '--depth']);
         $this->assertSame(1, $exitCode);
 
         // Test invalid depth format
-        $exitCode = $command->run(['stree', '--depth=abc', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--depth=abc', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test negative depth
-        $exitCode = $command->run(['stree', '-d', '-1', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '-d', '-1', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test missing expand value
-        $exitCode = $command->run(['stree', '--expand']);
+        $exitCode = $command->__invoke(['stree', '--expand']);
         $this->assertSame(1, $exitCode);
 
         // Test empty expand value
-        $exitCode = $command->run(['stree', '--expand=', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--expand=', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test missing threshold value
-        $exitCode = $command->run(['stree', '--threshold']);
+        $exitCode = $command->__invoke(['stree', '--threshold']);
         $this->assertSame(1, $exitCode);
 
         // Test invalid threshold format
-        $exitCode = $command->run(['stree', '--threshold=abc', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--threshold=abc', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test invalid threshold format (bad ms)
-        $exitCode = $command->run(['stree', '--threshold=abcms', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--threshold=abcms', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test invalid threshold format (bad s)
-        $exitCode = $command->run(['stree', '--threshold=abcs', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--threshold=abcs', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test negative threshold
-        $exitCode = $command->run(['stree', '--threshold=-1ms', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--threshold=-1ms', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test missing lines value
-        $exitCode = $command->run(['stree', '--lines']);
+        $exitCode = $command->__invoke(['stree', '--lines']);
         $this->assertSame(1, $exitCode);
 
         // Test invalid lines format
-        $exitCode = $command->run(['stree', '--lines=abc', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--lines=abc', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test negative lines
-        $exitCode = $command->run(['stree', '-l', '-1', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '-l', '-1', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test missing format value
-        $exitCode = $command->run(['stree', '--format']);
+        $exitCode = $command->__invoke(['stree', '--format']);
         $this->assertSame(1, $exitCode);
 
         // Test invalid format value
-        $exitCode = $command->run(['stree', '--format=xml', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--format=xml', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test unknown option
-        $exitCode = $command->run(['stree', '--unknown', $this->tempFile]);
+        $exitCode = $command->__invoke(['stree', '--unknown', $this->tempFile]);
         $this->assertSame(1, $exitCode);
     }
 
@@ -478,7 +478,7 @@ final class StreeCommandTest extends TestCase
             file_put_contents($this->tempFile, '{}');
             chmod($this->tempFile, 0000);
 
-            $exitCode = $command->run(['stree', $this->tempFile]);
+            $exitCode = $command->__invoke(['stree', $this->tempFile]);
             $this->assertSame(1, $exitCode);
 
             // Restore permissions for cleanup

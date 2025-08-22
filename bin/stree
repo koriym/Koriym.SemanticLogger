@@ -8,5 +8,5 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Koriym\SemanticLogger\Stree\StreeCommand;
 
 $command = new StreeCommand();
-$exitCode = $command->run($argv);
+$exitCode = $command($argv);
 exit($exitCode);
