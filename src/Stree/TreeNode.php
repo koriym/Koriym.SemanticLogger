@@ -229,9 +229,13 @@ final class TreeNode
 
             if (is_scalar($value)) {
                 $items[] = is_string($key) ? "{$key}: {$value}" : (string) $value;
-            } else {
-                $items[] = is_string($key) ? "{$key}: [complex]" : '[complex]';
+
+                $count++;
+
+                continue;
             }
+
+            $items[] = is_string($key) ? "{$key}: [complex]" : '[complex]';
 
             $count++;
         }
@@ -255,9 +259,11 @@ final class TreeNode
             foreach ($data as $key => $value) {
                 if (is_scalar($value)) {
                     $items[] = is_string($key) ? "{$key}: {$value}" : (string) $value;
-                } else {
-                    $items[] = is_string($key) ? "{$key}: [complex]" : '[complex]';
+
+                    continue;
                 }
+
+                $items[] = is_string($key) ? "{$key}: [complex]" : '[complex]';
             }
 
             return implode(', ', $items);

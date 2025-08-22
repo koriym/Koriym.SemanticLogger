@@ -85,10 +85,12 @@ final class LogDataParser
             $parentNode = $this->findNodeById($rootNode, $openId);
             if ($parentNode !== null) {
                 $parentNode->addChild($eventNode);
-            } else {
-                // If no parent found, attach to root
-                $rootNode->addChild($eventNode);
+
+                continue;
             }
+
+            // If no parent found, attach to root
+            $rootNode->addChild($eventNode);
         }
     }
 

@@ -65,12 +65,14 @@ final class StreeCommand
                 $parser = new LogDataParser();
                 $tree = $parser->parseLogData($logData);
                 $output = $htmlRenderer->render($tree, $config);
-            } else {
-                $renderer = new TreeRenderer();
-                $output = $renderer->render($logData, $config);
+                echo $output;
+
+                return 0;
             }
 
-            echo $output . ($format === 'text' ? "\n" : '');
+            $renderer = new TreeRenderer();
+            $output = $renderer->render($logData, $config);
+            echo $output . "\n";
 
             return 0;
         } catch (RuntimeException $e) {
@@ -230,12 +232,10 @@ final class StreeCommand
             }
 
             $threshold = (float) $numericValue;
-        } else {
-            if (! is_numeric($value)) {
-                throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
-            }
-
+        } elseif (is_numeric($value)) {
             $threshold = (float) $value;
+        } else {
+            throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
         }
 
         if ($threshold < 0) {

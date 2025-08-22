@@ -79,7 +79,9 @@ final class HtmlRenderer
 
         if ($hasChildren) {
             $html .= sprintf("%s        <span class=\"toggle\" onclick=\"toggleNode(this)\">▼</span>\n", $indent);
-        } else {
+        }
+
+        if (! $hasChildren) {
             $html .= sprintf("%s        <span class=\"toggle-placeholder\"></span>\n", $indent);
         }
 
