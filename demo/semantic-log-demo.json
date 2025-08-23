@@ -63,7 +63,7 @@
                     "schemaUrl": "./schemas/file_processing.json",
                     "context": {
                         "operation": "pdf_generation",
-                        "filename": "invoice_ORD_689843c5d976c.pdf",
+                        "filename": "invoice_ORD_68a97a1f1aedd.pdf",
                         "mimeType": "application/pdf",
                         "fileSize": 0,
                         "processingTime": 0,
@@ -114,6 +114,12 @@
                                     "type": "complex_query",
                                     "schemaUrl": "https://example.com/schema/complex-query.json",
                                     "context": {
+                                        "xhprofResult": {
+                                            "source": "/var/folders/bc/r8s1n7x93md3t_r6mqpy9xj40000gn/T/xhprof_2025-08-23_08-21-50_ef915276a688135c6dc1ad9370bae978.json"
+                                        },
+                                        "xdebugTrace": {
+                                            "source": "/tmp/profile_68a97a1ea2bf00.78929771.xt"
+                                        },
                                         "queryType": "INSERT",
                                         "table": "orders",
                                         "parameters": [],
@@ -191,9 +197,9 @@
                 "uri": "/api/orders",
                 "headers": {
                     "Content-Type": "application/json",
-                    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "Authorization": "Bearer <TOKEN_REDACTED>",
                     "User-Agent": "ECommerceApp/2.1.0",
-                    "X-Request-ID": "req_689843c589d9e"
+                    "X-Request-ID": "req_68a97a1e73e96"
                 },
                 "body": {
                     "customerId": 12345,
@@ -239,6 +245,12 @@
             "type": "complex_query",
             "schemaUrl": "https://example.com/schema/complex-query.json",
             "context": {
+                "xhprofResult": {
+                    "source": "/var/folders/bc/r8s1n7x93md3t_r6mqpy9xj40000gn/T/xhprof_2025-08-23_08-21-50_d6572377171d2c5fcb28ece8a1602073.json"
+                },
+                "xdebugTrace": {
+                    "source": "/tmp/profile_68a97a1e7c3ea3.11160215.xt"
+                },
                 "queryType": "SELECT",
                 "table": "customers",
                 "parameters": {
@@ -258,6 +270,12 @@
             "type": "complex_query",
             "schemaUrl": "https://example.com/schema/complex-query.json",
             "context": {
+                "xhprofResult": {
+                    "source": "/var/folders/bc/r8s1n7x93md3t_r6mqpy9xj40000gn/T/xhprof_2025-08-23_08-21-50_ff012fecb6ab35bd78c485f2b3a69eb4.json"
+                },
+                "xdebugTrace": {
+                    "source": "/tmp/profile_68a97a1e86f852.03521675.xt"
+                },
                 "queryType": "SELECT",
                 "table": "inventory i JOIN products p ON i.product_id = p.id",
                 "parameters": {
@@ -280,6 +298,12 @@
             "type": "complex_query",
             "schemaUrl": "https://example.com/schema/complex-query.json",
             "context": {
+                "xhprofResult": {
+                    "source": "/var/folders/bc/r8s1n7x93md3t_r6mqpy9xj40000gn/T/xhprof_2025-08-23_08-21-50_9c6c14e13703ca9ff7637eefcf92c27a.json"
+                },
+                "xdebugTrace": {
+                    "source": "/tmp/profile_68a97a1e98d962.01311632.xt"
+                },
                 "queryType": "UPDATE",
                 "table": "inventory",
                 "parameters": {
@@ -301,6 +325,12 @@
             "type": "complex_query",
             "schemaUrl": "https://example.com/schema/complex-query.json",
             "context": {
+                "xhprofResult": {
+                    "source": "/var/folders/bc/r8s1n7x93md3t_r6mqpy9xj40000gn/T/xhprof_2025-08-23_08-21-50_9a8fd7642b283728448483a957cf9547.json"
+                },
+                "xdebugTrace": {
+                    "source": "/tmp/profile_68a97a1ea79878.21858326.xt"
+                },
                 "queryType": "INSERT",
                 "table": "order_items",
                 "parameters": [],
@@ -331,9 +361,9 @@
             "type": "performance_metrics",
             "schemaUrl": "./schemas/performance_metrics.json",
             "context": {
-                "executionTime": 0.4666140079498291,
-                "memoryUsed": 44952,
-                "peakMemory": 1698440,
+                "executionTime": 0.7819931507110596,
+                "memoryUsed": 121304,
+                "peakMemory": 1682528,
                 "databaseQueries": 5,
                 "totalQueryTime": 0.093,
                 "cacheHits": 2,
@@ -367,12 +397,12 @@
                 "statusCode": 201,
                 "headers": {
                     "Content-Type": "application/json",
-                    "X-Response-Time": "466.78ms",
-                    "X-Request-ID": "req_689843c607a6b"
+                    "X-Response-Time": "782.14ms",
+                    "X-Request-ID": "req_68a97a1f3eb28"
                 },
                 "contentLength": 512,
                 "contentType": "application/json",
-                "responseTime": 0.46677589416503906,
+                "responseTime": 0.7821381092071533,
                 "cached": false
             },
             "openId": "business_logic_1"

@@ -8,7 +8,6 @@ use Throwable;
 
 use function basename;
 use function file_put_contents;
-use function function_exists;
 use function get_class;
 use function json_encode;
 use function memory_get_peak_usage;
@@ -495,22 +494,8 @@ class ComplexWebRequestSimulation
 
     public function run(): void
     {
-        // Start Xdebug trace manually
-        echo "=== Debug: Starting Xdebug trace ===\n";
-        if (function_exists('xdebug_start_trace')) {
-            $traceFile = '/Users/akihito/git/Koriym.SemanticLogger/demo/xdebug_trace.xt';
-            xdebug_start_trace($traceFile);
-            echo "Xdebug trace started: {$traceFile}.xt\n";
-        }
-
         // Only run the main e-commerce scenario - no mixed HTTP requests
         $this->simulateECommerceOrderProcessing();
-
-        // Stop Xdebug trace
-        if (function_exists('xdebug_stop_trace')) {
-            xdebug_stop_trace();
-            echo "Xdebug trace stopped\n";
-        }
 
         // Debug: Check logger state before flush
         echo "=== Debug: Logger state before flush ===\n";

@@ -16,10 +16,11 @@ final class OpenCloseEntry implements JsonSerializable
         public readonly string $schemaUrl,
         public readonly array $context,
         public readonly OpenCloseEntry|null $open = null,
+        public readonly EventEntry|null $close = null,
     ) {
     }
 
-    /** @return array{id: string, type: string, schemaUrl: string, context: array<string, mixed>, open?: array<string, mixed>} */
+    /** @return array{id: string, type: string, schemaUrl: string, context: array<string, mixed>, open?: array<string, mixed>, close?: array<string, mixed>} */
     public function toArray(): array
     {
         $result = [
@@ -31,6 +32,10 @@ final class OpenCloseEntry implements JsonSerializable
 
         if ($this->open !== null) {
             $result['open'] = $this->open->toArray();
+        }
+
+        if ($this->close !== null) {
+            $result['close'] = $this->close->toArray();
         }
 
         return $result;
