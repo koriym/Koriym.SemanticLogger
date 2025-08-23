@@ -19,7 +19,7 @@ foreach ($autoloadPaths as $autoloadPath) {
         
         // Return the directory containing vendor/ as project root
         $normalized = str_replace('\\', '/', $autoloadPath);
-        return str_ends_with($normalized, '/vendor/autoload.php')
+        return substr($normalized, -20) === '/vendor/autoload.php'
             ? dirname($autoloadPath, 2)  // Go up from vendor/autoload.php to project root
             : dirname($autoloadPath);    // For direct autoload.php paths
     }

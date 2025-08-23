@@ -518,7 +518,7 @@ final class McpServer
         $content = file_get_contents($file);
 
         if ($content === false) {
-            return ['error' => 'Failed to read file'];
+            throw new Exception("Failed to read file: $file");
         }
 
         $decoded = json_decode($content, true);
