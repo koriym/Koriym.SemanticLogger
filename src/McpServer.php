@@ -132,6 +132,11 @@ final class McpServer
         return json_last_error() === JSON_ERROR_NONE;
     }
 
+    /**
+     * @param array<string, mixed> $request
+     *
+     * @return array<string, mixed>|null
+     */
     private function handleRequest(array $request): array|null
     {
         $method = $request['method'] ?? '';
@@ -160,6 +165,11 @@ final class McpServer
         }
     }
 
+    /**
+     * @param array<string, mixed> $params
+     *
+     * @return array<string, mixed>
+     */
     private function handleInitialize(mixed $id, array $params): array
     {
         $clientVersion = $params['protocolVersion'] ?? '2024-11-05';
@@ -185,6 +195,7 @@ final class McpServer
         ];
     }
 
+    /** @return array<string, mixed> */
     private function handleToolsList(mixed $id): array
     {
         return [
@@ -235,6 +246,11 @@ final class McpServer
         ];
     }
 
+    /**
+     * @param array<string, mixed> $params
+     *
+     * @return array<string, mixed>
+     */
     private function handleToolCall(mixed $id, array $params): array
     {
         $toolName = $params['name'] ?? '';
@@ -260,6 +276,7 @@ final class McpServer
         }
     }
 
+    /** @param array<string, mixed> $arguments */
     private function executeTool(string $toolName, array $arguments): string
     {
         switch ($toolName) {
@@ -511,6 +528,7 @@ Use the semantic profiling data to provide deep insights about code quality and 
 PROMPT;
     }
 
+    /** @return array<string, mixed> */
     private function createErrorResponse(mixed $id, int $code, string $message): array
     {
         return [
@@ -523,6 +541,7 @@ PROMPT;
         ];
     }
 
+    /** @param array<string, mixed> $response */
     private function sendResponse(array $response): void
     {
         $this->debugLog('Sending response', $response);
@@ -542,6 +561,7 @@ PROMPT;
         $this->sendErrorResponse($id, -32603, 'Internal error: ' . $e->getMessage());
     }
 
+    /** @param array<string, mixed> $data */
     private function debugLog(string $message, array $data = []): void
     {
         if ($this->debugMode) {
