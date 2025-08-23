@@ -6,6 +6,7 @@ namespace Koriym\SemanticLogger;
 
 use Exception;
 use InvalidArgumentException;
+use Koriym\SemanticLogger\Exception\InvalidParamsException;
 use Throwable;
 
 use function array_filter;
@@ -96,9 +97,10 @@ final class McpServer
                 if ($this->isCompleteJsonRpc($input)) {
                     $request = json_decode(trim($input), true);
 
-                    if ($request === null) {
+                    if ($request === null || ! is_array($request)) {
                         $this->sendErrorResponse(null, -32700, 'Parse error');
                     } else {
+                        /** @var array<string, mixed> $request */
                         $this->debugLog('Received request', $request);
 
                         try {
@@ -142,6 +144,16 @@ final class McpServer
         $method = $request['method'] ?? '';
         $params = $request['params'] ?? [];
         $id = $request['id'] ?? null;
+
+        if (! is_string($method)) {
+            return $this->createErrorResponse($id, -32600, 'Invalid Request: method must be string');
+        }
+
+        if (! is_array($params)) {
+            return $this->createErrorResponse($id, -32600, 'Invalid Request: params must be array');
+        }
+
+        /** @var array<string, mixed> $params */
 
         try {
             switch ($method) {
@@ -256,6 +268,16 @@ final class McpServer
         $toolName = $params['name'] ?? '';
         $arguments = $params['arguments'] ?? [];
 
+        if (! is_string($toolName)) {
+            throw new InvalidParamsException('Tool name must be a string');
+        }
+
+        if (! is_array($arguments)) {
+            throw new InvalidParamsException('Arguments must be an array');
+        }
+
+        /** @var array<string, mixed> $arguments */
+
         try {
             $result = $this->executeTool($toolName, $arguments);
 
@@ -287,12 +309,19 @@ final class McpServer
                 return $this->listSemanticProfiles();
 
             case 'semanticAnalyze':
-                if (! is_array($arguments)) {
-                    throw new Exception('Invalid arguments for semanticAnalyze');
+                $scriptArg = $arguments['script'] ?? '';
+                $xdebugModeArg = $arguments['xdebug_mode'] ?? 'trace';
+
+                if (! is_string($scriptArg)) {
+                    throw new Exception('Script argument must be a string');
                 }
 
-                $script = (string) ($arguments['script'] ?? '');
-                $xdebugMode = (string) ($arguments['xdebug_mode'] ?? 'trace');
+                if (! is_string($xdebugModeArg)) {
+                    throw new Exception('Xdebug mode argument must be a string');
+                }
+
+                $script = $scriptArg;
+                $xdebugMode = $xdebugModeArg;
 
                 return $this->semanticAnalyze($script, $xdebugMode);
 
