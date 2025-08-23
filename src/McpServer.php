@@ -296,6 +296,8 @@ final class McpServer
                     ],
                 ],
             ];
+        } catch (InvalidParamsException $e) {
+            return $this->createErrorResponse($id, -32602, $e->getMessage());
         } catch (Throwable $e) {
             return $this->createErrorResponse($id, -32000, $e->getMessage());
         }
