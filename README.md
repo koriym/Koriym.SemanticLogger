@@ -2,42 +2,205 @@
 
 Type-safe structured logging with JSON schema validation for hierarchical application workflows.
 
-## AI-Native Analysis with MCP Server
+## Motivation
 
-**Realizing Tim Berners-Lee's Semantic Web Vision** - structured data that AI can understand and reason about autonomously.
+**Bridge the understanding gap between AI and humans** in application performance analysis.
+
+### The Problem: AI vs Human Understanding Gap
+
+Humans understand business context intuitively, but AI struggles with unstructured logs:
+
+```php
+// What humans see: "VIP customer order processing"
+$logger->info('Query executed in 150ms');          // Human: "Hmm, seems slow for VIP" 
+$logger->info('Payment gateway: stripe');          // Human: "Stripe usually works fine"
+$logger->info('Inventory check: 2 items');         // Human: "Simple order"  
+$logger->info('Order created: ORD_12345');         // Human: "Success, but took too long"
+
+// What AI sees: Disconnected text fragments with no business meaning
+// AI cannot understand: customer priority, operation relationships, business impact
+```
+
+### The Solution: Shared Semantic Understanding
+
+```php
+// Both humans AND AI understand the same business semantics
+$logger->open(new ComplexQueryContext($queryType, $customerTier));      // "VIP customer query"
+$logger->event(new PaymentContext($gateway, $customerHistory));         // "Trusted customer, reliable gateway"  
+$logger->event(new InventoryContext($itemCount, $availability));        // "Simple inventory check"
+$logger->close(new QueryResultContext($success, $performanceGrade));    // "Success, but performance below VIP standard"
+
+// Result: AI and humans share the same business understanding
+// - Both recognize this as "VIP customer experience degradation"
+// - Both understand the performance impact in business terms  
+// - Both can prioritize optimization efforts correctly
+```
+
+### Why Semantic Logging?
+
+- **Eliminates AI-Human Gap**: Both see the same business context in application behavior
+- **Schema-Driven Understanding**: Consistent semantic structure for reliable AI analysis  
+- **Business-Focused**: Captures domain logic that matters to both humans and AI
+- **Hierarchical Relationships**: Shows how operations connect in ways both can understand
+- **Performance + Context**: Technical metrics with business meaning
+
+Perfect for teams who need **AI and humans to understand application behavior identically**.
+
+### How It Works: You Define the Semantic Context
+
+**1) Type and Meaning Clarity**
+
+You create context classes that explicitly define both the data structure and business meaning:
+
+```php
+final class VIPCustomerQueryContext extends AbstractContext
+{
+    const TYPE = 'vip_customer_query';
+    const SCHEMA_URL = './schemas/vip_customer_query.json';
+
+    public function __construct(
+        public readonly string $customerId,
+        public readonly CustomerTier $tier,           // enum: VIP, Premium, Standard
+        public readonly QueryComplexity $complexity,  // enum: Simple, Medium, Complex
+        public readonly float $expectedSla            // business SLA in seconds
+    ) {}
+}
+```
+
+**Result**: Both AI and humans immediately understand:
+- What type of operation this represents
+- What business constraints apply (VIP SLA requirements)  
+- How to interpret performance data in business terms
+- When performance becomes a business issue
+
+**2) Consistent Business Semantics**
+
+```php
+// Instead of ambiguous strings
+$logger->info("Query took 200ms"); // Fast? Slow? For what?
+
+// You provide explicit business context  
+$logger->open(new VIPCustomerQueryContext($id, CustomerTier::VIP, QueryComplexity::Simple, 0.1));
+$logger->close(new QueryResultContext($success, $actualTime, $businessImpactLevel));
+
+// Now both AI and human know: "Simple VIP query exceeded SLA by 100ms - high business impact"
+```
+
+This approach ensures **semantic precision** - no ambiguity about what data means or why it matters to your business.
+
+## Installation
 
 ```bash
-# Install and run MCP server for Claude Code integration
 composer require koriym/semantic-logger
-php vendor/koriym/semantic-logger/bin/server.php /tmp
+```
+
+## Basic Usage
+
+### Core Library
+
+```php
+use Koriym\SemanticLogger\SemanticLogger;
+use YourApp\Contexts\DatabaseQueryContext;
+
+$logger = new SemanticLogger();
+
+// Start operation
+$openEntry = $logger->open(new DatabaseQueryContext('SELECT * FROM users'));
+
+// Log events within operation
+$logger->event(new QueryExecutionContext($executionTime, $rowCount));
+
+// Close operation with result
+$logger->close(new DatabaseQueryContext($queryResult, $success));
+
+// Get structured semantic log (no automatic saving)
+$logJson = $logger->flush();
+
+// You decide where to save it
+file_put_contents('/var/log/semantic.json', json_encode($logJson));
+// OR send to your logging service
+$yourLogger->info('semantic_log', ['data' => $logJson]);
+// OR store in database
+$database->store('semantic_logs', $logJson);
 ```
 
 ### AI-Powered Performance Analysis
 
-The included MCP Server provides two powerful tools for AI-native analysis:
+The included MCP Server and Claude Code slash commands provide powerful tools for AI-native analysis:
 
-**`getSemanticProfile`** - Retrieve latest semantic performance profile with AI-optimized prompts  
-**`semanticAnalyze`** - Execute PHP script with profiling + automatic AI analysis in one command
+#### Claude Code Slash Commands
 
-### MCP Server Configuration
+**`/semantic-log-list`** - List all semantic profile log files with details  
+**`/semantic-log-explain`** - Analyze semantic profile with AI explanation (supports index selection)
 
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+```bash
+# List all semantic log files
+/semantic-log-list
 
-```json
-{
-  "mcpServers": {
-    "semantic-profiler": {
-      "command": "php",
-      "args": [
-        "vendor/koriym/semantic-logger/bin/server.php",
-        "/tmp"
-      ]
-    }
-  }
-}
+# Explain latest semantic profile
+/semantic-log-explain
+
+# Explain 2nd newest profile
+/semantic-log-explain 2
+
+# Explain 3rd newest profile  
+/semantic-log-explain 3
 ```
 
-See [docs/mcp-setup.md](docs/mcp-setup.md) for detailed configuration options.
+#### CLI Commands
+
+**`bin/semantic-log-list`** - List semantic profile files  
+**`bin/semantic-log-explain`** - Analyze semantic profile with AI
+
+```bash
+# List files in current directory
+./bin/semantic-log-list
+
+# Explain latest profile from demo directory
+./bin/semantic-log-explain 1 demo
+
+# Explain 2nd newest profile from custom directory
+./bin/semantic-log-explain 2 /path/to/logs
+```
+
+#### MCP Server Functions
+
+**`getSemanticProfile`** - Retrieve latest semantic performance profile with AI-optimized prompts  
+**`listSemanticProfiles`** - List all available semantic profile log files in the directory  
+**`semanticAnalyze`** - Execute PHP script with profiling + automatic AI analysis in one command
+
+#### Interactive Analysis Workflow
+
+```bash
+# Step 1: List available semantic profiles
+/semantic-log-list
+
+# Step 2: Analyze the semantic profile
+/semantic-log-explain
+
+# Step 3: Visualize the results (ask AI)
+# "Can you create a diagram of this execution flow?"
+```
+
+This workflow provides:
+1. **Semantic Profile Discovery** - See all available semantic logs
+2. **AI Analysis** - Get comprehensive performance insights from semantic data
+3. **Visual Representation** - Tree diagrams showing execution flow
+
+## Setup
+
+### MCP Configuration (Optional)
+
+```bash
+# First, generate sample semantic log files
+composer demo
+
+# Add to Claude Desktop (use demo directory with sample logs)
+claude mcp add semantic-profiler php ./bin/semantic-mcp.php demo
+
+# Verify
+claude mcp list
+```
 
 ### Semantic Web Architecture
 
