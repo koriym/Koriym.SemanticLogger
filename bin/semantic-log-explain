@@ -1,0 +1,47 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . '/autoload.php';
+
+use Koriym\SemanticLogger\SemanticCli;
+
+function showUsage(): void
+{
+    echo "Usage: semantic-log-explain [index] [directory]\n\n";
+    echo "Analyze and explain semantic profile log with AI.\n\n";
+    echo "Arguments:\n";
+    echo "  index       Profile index (1=newest, 2=2nd newest, etc. Default: 1)\n";
+    echo "  directory   Target directory (default: current directory)\n\n";
+    echo "Examples:\n";
+    echo "  semantic-log-explain              # Latest profile\n";
+    echo "  semantic-log-explain 2            # 2nd newest profile\n";
+    echo "  semantic-log-explain 3 demo       # 3rd newest profile from demo dir\n";
+}
+
+// Parse command line arguments
+$index = 1;
+$directory = '.';
+
+$args = array_slice($argv, 1);
+
+if (!empty($args) && ($args[0] === 'help' || $args[0] === '--help' || $args[0] === '-h')) {
+    showUsage();
+    exit(0);
+}
+
+// Parse arguments in order: index, directory
+foreach ($args as $i => $arg) {
+    if ($i === 0 && is_numeric($arg)) {
+        $index = (int)$arg;
+    } elseif ($i === 1 || ($i === 0 && !is_numeric($arg))) {
+        $directory = $arg;
+    }
+}
+
+try {
+    $cli = new SemanticCli($directory);
+    echo $cli->explainSemanticLog($index) . "\n";
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage() . "\n";
+    exit(1);
+}
