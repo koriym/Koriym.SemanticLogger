@@ -7,9 +7,7 @@
     <MixedAssignment>
       <code><![CDATA[$clientVersion]]></code>
       <code><![CDATA[$decoded]]></code>
-      <code><![CDATA[$decoded]]></code>
       <code><![CDATA[$id]]></code>
-      <code><![CDATA[$request]]></code>
     </MixedAssignment>
     <PossiblyFalseOperand>
       <code><![CDATA[json_encode($logData, JSON_PRETTY_PRINT)]]></code>

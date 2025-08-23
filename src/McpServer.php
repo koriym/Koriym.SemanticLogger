@@ -30,6 +30,7 @@ use function implode;
 use function in_array;
 use function is_array;
 use function is_dir;
+use function is_string;
 use function json_decode;
 use function json_encode;
 use function json_last_error;
@@ -99,19 +100,21 @@ final class McpServer
 
                     if ($request === null || ! is_array($request)) {
                         $this->sendErrorResponse(null, -32700, 'Parse error');
-                    } else {
-                        /** @var array<string, mixed> $request */
-                        $this->debugLog('Received request', $request);
+                        $input = '';
+                        continue;
+                    }
 
-                        try {
-                            $response = $this->handleRequest($request);
+                    /** @var array<string, mixed> $request */
+                    $this->debugLog('Received request', $request);
 
-                            if ($response !== null) {
-                                $this->sendResponse($response);
-                            }
-                        } catch (Throwable $e) {
-                            $this->handleException($e, $request['id'] ?? null);
+                    try {
+                        $response = $this->handleRequest($request);
+
+                        if ($response !== null) {
+                            $this->sendResponse($response);
                         }
+                    } catch (Throwable $e) {
+                        $this->handleException($e, $request['id'] ?? null);
                     }
 
                     $input = '';
@@ -129,7 +132,7 @@ final class McpServer
             return false;
         }
 
-        $decoded = json_decode($trimmed);
+        json_decode($trimmed);
 
         return json_last_error() === JSON_ERROR_NONE;
     }
