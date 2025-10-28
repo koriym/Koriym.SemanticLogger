@@ -6,6 +6,9 @@ namespace Koriym\SemanticLogger;
 
 abstract class AbstractContext
 {
+    /** @var string */
     public const TYPE = '';
+
+    /** @var string */
     public const SCHEMA_URL = '';
 }
