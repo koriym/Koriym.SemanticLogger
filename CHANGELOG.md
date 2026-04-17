@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-04-17
+
+### Added
+- **Semantic Tree Visualizer (stree)**: CLI tool for visualizing semantic log trees with text and HTML output formats, configurable depth limits, time thresholds, and type-based expansion
+- **OpenCloseEntry**: New entry type with `close` field serialization for paired open/close operations
+- **PHP 8.5 support**: CI now runs tests across PHP 8.2, 8.3, 8.4, and 8.5
+
+### Changed
+- **Static analysis baselines cleared**: Both `psalm-baseline.xml` and `phpstan-baseline.neon` are now empty; all underlying type issues have been fixed rather than suppressed
+- **Type safety improvements**: Added scalar/numeric guards and helper methods across the Stree package and `SemanticProfilerMcpServer` to replace unsafe `(string) mixed` casts
+- **PHPMD 3.x migration**: Updated to the new Symfony Console subcommand syntax (`phpmd analyze src --format=text --ruleset=./phpmd.xml`)
+- **Types.php**: Refactored relation types to link types for RFC 8288 compliance
+- **Code style**: Eliminated remaining `else` expressions in favor of early returns
+- **AbstractContext**: Added comprehensive `@var` type annotations for constants
+
+### Fixed
+- **MCP server JSON encoding**: Handle `json_encode` failures gracefully instead of silently emitting empty responses
+- **XdebugTrace**: Correctly handle null return values from trace operations
+- **Demo validation**: Resolved demo output validation and test failures introduced during stree development
+
 ## [0.2.1] - 2025-08-07
 
 ### Added
