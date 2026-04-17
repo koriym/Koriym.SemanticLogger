@@ -3,7 +3,8 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__) . '/vendor/autoload.php';
+/** @psalm-suppress UnresolvableInclude */
+require_once $GLOBALS['_composer_autoload_path'] ?? dirname(__DIR__) . '/vendor/autoload.php';
 
 use Koriym\SemanticLogger\SemanticLogValidator;
 
