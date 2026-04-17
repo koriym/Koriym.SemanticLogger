@@ -58,14 +58,11 @@ final class DevLoggerTest extends TestCase
         // Output to file
         $this->devLogger->log($this->logger);
 
-        // Verify files were created
+        // Verify JSON file was created
         $jsonFiles = glob($this->logDirectory . '/semantic-dev-*.json');
-        $promptFiles = glob($this->logDirectory . '/semantic-dev-*-prompt.md');
 
         $this->assertIsArray($jsonFiles);
-        $this->assertIsArray($promptFiles);
         $this->assertCount(1, $jsonFiles);
-        $this->assertCount(1, $promptFiles);
     }
 
     public function testLogFileContainsValidJson(): void
@@ -90,28 +87,6 @@ final class DevLoggerTest extends TestCase
         $this->assertArrayHasKey('schemaUrl', $data);
         $this->assertArrayHasKey('open', $data);
         $this->assertArrayHasKey('close', $data);
-    }
-
-    public function testPromptFileContainsAnalysisInstructions(): void
-    {
-        // Create semantic log
-        $openId = $this->logger->open(new FakeContext('test'));
-        $this->logger->close(new FakeContext('complete'), $openId);
-
-        // Output to file
-        $this->devLogger->log($this->logger);
-
-        // Get the created prompt file
-        $promptFiles = glob($this->logDirectory . '/semantic-dev-*-prompt.md');
-        $this->assertIsArray($promptFiles);
-        $this->assertNotEmpty($promptFiles);
-
-        $content = file_get_contents($promptFiles[0]);
-        $this->assertIsString($content);
-
-        $this->assertStringContainsString('semantic profiling data', $content);
-        $this->assertStringContainsString('```json', $content);
-        $this->assertStringContainsString('APPLICATION CODE performance', $content);
     }
 
     public function testSilentFailureOnJsonEncodingError(): void
@@ -161,12 +136,6 @@ final class DevLoggerTest extends TestCase
 
         // Cleanup
         foreach ($jsonFiles as $file) {
-            unlink($file);
-        }
-
-        $promptFiles = glob($customDir . '/semantic-dev-*-prompt.md');
-        $this->assertIsArray($promptFiles);
-        foreach ($promptFiles as $file) {
             unlink($file);
         }
     }
