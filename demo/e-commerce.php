@@ -17,6 +17,8 @@ use function microtime;
 use function number_format;
 use function uniqid;
 use function usleep;
+use function xdebug_start_trace;
+use function xdebug_stop_trace;
 
 use const JSON_PRETTY_PRINT;
 use const JSON_UNESCAPED_SLASHES;
