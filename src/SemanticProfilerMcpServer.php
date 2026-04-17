@@ -43,6 +43,7 @@ use function is_dir;
 use function is_scalar;
 use function json_decode;
 use function json_encode;
+use function json_last_error_msg;
 use function number_format;
 use function rtrim;
 use function shell_exec;
@@ -105,7 +106,12 @@ final class SemanticProfilerMcpServer
 
             try {
                 $response = $this->handleRequest($request);
-                echo (string) json_encode($response) . "\n";
+                $encoded = json_encode($response);
+                if ($encoded === false) {
+                    throw new Exception('Failed to encode response: ' . json_last_error_msg());
+                }
+
+                echo $encoded . "\n";
             } catch (Throwable $e) {
                 $error = [
                     'jsonrpc' => '2.0',
@@ -116,7 +122,8 @@ final class SemanticProfilerMcpServer
                         'data' => $e->getMessage(),
                     ],
                 ];
-                echo (string) json_encode($error) . "\n";
+                $encoded = json_encode($error);
+                echo ($encoded !== false ? $encoded : '{"jsonrpc":"2.0","id":null,"error":{"code":-32603,"message":"Internal error"}}') . "\n";
             }
         }
     }
