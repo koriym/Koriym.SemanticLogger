@@ -70,8 +70,10 @@ final class DevSemanticLogger implements SemanticLoggerInterface
         $logJson = $this->inner->flush($links);
         $profile = new Profile(xdebug: $this->xdebug, operationWallTimes: $this->wallTimes);
 
+        $this->started = [];
         $this->wallTimes = [];
         $this->xdebug = null;
+        $this->depth = 0;
 
         return new LogJson(
             $logJson->schemaUrl,
