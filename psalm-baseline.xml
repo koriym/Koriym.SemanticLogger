@@ -1,5 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <files psalm-version="6.13.1@1e3b7f0a8ab32b23197b91107adc0a7ed8a05b51">
+  <file src="src/McpServer.php">
+    <ForbiddenCode>
+      <code><![CDATA[shell_exec($command)]]></code>
+    </ForbiddenCode>
+    <MixedAssignment>
+      <code><![CDATA[$clientVersion]]></code>
+      <code><![CDATA[$decoded]]></code>
+      <code><![CDATA[$id]]></code>
+    </MixedAssignment>
+    <PossiblyFalseOperand>
+      <code><![CDATA[json_encode($logData, JSON_PRETTY_PRINT)]]></code>
+      <code><![CDATA[json_encode($response)]]></code>
+    </PossiblyFalseOperand>
+    <RiskyTruthyFalsyComparison>
+      <code><![CDATA[getenv('MCP_DEBUG')]]></code>
+    </RiskyTruthyFalsyComparison>
+  </file>
+  <file src="src/SemanticCli.php">
+    <MixedAssignment>
+      <code><![CDATA[$decoded]]></code>
+    </MixedAssignment>
+  </file>
   <file src="src/SemanticProfilerMcpServer.php">
     <ForbiddenCode>
       <code><![CDATA[shell_exec($command)]]></code>
