@@ -3,6 +3,7 @@
 
 declare(strict_types=1);
 
+/** @psalm-suppress UnresolvableInclude */
 require_once $GLOBALS['_composer_autoload_path'] ?? __DIR__ . '/../vendor/autoload.php';
 
 use Koriym\SemanticLogger\Stree\StreeCommand;
