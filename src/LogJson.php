@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
+use JsonSerializable;
+use Koriym\SemanticLogger\Profiler\Profile;
+use Override;
+
 use function array_map;
 
-final class LogJson
+final class LogJson implements JsonSerializable
 {
     /**
      * @param list<EventEntry>                                                      $events
@@ -20,7 +24,15 @@ final class LogJson
         public readonly array $events = [],
         /** @var list<array{rel: string, href: string, title?: string, type?: string}> */
         public readonly array $links = [],
+        public readonly Profile|null $profile = null,
     ) {
+    }
+
+    /** @return array<string, mixed> */
+    #[Override]
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 
     /** @return array<string, mixed> */
@@ -39,6 +51,10 @@ final class LogJson
 
         if (! empty($this->links)) {
             $result['links'] = $this->links;
+        }
+
+        if ($this->profile !== null) {
+            $result['profile'] = $this->profile->jsonSerialize();
         }
 
         return $result;
