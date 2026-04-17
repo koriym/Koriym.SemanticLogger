@@ -99,7 +99,7 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist
 
       - name: Run PHP Mess Detector
-        run: ./vendor/bin/phpmd src text ./phpmd.xml
+        run: ./vendor/bin/phpmd analyze src --format=text --ruleset=./phpmd.xml
 
   static-analysis-composer-require-checker:
     name: ComposerRequireChecker
