@@ -7,6 +7,7 @@ namespace Koriym\SemanticLogger;
 use Koriym\SemanticLogger\Profiler\PhpProfile;
 use Koriym\SemanticLogger\Profiler\Profile;
 use Koriym\SemanticLogger\Profiler\XdebugTrace;
+use Override;
 
 final class DevSemanticLogger implements SemanticLoggerInterface
 {
@@ -23,6 +24,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     ) {
     }
 
+    #[Override]
     public function open(AbstractContext $context): string
     {
         $id = $this->inner->open($context);
@@ -37,6 +39,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
         return $id;
     }
 
+    #[Override]
     public function close(AbstractContext $context, string $openId): void
     {
         $this->inner->close($context, $openId);
@@ -52,12 +55,14 @@ final class DevSemanticLogger implements SemanticLoggerInterface
         }
     }
 
+    #[Override]
     public function event(AbstractContext $context): void
     {
         $this->inner->event($context);
     }
 
     /** @param list<array{rel: string, href: string, title?: string, type?: string}> $links */
+    #[Override]
     public function flush(array $links = []): LogJson
     {
         $logJson = $this->inner->flush($links);
