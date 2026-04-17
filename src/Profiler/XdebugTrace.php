@@ -12,6 +12,7 @@ use function file_get_contents;
 use function filesize;
 use function function_exists;
 use function ini_get;
+use function is_string;
 use function rtrim;
 use function str_ends_with;
 use function sys_get_temp_dir;
@@ -84,7 +85,7 @@ final class XdebugTrace implements JsonSerializable
         $traceFile = function_exists('xdebug_get_tracefile_name') ? xdebug_get_tracefile_name() : false; // @codeCoverageIgnore
         @xdebug_stop_trace(); // @codeCoverageIgnore - suppress errors if not running
 
-        if ($traceFile === false || ! file_exists($traceFile)) {
+        if (! is_string($traceFile) || ! file_exists($traceFile)) {
             return new self(); // @codeCoverageIgnore
         }
 
