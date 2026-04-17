@@ -43,12 +43,14 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     public function close(AbstractContext $context, string $openId): void
     {
         $this->inner->close($context, $openId);
-        $this->depth--;
 
-        if (isset($this->started[$openId])) {
-            $this->wallTimes[$openId] = $this->started[$openId]->stop()->wallTime;
-            unset($this->started[$openId]);
+        if (! isset($this->started[$openId])) {
+            return;
         }
+
+        $this->depth--;
+        $this->wallTimes[$openId] = $this->started[$openId]->stop()->wallTime;
+        unset($this->started[$openId]);
 
         if ($this->depth === 0 && $this->xdebug !== null) {
             $this->xdebug = $this->xdebug->stop();
