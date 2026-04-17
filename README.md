@@ -320,6 +320,42 @@ try {
 ✅ All contexts validate successfully!
 ```
 
+## Semantic Tree Visualizer (stree)
+
+Visualize semantic log JSON files as a tree for easy analysis:
+
+```bash
+# Basic tree view (default: 2 levels deep)
+vendor/bin/stree debug.json
+
+# Show 5 levels deep
+vendor/bin/stree --depth=5 detailed.json
+
+# Expand specific context types beyond depth limit
+vendor/bin/stree --expand=DatabaseQuery log.json
+
+# Show only operations slower than 10ms
+vendor/bin/stree --threshold=10ms slow.json
+
+# Interactive HTML output
+vendor/bin/stree --format=html --full trace.json
+
+# Save HTML to file
+vendor/bin/stree --format=html trace.json > trace.html
+```
+
+### Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--depth=N` | `-d` | Maximum tree depth (default: 2) |
+| `--expand=CTX` | `-e` | Expand specific context type beyond depth limit |
+| `--threshold=T` | `-t` | Time threshold filter (e.g., `10ms`, `0.5s`) |
+| `--lines=N` | `-l` | Max lines for multi-line data (default: 5, 0 = no limit) |
+| `--format=FORMAT` | | Output format: `text` (default) or `html` |
+| `--full` | `-f` | Show complete tree without depth limits |
+| `--help` | `-h` | Display help |
+
 ## Documentation
 
 **[Schema Portal](https://koriym.github.io/Koriym.SemanticLogger/)** - AI-native semantic schema portal with comprehensive documentation
