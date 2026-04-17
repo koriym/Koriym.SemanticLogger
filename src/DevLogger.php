@@ -71,5 +71,4 @@ final class DevLogger
             $uniqueId,
         );
     }
-
 }
