@@ -40,6 +40,7 @@ use function implode;
 use function in_array;
 use function is_array;
 use function is_dir;
+use function is_scalar;
 use function json_decode;
 use function json_encode;
 use function number_format;
@@ -93,6 +94,7 @@ final class SemanticProfilerMcpServer
                 break;
             }
 
+            /** @var mixed $decoded */
             $decoded = json_decode(trim($input), true);
             if (! is_array($decoded)) {
                 continue;
@@ -103,7 +105,7 @@ final class SemanticProfilerMcpServer
 
             try {
                 $response = $this->handleRequest($request);
-                echo json_encode($response) . "\n";
+                echo (string) json_encode($response) . "\n";
             } catch (Throwable $e) {
                 $error = [
                     'jsonrpc' => '2.0',
@@ -114,7 +116,7 @@ final class SemanticProfilerMcpServer
                         'data' => $e->getMessage(),
                     ],
                 ];
-                echo json_encode($error) . "\n";
+                echo (string) json_encode($error) . "\n";
             }
         }
     }
@@ -126,8 +128,12 @@ final class SemanticProfilerMcpServer
      */
     private function handleRequest(array $request): array
     {
-        $method = (string) ($request['method'] ?? '');
+        /** @var mixed $rawMethod */
+        $rawMethod = $request['method'] ?? '';
+        $method = is_scalar($rawMethod) ? (string) $rawMethod : '';
+        /** @var mixed $params */
         $params = $request['params'] ?? [];
+        /** @var mixed $id */
         $id = $request['id'] ?? null;
 
         switch ($method) {
@@ -227,7 +233,10 @@ final class SemanticProfilerMcpServer
      */
     private function callTool(array $params, mixed $id): array
     {
-        $toolName = (string) ($params['name'] ?? '');
+        /** @var mixed $rawToolName */
+        $rawToolName = $params['name'] ?? '';
+        $toolName = is_scalar($rawToolName) ? (string) $rawToolName : '';
+        /** @var mixed $arguments */
         $arguments = $params['arguments'] ?? [];
 
         switch ($toolName) {
@@ -244,8 +253,12 @@ final class SemanticProfilerMcpServer
                     throw new Exception('Invalid arguments for semanticAnalyze');
                 }
 
-                $script = (string) ($arguments['script'] ?? '');
-                $xdebugMode = (string) ($arguments['xdebug_mode'] ?? 'trace');
+                /** @var mixed $rawScript */
+                $rawScript = $arguments['script'] ?? '';
+                $script = is_scalar($rawScript) ? (string) $rawScript : '';
+                /** @var mixed $rawXdebugMode */
+                $rawXdebugMode = $arguments['xdebug_mode'] ?? 'trace';
+                $xdebugMode = is_scalar($rawXdebugMode) ? (string) $rawXdebugMode : 'trace';
                 $result = $this->semanticAnalyze($script, $xdebugMode);
                 break;
 
@@ -353,6 +366,7 @@ final class SemanticProfilerMcpServer
         $phpOptionsString = implode(' ', array_map(static fn ($opt) => "-d $opt", $phpOptions));
         $command = "XDEBUG_MODE=$escapedXdebugMode XDEBUG_CONFIG=$escapedXdebugConfig php $phpOptionsString $escapedScript 2>&1";
 
+        /** @psalm-suppress ForbiddenCode */
         $output = shell_exec($command);
 
         return $this->processExecutionOutput($output);
@@ -453,6 +467,7 @@ final class SemanticProfilerMcpServer
             return ['error' => 'Failed to read file'];
         }
 
+        /** @var mixed $decoded */
         $decoded = json_decode($content, true);
 
         if (is_array($decoded)) {

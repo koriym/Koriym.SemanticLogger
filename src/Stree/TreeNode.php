@@ -8,6 +8,7 @@ use function array_key_exists;
 use function count;
 use function implode;
 use function is_array;
+use function is_numeric;
 use function is_scalar;
 use function is_string;
 use function parse_url;
@@ -86,11 +87,12 @@ final class TreeNode
     /** @codeCoverageIgnore */
     private function extractHttpRequestInfo(RenderConfig|null $config): string
     {
-        $method = $this->context['method'] ?? '';
-        $uri = $this->context['uri'] ?? '';
+        $method = $this->contextString('method');
+        $uri = $this->contextString('uri');
 
+        /** @var mixed $headers */
         $headers = $this->context['headers'] ?? [];
-        if (! empty($headers) && is_array($headers)) {
+        if (is_array($headers) && $headers !== []) {
             $headerInfo = $this->formatMultiLineData($headers, $config);
 
             return sprintf('%s %s (headers: %s)', $method, $uri, $headerInfo);
@@ -102,28 +104,24 @@ final class TreeNode
     /** @codeCoverageIgnore */
     private function extractHttpResponseInfo(): string
     {
-        $status = $this->context['statusCode'] ?? '';
-
-        return sprintf('Status %s', $status);
+        return sprintf('Status %s', $this->contextString('statusCode'));
     }
 
     /** @codeCoverageIgnore */
     private function extractDatabaseConnectionInfo(): string
     {
-        $host = $this->context['host'] ?? '';
-        $db = $this->context['database'] ?? '';
-
-        return sprintf('%s/%s', $host, $db);
+        return sprintf('%s/%s', $this->contextString('host'), $this->contextString('database'));
     }
 
     /** @codeCoverageIgnore */
     private function extractDatabaseQueryInfo(RenderConfig|null $config): string
     {
-        $queryType = (string) ($this->context['queryType'] ?? '');
-        $table = (string) ($this->context['table'] ?? '');
+        $queryType = $this->contextString('queryType');
+        $table = $this->contextString('table');
 
+        /** @var mixed $parameters */
         $parameters = $this->context['parameters'] ?? [];
-        if (! empty($parameters) && is_array($parameters)) {
+        if (is_array($parameters) && $parameters !== []) {
             $paramInfo = $this->formatMultiLineData($parameters, $config);
 
             return sprintf('%s %s (params: %s)', $queryType, $table, $paramInfo);
@@ -135,37 +133,34 @@ final class TreeNode
     /** @codeCoverageIgnore */
     private function extractExternalApiInfo(): string
     {
-        $service = (string) ($this->context['service'] ?? '');
-        $endpoint = (string) ($this->context['endpoint'] ?? '');
-
-        return sprintf('%s %s', $service, $this->shortenUrl($endpoint));
+        return sprintf(
+            '%s %s',
+            $this->contextString('service'),
+            $this->shortenUrl($this->contextString('endpoint')),
+        );
     }
 
     /** @codeCoverageIgnore */
     private function extractCacheOperationInfo(): string
     {
-        $operation = (string) ($this->context['operation'] ?? '');
-        $key = (string) ($this->context['key'] ?? '');
-        $hit = $this->context['hit'] ?? false ? 'HIT' : 'MISS';
+        $hit = ($this->context['hit'] ?? false) === true ? 'HIT' : 'MISS';
 
-        return sprintf('%s %s (%s)', $operation, $key, $hit);
+        return sprintf('%s %s (%s)', $this->contextString('operation'), $this->contextString('key'), $hit);
     }
 
     /** @codeCoverageIgnore */
     private function extractFileProcessingInfo(): string
     {
-        $operation = (string) ($this->context['operation'] ?? '');
-        $filename = (string) ($this->context['filename'] ?? '');
-
-        return sprintf('%s %s', $operation, $filename);
+        return sprintf('%s %s', $this->contextString('operation'), $this->contextString('filename'));
     }
 
     /** @codeCoverageIgnore */
     private function extractAuthenticationInfo(): string
     {
-        $method = (string) ($this->context['method'] ?? '');
+        $method = $this->contextString('method');
+        /** @var mixed $token */
         $token = $this->context['token'] ?? null;
-        $status = $token ? 'SUCCESS' : 'FAILED';
+        $status = $token !== null && $token !== '' && $token !== false ? 'SUCCESS' : 'FAILED';
 
         return sprintf('%s (%s)', $method, $status);
     }
@@ -173,8 +168,8 @@ final class TreeNode
     /** @codeCoverageIgnore */
     private function extractBusinessLogicInfo(): string
     {
-        $operation = (string) ($this->context['operation'] ?? '');
-        $success = $this->context['success'] ?? false ? 'SUCCESS' : 'FAILED';
+        $operation = $this->contextString('operation');
+        $success = ($this->context['success'] ?? false) === true ? 'SUCCESS' : 'FAILED';
 
         return sprintf('%s (%s)', $operation, $success);
     }
@@ -182,17 +177,18 @@ final class TreeNode
     /** @codeCoverageIgnore */
     private function extractErrorInfo(): string
     {
-        $errorType = (string) ($this->context['errorType'] ?? '');
-        $message = (string) ($this->context['message'] ?? '');
-
-        return sprintf('%s: %s', $errorType, $this->truncateMessage($message));
+        return sprintf(
+            '%s: %s',
+            $this->contextString('errorType'),
+            $this->truncateMessage($this->contextString('message')),
+        );
     }
 
     /** @codeCoverageIgnore */
     private function extractPerformanceMetricsInfo(): string
     {
-        $queries = (int) ($this->context['databaseQueries'] ?? 0);
-        $memory = (float) ($this->context['memoryUsed'] ?? 0);
+        $queries = $this->contextInt('databaseQueries');
+        $memory = $this->contextFloat('memoryUsed');
 
         return sprintf('%d queries, %s memory', $queries, $this->formatBytes($memory));
     }
@@ -201,18 +197,42 @@ final class TreeNode
     private function extractDefaultInfo(): string
     {
         if (array_key_exists('operation', $this->context)) {
-            return (string) $this->context['operation'];
+            return $this->contextString('operation');
         }
 
         if (array_key_exists('method', $this->context)) {
-            return (string) $this->context['method'];
+            return $this->contextString('method');
         }
 
         if (array_key_exists('name', $this->context)) {
-            return (string) $this->context['name'];
+            return $this->contextString('name');
         }
 
         return '';
+    }
+
+    private function contextString(string $key): string
+    {
+        /** @var mixed $value */
+        $value = $this->context[$key] ?? '';
+
+        return is_scalar($value) ? (string) $value : '';
+    }
+
+    private function contextInt(string $key): int
+    {
+        /** @var mixed $value */
+        $value = $this->context[$key] ?? 0;
+
+        return is_numeric($value) ? (int) $value : 0;
+    }
+
+    private function contextFloat(string $key): float
+    {
+        /** @var mixed $value */
+        $value = $this->context[$key] ?? 0;
+
+        return is_numeric($value) ? (float) $value : 0.0;
     }
 
     /** @codeCoverageIgnore */
@@ -257,12 +277,13 @@ final class TreeNode
         }
 
         if (! is_array($data)) {
-            return (string) $data;
+            return is_scalar($data) ? (string) $data : '';
         }
 
         $items = [];
         $count = 0;
 
+        /** @var mixed $value */
         foreach ($data as $key => $value) {
             if ($count >= $maxLines) {
                 $remaining = count($data) - $maxLines;
@@ -299,6 +320,7 @@ final class TreeNode
 
         if (is_array($data)) {
             $items = [];
+            /** @var mixed $value */
             foreach ($data as $key => $value) {
                 if (is_scalar($value)) {
                     $items[] = is_string($key) ? "{$key}: {$value}" : (string) $value;
@@ -312,7 +334,7 @@ final class TreeNode
             return implode(', ', $items);
         }
 
-        return (string) $data;
+        return is_scalar($data) ? (string) $data : '';
     }
 
     /** @codeCoverageIgnore */

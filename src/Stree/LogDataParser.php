@@ -9,6 +9,7 @@ use RuntimeException;
 use function array_key_exists;
 use function is_array;
 use function is_numeric;
+use function is_scalar;
 
 final class LogDataParser
 {
@@ -38,8 +39,9 @@ final class LogDataParser
     /** @param array<string, mixed> $openEntry */
     private function parseOpenEntry(array $openEntry, TreeNode|null $parent = null): TreeNode
     {
-        $id = (string) ($openEntry['id'] ?? 'unknown');
-        $type = (string) ($openEntry['type'] ?? 'unknown');
+        $id = self::stringifyScalar($openEntry['id'] ?? null, 'unknown');
+        $type = self::stringifyScalar($openEntry['type'] ?? null, 'unknown');
+        /** @var mixed $context */
         $context = $openEntry['context'] ?? [];
 
         if (! is_array($context)) {
@@ -67,10 +69,13 @@ final class LogDataParser
     private function attachEvents(TreeNode $rootNode, array $events): void
     {
         foreach ($events as $event) {
-            $eventId = (string) ($event['id'] ?? 'unknown');
-            $eventType = (string) ($event['type'] ?? 'unknown');
+            $eventId = self::stringifyScalar($event['id'] ?? null, 'unknown');
+            $eventType = self::stringifyScalar($event['type'] ?? null, 'unknown');
+            /** @var mixed $eventContext */
             $eventContext = $event['context'] ?? [];
-            $openId = isset($event['openId']) ? (string) $event['openId'] : null;
+            /** @var mixed $rawOpenId */
+            $rawOpenId = $event['openId'] ?? null;
+            $openId = is_scalar($rawOpenId) ? (string) $rawOpenId : null;
 
             if (! is_array($eventContext)) {
                 $eventContext = [];
@@ -129,6 +134,7 @@ final class LogDataParser
 
         foreach ($timeFields as $field) {
             if (array_key_exists($field, $context)) {
+                /** @var mixed $value */
                 $value = $context[$field];
                 if (is_numeric($value)) {
                     return (float) $value;
@@ -137,5 +143,10 @@ final class LogDataParser
         }
 
         return 0.0;
+    }
+
+    private static function stringifyScalar(mixed $value, string $default): string
+    {
+        return is_scalar($value) ? (string) $value : $default;
     }
 }
