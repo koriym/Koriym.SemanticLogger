@@ -15,6 +15,7 @@ use function fprintf;
 use function in_array;
 use function is_numeric;
 use function is_readable;
+use function is_string;
 use function json_decode;
 use function sprintf;
 use function str_ends_with;
@@ -49,16 +50,31 @@ final class StreeCommand
                 return 1;
             }
 
+            /** @var list<string> $expand */
+            $expand = (array) ($options['expand'] ?? []);
+            /** @var mixed $depth */
+            $depth = $options['depth'] ?? self::DEFAULT_DEPTH;
+            /** @var mixed $threshold */
+            $threshold = $options['threshold'] ?? 0.0;
+            /** @var mixed $lines */
+            $lines = $options['lines'] ?? self::DEFAULT_MAX_LINES;
             $config = new RenderConfig(
-                (int) ($options['depth'] ?? self::DEFAULT_DEPTH),
-                (array) ($options['expand'] ?? []),
-                (float) ($options['threshold'] ?? 0.0),
+                is_numeric($depth) ? (int) $depth : self::DEFAULT_DEPTH,
+                $expand,
+                is_numeric($threshold) ? (float) $threshold : 0.0,
                 (bool) ($options['full'] ?? false),
-                (int) ($options['lines'] ?? self::DEFAULT_MAX_LINES),
+                is_numeric($lines) ? (int) $lines : self::DEFAULT_MAX_LINES,
             );
 
-            $logData = $this->loadLogFile($options['file']);
+            /** @var mixed $fileOption */
+            $fileOption = $options['file'];
+            if (! is_string($fileOption)) {
+                throw new RuntimeException('File option must be a string');
+            }
 
+            $logData = $this->loadLogFile($fileOption);
+
+            /** @var mixed $format */
             $format = $options['format'] ?? 'text';
             if ($format === 'html') {
                 $htmlRenderer = new HtmlRenderer();
@@ -189,7 +205,7 @@ final class StreeCommand
                 throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
             }
 
-            $threshold = (float) $numericValue / 1000;
+            $threshold = (float) $numericValue / 1000.0;
         }
 
         if (str_ends_with($value, 's') && ! str_ends_with($value, 'ms')) {

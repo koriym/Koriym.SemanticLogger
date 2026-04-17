@@ -221,11 +221,11 @@ final class HtmlRenderer
     private function formatExecutionTime(float $time): string
     {
         if ($time < 0.001) {
-            return sprintf('[%.1fμs]', $time * 1_000_000);
+            return sprintf('[%.1fμs]', $time * 1_000_000.0);
         }
 
         if ($time < 1.0) {
-            return sprintf('[%.1fms]', $time * 1000);
+            return sprintf('[%.1fms]', $time * 1000.0);
         }
 
         return sprintf('[%.1fs]', $time);
@@ -236,7 +236,9 @@ final class HtmlRenderer
     {
         switch ($node->type) {
             case 'http_request':
+                /** @var mixed $methodValue */
                 $methodValue = $node->context['method'] ?? null;
+                /** @var mixed $uriValue */
                 $uriValue = $node->context['uri'] ?? null;
                 $method = is_scalar($methodValue) ? (string) $methodValue : '';
                 $uri = is_scalar($uriValue) ? (string) $uriValue : '';
@@ -244,12 +246,15 @@ final class HtmlRenderer
                 return sprintf('%s %s', $method, $uri);
 
             case 'external_api_request':
+                /** @var mixed $serviceValue */
                 $serviceValue = $node->context['service'] ?? null;
 
                 return is_scalar($serviceValue) ? (string) $serviceValue : '';
 
             case 'database_connection':
+                /** @var mixed $hostValue */
                 $hostValue = $node->context['host'] ?? null;
+                /** @var mixed $dbValue */
                 $dbValue = $node->context['database'] ?? null;
                 $host = is_scalar($hostValue) ? (string) $hostValue : '';
                 $db = is_scalar($dbValue) ? (string) $dbValue : '';
