@@ -10,16 +10,16 @@
       "title": "Semantic Logger Structure"
     },
     {
-      "anchor": "#/schemaUrl",
+      "anchor": "#/$schema",
       "rel": "describedby",
       "href": "https://tools.ietf.org/html/rfc3986",
       "title": "URI Generic Syntax (RFC 3986)"
     }
   ],
   "type": "object",
-  "required": ["schemaUrl", "open", "close"],
+  "required": ["$schema", "open", "close"],
   "properties": {
-    "schemaUrl": {
+    "$schema": {
       "$ref": "#/definitions/schemaUrl"
     },
     "open": {
@@ -108,6 +108,9 @@
         "additionalProperties": true
       }
     },
+    "profile": {
+      "$ref": "#/definitions/profile"
+    },
     "links": {
       "type": "array",
       "description": "Web Links for semantic relationships - extends JSON Schema with hypermedia concepts for AI understanding. While not part of JSON Schema specification, these links provide semantic context and relationships between log entries, following RFC 8288 Web Linking principles. Enables AI to understand contextual relationships, dependencies, and semantic connections that pure data structure cannot express",
@@ -165,6 +168,122 @@
     "contextType": {
       "type": "string",
       "description": "Application-defined context type identifier. Applications define their own context types through individual schema files"
+    },
+    "profile": {
+      "type": "object",
+      "description": "Optional profiler data included with the semantic log",
+      "properties": {
+        "xhprof": {
+          "oneOf": [
+            {
+              "type": "array",
+              "maxItems": 0,
+              "description": "Empty array when XHProf is not available"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "object",
+                  "description": "Raw XHProf profiling data with function call metrics. Captured using xhprof_enable() and xhprof_disable() functions. Provides statistical performance data (wall time, memory usage, call counts) with low overhead, enabling production-ready performance monitoring unlike more intrusive tracing methods.",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "wt": {
+                        "type": "integer",
+                        "description": "Wall time in microseconds"
+                      },
+                      "mu": {
+                        "type": "integer",
+                        "description": "Memory usage in bytes"
+                      },
+                      "pmu": {
+                        "type": "integer",
+                        "description": "Peak memory usage in bytes"
+                      },
+                      "ct": {
+                        "type": "integer",
+                        "description": "Call count"
+                      }
+                    }
+                  }
+                },
+                "spec_url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "URL to XHProf data format specification"
+                }
+              },
+              "additionalProperties": false
+            }
+          ],
+          "description": "XHProf performance profiling data with specification URL"
+        },
+        "xdebug": {
+          "oneOf": [
+            {
+              "type": "array",
+              "maxItems": 0,
+              "description": "Empty array when Xdebug trace is not available"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "type": "string",
+                  "description": "Raw Xdebug trace file content in trace format 4. Captured using xdebug_start_trace() and xdebug_stop_trace() functions. Provides granular execution flow beyond PHP's standard debug_backtrace(), capturing function entry/exit with precise timestamps, memory usage, and call depth for comprehensive performance analysis and bottleneck identification."
+                },
+                "spec_url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "URL to Xdebug trace output formats specification"
+                }
+              },
+              "additionalProperties": false
+            }
+          ],
+          "description": "Xdebug execution trace data with specification URL. Provides detailed function-by-function execution flow that standard PHP profiling cannot capture, essential for identifying complex performance issues, recursive calls, and execution path bottlenecks."
+        },
+        "php": {
+          "type": "object",
+          "properties": {
+            "backtrace": {
+              "type": "array",
+              "description": "PHP backtrace information captured using debug_backtrace() function",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "function": {
+                    "type": "string",
+                    "description": "Function name"
+                  },
+                  "file": {
+                    "type": "string",
+                    "description": "File path"
+                  },
+                  "line": {
+                    "type": "integer",
+                    "description": "Line number"
+                  },
+                  "class": {
+                    "type": "string",
+                    "description": "Class name (if applicable)"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["::", "->"],
+                    "description": "Method call type"
+                  }
+                },
+                "required": ["function"],
+                "additionalProperties": true
+              }
+            }
+          },
+          "required": ["backtrace"]
+        }
+      },
+      "additionalProperties": false
     },
     "schemaUrl": {
       "oneOf": [
