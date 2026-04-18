@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger;
 
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
+use RuntimeException;
 
 final class DevSemanticLoggerTest extends TestCase
 {
@@ -81,5 +83,46 @@ final class DevSemanticLoggerTest extends TestCase
         $this->assertNotNull($second->profile);
         $this->assertCount(1, $first->profile->operationWallTimes);
         $this->assertCount(1, $second->profile->operationWallTimes);
+    }
+
+    public function testDevStateIsResetEvenWhenInnerFlushThrows(): void
+    {
+        $throwingInner = new class implements SemanticLoggerInterface {
+            public function open(AbstractContext $context): string
+            {
+                return 'fake_1';
+            }
+
+            public function close(AbstractContext $context, string $openId): void
+            {
+            }
+
+            public function event(AbstractContext $context): void
+            {
+            }
+
+            /** @param list<array{rel: string, href: string, title?: string, type?: string}> $links */
+            public function flush(array $links = []): LogJson
+            {
+                throw new RuntimeException('inner flush failed');
+            }
+        };
+
+        $logger = new DevSemanticLogger($throwingInner);
+        $logger->open(new FakeContext('leaked'));
+
+        try {
+            $logger->flush();
+            $this->fail('Expected RuntimeException from inner flush');
+        } catch (RuntimeException) {
+            // Expected.
+        }
+
+        // Dev-side state must have been reset by the finally block.
+        $reflection = new ReflectionClass($logger);
+        $this->assertSame([], $reflection->getProperty('started')->getValue($logger));
+        $this->assertSame([], $reflection->getProperty('wallTimes')->getValue($logger));
+        $this->assertNull($reflection->getProperty('xdebug')->getValue($logger));
+        $this->assertSame(0, $reflection->getProperty('depth')->getValue($logger));
     }
 }

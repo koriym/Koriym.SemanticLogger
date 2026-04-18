@@ -67,21 +67,29 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     #[Override]
     public function flush(array $links = []): LogJson
     {
-        $logJson = $this->inner->flush($links);
-        $profile = new Profile(xdebug: $this->xdebug, operationWallTimes: $this->wallTimes);
+        try {
+            $logJson = $this->inner->flush($links);
+            $profile = new Profile(xdebug: $this->xdebug, operationWallTimes: $this->wallTimes);
 
-        $this->started = [];
-        $this->wallTimes = [];
-        $this->xdebug = null;
-        $this->depth = 0;
+            return new LogJson(
+                $logJson->schemaUrl,
+                $logJson->open,
+                $logJson->close,
+                $logJson->events,
+                $logJson->links,
+                $profile,
+            );
+        } finally {
+            // Stop any still-active outer xdebug trace (e.g. unclosed operations).
+            // XdebugTrace::stop() is a no-op on externally-owned traces.
+            if ($this->xdebug !== null && $this->depth > 0) {
+                $this->xdebug->stop();
+            }
 
-        return new LogJson(
-            $logJson->schemaUrl,
-            $logJson->open,
-            $logJson->close,
-            $logJson->events,
-            $logJson->links,
-            $profile,
-        );
+            $this->started = [];
+            $this->wallTimes = [];
+            $this->xdebug = null;
+            $this->depth = 0;
+        }
     }
 }
