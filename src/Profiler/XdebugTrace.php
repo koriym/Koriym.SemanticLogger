@@ -38,9 +38,11 @@ final class XdebugTrace implements JsonSerializable
             return new self(); // @codeCoverageIgnore
         }
 
-        // Always start our own trace to ensure we have control over the file format
-        // Stop any existing trace first to ensure we get a fresh start
-        @xdebug_stop_trace(); // @codeCoverageIgnore - suppress errors if not running
+        // Non-destructive: if an external trace is already running, don't touch it.
+        // Return an empty instance whose stop() is a no-op (traceId remains null).
+        if (function_exists('xdebug_get_tracefile_name') && @xdebug_get_tracefile_name() !== '') {
+            return new self(); // @codeCoverageIgnore
+        }
 
         $instance = new self();
         $instance->traceId = uniqid('profile_', true);
@@ -70,8 +72,9 @@ final class XdebugTrace implements JsonSerializable
 
     private function canStopTrace(): bool
     {
-        // Can stop if we started the trace ourselves, OR if there's an existing trace running
-        return $this->traceId !== null || function_exists('xdebug_get_tracefile_name');
+        // Only stop traces we started ourselves (traceId set) or whose content we already hold.
+        // Instances returned as no-ops from start() have neither and must not touch external traces.
+        return $this->traceId !== null || $this->content !== null;
     }
 
     private function performStopTrace(): self
