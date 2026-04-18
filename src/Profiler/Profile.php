@@ -9,7 +9,10 @@ use Override;
 
 final class Profile implements JsonSerializable
 {
-    /** @param array<string, float> $operationWallTimes operation ID => wall time in seconds */
+    /**
+     * @param array<string, float> $operationWallTimes operation ID => wall time in seconds.
+     *                                                 Serialized under the JSON key "operations".
+     */
     public function __construct(
         public XHProfResult|null $xhprof = null,
         public XdebugTrace|null $xdebug = null,
