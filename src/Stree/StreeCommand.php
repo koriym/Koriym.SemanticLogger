@@ -12,23 +12,24 @@ use function count;
 use function file_exists;
 use function file_get_contents;
 use function fprintf;
-use function in_array;
 use function is_numeric;
 use function is_readable;
 use function is_string;
 use function json_decode;
+use function json_encode;
 use function sprintf;
 use function str_ends_with;
 use function str_starts_with;
 use function substr;
 
+use const JSON_PRETTY_PRINT;
 use const JSON_THROW_ON_ERROR;
+use const JSON_UNESCAPED_UNICODE;
 use const STDERR;
 use const STDOUT;
 
 final class StreeCommand
 {
-    private const DEFAULT_DEPTH = 2;
     private const DEFAULT_MAX_LINES = 5;
 
     /** @param string[] $argv */
@@ -50,20 +51,15 @@ final class StreeCommand
                 return 1;
             }
 
-            /** @var list<string> $expand */
-            $expand = (array) ($options['expand'] ?? []);
-            /** @var mixed $depth */
-            $depth = $options['depth'] ?? self::DEFAULT_DEPTH;
             /** @var mixed $threshold */
             $threshold = $options['threshold'] ?? 0.0;
             /** @var mixed $lines */
             $lines = $options['lines'] ?? self::DEFAULT_MAX_LINES;
             $config = new RenderConfig(
-                is_numeric($depth) ? (int) $depth : self::DEFAULT_DEPTH,
-                $expand,
-                is_numeric($threshold) ? (float) $threshold : 0.0,
                 (bool) ($options['full'] ?? false),
+                is_numeric($threshold) ? (float) $threshold : 0.0,
                 is_numeric($lines) ? (int) $lines : self::DEFAULT_MAX_LINES,
+                (bool) ($options['values'] ?? false),
             );
 
             /** @var mixed $fileOption */
@@ -74,14 +70,8 @@ final class StreeCommand
 
             $logData = $this->loadLogFile($fileOption);
 
-            /** @var mixed $format */
-            $format = $options['format'] ?? 'text';
-            if ($format === 'html') {
-                $htmlRenderer = new HtmlRenderer();
-                $parser = new LogDataParser();
-                $tree = $parser->parseLogData($logData);
-                $output = $htmlRenderer->render($tree, $config);
-                echo $output;
+            if (isset($options['json'])) {
+                echo json_encode($logData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
 
                 return 0;
             }
@@ -138,22 +128,9 @@ final class StreeCommand
     private function parseArgument(string $arg, array $args, int $index): array
     {
         // Handle simple flags
-        $simpleFlags = ['--help' => 'help', '-h' => 'help', '--full' => 'full', '-f' => 'full'];
+        $simpleFlags = ['--help' => 'help', '-h' => 'help', '--full' => 'full', '-f' => 'full', '--json' => 'json', '--values' => 'values', '-V' => 'values'];
         if (isset($simpleFlags[$arg])) {
             return ['option' => [$simpleFlags[$arg] => true], 'consumed' => false, 'index' => $index];
-        }
-
-        // Handle option with value
-        if ($arg === '--format') {
-            return $this->parseFormatOption($args, $index);
-        }
-
-        if ($arg === '--depth' || $arg === '-d') {
-            return $this->parseDepthOption($args, $index);
-        }
-
-        if ($arg === '--expand' || $arg === '-e') {
-            return $this->parseExpandOption($args, $index);
         }
 
         if ($arg === '--threshold' || $arg === '-t') {
@@ -165,18 +142,6 @@ final class StreeCommand
         }
 
         // Handle assignment format
-        if (str_starts_with($arg, '--format=')) {
-            return $this->parseFormatAssignment($arg);
-        }
-
-        if (str_starts_with($arg, '--depth=')) {
-            return $this->parseDepthAssignment($arg);
-        }
-
-        if (str_starts_with($arg, '--expand=')) {
-            return $this->parseExpandAssignment($arg);
-        }
-
         if (str_starts_with($arg, '--threshold=')) {
             return $this->parseThresholdAssignment($arg);
         }
@@ -196,40 +161,35 @@ final class StreeCommand
 
     private function parseThreshold(string $value): float
     {
-        // Parse threshold value like "10ms", "0.5s"
-        $threshold = 0.0;
-
-        if (str_ends_with($value, 'ms')) {
-            $numericValue = substr($value, 0, -2);
-            if (! is_numeric($numericValue)) {
-                throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
-            }
-
-            $threshold = (float) $numericValue / 1000.0;
-        }
-
-        if (str_ends_with($value, 's') && ! str_ends_with($value, 'ms')) {
-            $numericValue = substr($value, 0, -1);
-            if (! is_numeric($numericValue)) {
-                throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
-            }
-
-            $threshold = (float) $numericValue;
-        }
-
-        if (! str_ends_with($value, 'ms') && ! str_ends_with($value, 's')) {
-            if (! is_numeric($value)) {
-                throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
-            }
-
-            $threshold = (float) $value;
-        }
+        $threshold = $this->parseThresholdValue($value);
 
         if ($threshold < 0) {
             throw new RuntimeException('--threshold must be 0 or greater');
         }
 
         return $threshold;
+    }
+
+    private function parseThresholdValue(string $value): float
+    {
+        if (str_ends_with($value, 'ms')) {
+            return $this->parseNumericPortion(substr($value, 0, -2), $value) / 1000.0;
+        }
+
+        if (str_ends_with($value, 's')) {
+            return $this->parseNumericPortion(substr($value, 0, -1), $value);
+        }
+
+        return $this->parseNumericPortion($value, $value);
+    }
+
+    private function parseNumericPortion(string $numericValue, string $original): float
+    {
+        if (! is_numeric($numericValue)) {
+            throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $original));
+        }
+
+        return (float) $numericValue;
     }
 
     /** @return array<string, mixed> */
@@ -256,106 +216,6 @@ final class StreeCommand
         } catch (JsonException $e) {
             throw new RuntimeException(sprintf('Invalid JSON in log file: %s', $e->getMessage()));
         }
-    }
-
-    /**
-     * @param string[] $args
-     *
-     * @return array<string, mixed>
-     */
-    private function parseFormatOption(array $args, int $index): array
-    {
-        if (! isset($args[$index + 1])) {
-            throw new RuntimeException('--format requires a value');
-        }
-
-        $formatValue = $args[$index + 1];
-        if (! in_array($formatValue, ['text', 'html'], true)) {
-            throw new RuntimeException('--format must be "text" or "html"');
-        }
-
-        return ['option' => ['format' => $formatValue], 'consumed' => true, 'index' => $index + 1];
-    }
-
-    /** @return array<string, mixed> */
-    private function parseFormatAssignment(string $arg): array
-    {
-        $value = substr($arg, 9);
-        if (! in_array($value, ['text', 'html'], true)) {
-            throw new RuntimeException('--format must be "text" or "html"');
-        }
-
-        return ['option' => ['format' => $value], 'consumed' => false, 'index' => 0];
-    }
-
-    /**
-     * @param string[] $args
-     *
-     * @return array<string, mixed>
-     */
-    private function parseDepthOption(array $args, int $index): array
-    {
-        if (! isset($args[$index + 1])) {
-            throw new RuntimeException('--depth requires a value');
-        }
-
-        $depthValue = $args[$index + 1];
-        if (! is_numeric($depthValue)) {
-            throw new RuntimeException(sprintf('--depth must be a number, got: %s', $depthValue));
-        }
-
-        $depth = (int) $depthValue;
-        if ($depth < 0) {
-            throw new RuntimeException('--depth must be 0 or greater');
-        }
-
-        return ['option' => ['depth' => $depth], 'consumed' => true, 'index' => $index + 1];
-    }
-
-    /** @return array<string, mixed> */
-    private function parseDepthAssignment(string $arg): array
-    {
-        $value = substr($arg, 8);
-        if (! is_numeric($value)) {
-            throw new RuntimeException(sprintf('--depth must be a number, got: %s', $value));
-        }
-
-        $depth = (int) $value;
-        if ($depth < 0) {
-            throw new RuntimeException('--depth must be 0 or greater');
-        }
-
-        return ['option' => ['depth' => $depth], 'consumed' => false, 'index' => 0];
-    }
-
-    /**
-     * @param string[] $args
-     *
-     * @return array<string, mixed>
-     */
-    private function parseExpandOption(array $args, int $index): array
-    {
-        if (! isset($args[$index + 1])) {
-            throw new RuntimeException('--expand requires a value');
-        }
-
-        $expandType = $args[$index + 1];
-        if (empty($expandType)) {
-            throw new RuntimeException('--expand context type cannot be empty');
-        }
-
-        return ['option' => ['expand' => $expandType], 'consumed' => true, 'index' => $index + 1];
-    }
-
-    /** @return array<string, mixed> */
-    private function parseExpandAssignment(string $arg): array
-    {
-        $value = substr($arg, 9);
-        if (empty($value)) {
-            throw new RuntimeException('--expand context type cannot be empty');
-        }
-
-        return ['option' => ['expand' => $value], 'consumed' => false, 'index' => 0];
     }
 
     /**
@@ -435,19 +295,6 @@ final class StreeCommand
     private function mergeOptions(array $existing, array $new): array
     {
         foreach ($new as $key => $value) {
-            if ($key === 'expand') {
-                if (! isset($existing['expand'])) {
-                    $existing['expand'] = [];
-                }
-
-                /** @var mixed[] $expandArray */
-                $expandArray = $existing['expand'];
-                $expandArray[] = $value;
-                $existing['expand'] = $expandArray;
-
-                continue;
-            }
-
             $existing[$key] = $value;
         }
 
@@ -473,22 +320,18 @@ ARGUMENTS:
     <logfile.json>    Path to SemanticLogger JSON output file
 
 OPTIONS:
-    -d, --depth=N     Maximum tree depth to display (default: 2)
-    -e, --expand=CTX  Expand specific context types beyond depth limit
     -t, --threshold=T Time threshold filter (e.g., 10ms, 0.5s)
     -l, --lines=N     Maximum lines to show for multi-line data (default: 5, 0 = no limit)
-    --format=FORMAT   Output format: text (default) or html
-    -f, --full        Show complete tree without depth limits
+    -f, --full        Show full tree with all context keys as leaves
+    -V, --values      Opt-in flag consulted by registered formatters to show values
+    --json            Pass through raw JSON (pretty-printed)
     -h, --help        Display this help message
 
 EXAMPLES:
-    stree debug.json                          # Default 2-level tree
-    stree --depth=5 detailed.json             # Show 5 levels deep
-    stree --expand=DatabaseQuery log.json     # Expand DatabaseQuery contexts
+    stree debug.json                          # Compact tree
+    stree --full debug.json                   # Full tree with all context keys
     stree --threshold=10ms slow.json          # Show only operations > 10ms
-    stree --lines=10 detailed.json            # Show up to 10 lines of headers/params
-    stree --format=html --full trace.json     # Interactive HTML output
-    stree --format=html trace.json > trace.html  # Save HTML to file
+    stree --json debug.json                   # Pretty-print JSON passthrough
 
 HELP;
         fprintf(STDOUT, "%s\n", $help);

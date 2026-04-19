@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
 use PHPUnit\Framework\TestCase;
-
-use function strlen;
 
 final class TreeNodeTest extends TestCase
 {
@@ -66,397 +65,293 @@ final class TreeNodeTest extends TestCase
         $this->assertStringContainsString('[1.5s]', $displayLine);
     }
 
-    public function testHttpRequestContextInfo(): void
+    public function testZeroExecutionTimeOmitted(): void
+    {
+        $node = new TreeNode('test_1', 'test_type', [], 0.0);
+
+        $displayLine = $node->getDisplayLine();
+
+        $this->assertStringNotContainsString('[', $displayLine);
+    }
+
+    public function testGenericSignalExtraction(): void
+    {
+        $context = ['method' => 'POST', 'uri' => '/api/orders'];
+        $node = new TreeNode('n1', 'http_request', $context);
+
+        $line = $node->getDisplayLine();
+
+        $this->assertStringContainsString('http_request', $line);
+        $this->assertStringContainsString('method=POST', $line);
+        $this->assertStringContainsString('uri=/api/orders', $line);
+    }
+
+    public function testFqcnShortening(): void
+    {
+        $context = ['fromClass' => 'Be\\Skeleton\\Input\\HelloInput'];
+        $node = new TreeNode('n1', 'metamorphosis', $context);
+
+        $line = $node->getDisplayLine();
+
+        $this->assertStringContainsString('fromClass=HelloInput', $line);
+        $this->assertStringNotContainsString('Be\\Skeleton', $line);
+    }
+
+    public function testStringTruncation(): void
+    {
+        $context = ['message' => 'This is a very long string that definitely exceeds 40 chars'];
+        $node = new TreeNode('n1', 'some_type', $context);
+
+        $line = $node->getDisplayLine();
+
+        $this->assertStringContainsString('…', $line);
+    }
+
+    public function testBooleanPreserved(): void
+    {
+        $context = ['success' => false, 'active' => true];
+        $node = new TreeNode('n1', 'business_logic', $context);
+
+        $line = $node->getDisplayLine();
+
+        $this->assertStringContainsString('success=false', $line);
+        $this->assertStringContainsString('active=true', $line);
+    }
+
+    public function testNullValuesExcluded(): void
+    {
+        $context = ['token' => null, 'method' => 'JWT'];
+        $node = new TreeNode('n1', 'authentication_request', $context);
+
+        $line = $node->getDisplayLine();
+
+        $this->assertStringNotContainsString('token', $line);
+        $this->assertStringContainsString('method=JWT', $line);
+    }
+
+    public function testEmptyStringExcluded(): void
+    {
+        $context = ['empty' => '', 'name' => 'value'];
+        $node = new TreeNode('n1', 'some_type', $context);
+
+        $line = $node->getDisplayLine();
+
+        $this->assertStringNotContainsString('empty=', $line);
+        $this->assertStringContainsString('name=value', $line);
+    }
+
+    public function testNumericZeroExcluded(): void
+    {
+        $context = ['count' => 0, 'name' => 'something'];
+        $node = new TreeNode('n1', 'some_type', $context);
+
+        $line = $node->getDisplayLine();
+
+        $this->assertStringNotContainsString('count=0', $line);
+        $this->assertStringContainsString('name=something', $line);
+    }
+
+    public function testMaxFourSignalsWithOverflow(): void
     {
         $context = [
-            'method' => 'POST',
-            'uri' => '/api/users',
+            'a' => 'alpha',
+            'b' => 'beta',
+            'c' => 'gamma',
+            'd' => 'delta',
+            'e' => 'epsilon',
+            'f' => 'zeta',
         ];
-        $node = new TreeNode('req_1', 'http_request', $context);
+        $node = new TreeNode('n1', 'some_type', $context);
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine();
 
-        $this->assertStringContainsString('http_request::POST /api/users', $displayLine);
+        $this->assertStringContainsString('a=alpha', $line);
+        $this->assertStringContainsString('b=beta', $line);
+        $this->assertStringContainsString('c=gamma', $line);
+        $this->assertStringContainsString('d=delta', $line);
+        $this->assertStringContainsString('(+2 more)', $line);
+        $this->assertStringNotContainsString('e=', $line);
     }
 
-    public function testHttpResponseContextInfo(): void
+    public function testTimingKeysExcludedFromSignals(): void
     {
-        $context = ['statusCode' => 200];
-        $node = new TreeNode('res_1', 'http_response', $context);
+        $context = ['executionTime' => 0.5, 'name' => 'task'];
+        $node = new TreeNode('n1', 'some_type', $context, 0.5);
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine();
 
-        $this->assertStringContainsString('http_response::Status 200', $displayLine);
+        $this->assertStringNotContainsString('executionTime', $line);
+        $this->assertStringContainsString('name=task', $line);
     }
 
-    public function testDatabaseConnectionContextInfo(): void
+    public function testIdKeysExcludedFromSignals(): void
     {
-        $context = [
-            'host' => 'localhost',
-            'database' => 'test_db',
-        ];
-        $node = new TreeNode('db_1', 'database_connection', $context);
+        $context = ['id' => 'abc123', 'openId' => 'xyz', 'name' => 'task'];
+        $node = new TreeNode('n1', 'some_type', $context);
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine();
 
-        $this->assertStringContainsString('database_connection::localhost/test_db', $displayLine);
+        $this->assertStringNotContainsString('id=', $line);
+        $this->assertStringNotContainsString('openId=', $line);
+        $this->assertStringContainsString('name=task', $line);
     }
 
-    public function testComplexQueryContextInfo(): void
+    public function testUnknownTypeWithContextKeys(): void
     {
-        $context = [
-            'queryType' => 'SELECT',
-            'table' => 'users',
-        ];
-        $node = new TreeNode('query_1', 'complex_query', $context);
+        $context = ['fromClass' => 'Be\\Skeleton\\Input\\HelloInput', 'beAttribute' => '#[Be(...)]'];
+        $node = new TreeNode('n1', 'metamorphosis_open', $context);
+        // No close set, so type won't be stripped
+        $line = $node->getDisplayLine();
 
-        $displayLine = $node->getDisplayLine();
-
-        $this->assertStringContainsString('complex_query::SELECT users', $displayLine);
+        $this->assertStringContainsString('metamorphosis_open', $line);
+        $this->assertStringContainsString('fromClass=HelloInput', $line);
     }
 
-    public function testExternalApiRequestContextInfo(): void
+    public function testOpenSuffixStrippedWhenClosedSet(): void
     {
-        $context = [
-            'service' => 'PaymentGateway',
-            'endpoint' => 'https://api.payments.example.com/v2/authorize',
-        ];
-        $node = new TreeNode('api_1', 'external_api_request', $context);
+        $node = new TreeNode('n1', 'metamorphosis_open', ['name' => 'test']);
+        $node->setClose('metamorphosis_close', []);
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine();
 
-        $this->assertStringContainsString('external_api_request::PaymentGateway api.payments.example.com/v2/authorize', $displayLine);
+        $this->assertStringContainsString('metamorphosis', $line);
+        $this->assertStringNotContainsString('_open', $line);
     }
 
-    public function testCacheOperationContextInfo(): void
+    public function testCloseDiffNewKeyLivesOnCloseSignals(): void
     {
-        $context = [
-            'operation' => 'get',
-            'key' => 'user_session_123',
-            'hit' => true,
-        ];
-        $node = new TreeNode('cache_1', 'cache_operation', $context);
+        $node = new TreeNode('n1', 'business_logic', ['operation' => 'checkout']);
+        $node->setClose('business_logic_close', ['operation' => 'checkout', 'success' => true]);
 
-        $displayLine = $node->getDisplayLine();
+        // Open line no longer carries close-diff.
+        $this->assertStringNotContainsString('success=true', $node->getDisplayLine());
 
-        $this->assertStringContainsString('cache_operation::get user_session_123 (HIT)', $displayLine);
+        // Close signals carry it (without leading "→").
+        $this->assertSame('success=true', $node->getCloseSignals());
     }
 
-    public function testAuthenticationContextInfo(): void
+    public function testCloseDiffChangedKeyKeepsInlineArrow(): void
     {
-        $context = [
-            'method' => 'JWT',
-            'token' => 'valid_token_123',
-        ];
-        $node = new TreeNode('auth_1', 'authentication_request', $context);
+        $node = new TreeNode('n1', 'some_type', ['status' => 'pending']);
+        $node->setClose('some_type_close', ['status' => 'done']);
 
-        $displayLine = $node->getDisplayLine();
-
-        $this->assertStringContainsString('authentication_request::JWT (SUCCESS)', $displayLine);
+        // Open line shows the open-side signal only; the change arrow is not on it.
+        $this->assertStringContainsString('status=pending', $node->getDisplayLine());
+        $this->assertStringNotContainsString('→done', $node->getDisplayLine());
+        // Close signals carry the full before→after.
+        $this->assertSame('status=pending→done', $node->getCloseSignals());
     }
 
-    public function testAuthenticationFailedContextInfo(): void
+    public function testCloseDiffOmittedWhenIdentical(): void
     {
-        $context = [
-            'method' => 'JWT',
-            'token' => null,
-        ];
-        $node = new TreeNode('auth_1', 'authentication_request', $context);
+        $node = new TreeNode('n1', 'some_type', ['operation' => 'validate']);
+        $node->setClose('some_type_close', ['operation' => 'validate']);
 
-        $displayLine = $node->getDisplayLine();
-
-        $this->assertStringContainsString('authentication_request::JWT (FAILED)', $displayLine);
+        $this->assertSame('', $node->getCloseSignals());
     }
 
-    public function testErrorContextInfo(): void
+    public function testStatusFailedWhenSuccessFalse(): void
     {
-        $context = [
-            'errorType' => 'ValidationError',
-            'message' => 'Invalid email address format',
-        ];
-        $node = new TreeNode('error_1', 'error', $context);
+        $node = new TreeNode('n1', 'some_type', ['operation' => 'charge']);
+        $node->setClose('some_type_close', ['success' => false]);
+        $node->status = 'Failed';
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine();
 
-        $this->assertStringContainsString('error::ValidationError: Invalid email address format', $displayLine);
+        $this->assertStringContainsString(': Failed', $line);
     }
 
-    public function testPerformanceMetricsContextInfo(): void
+    public function testStatusUnclosedWhenNoClose(): void
     {
-        $context = [
-            'databaseQueries' => 5,
-            'memoryUsed' => 1048576, // 1MB
-        ];
-        $node = new TreeNode('perf_1', 'performance_metrics', $context);
+        $node = new TreeNode('n1', 'some_type', ['operation' => 'process']);
+        $node->status = 'unclosed';
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine();
 
-        $this->assertStringContainsString('performance_metrics::5 queries, 1.0MB memory', $displayLine);
+        $this->assertStringContainsString(': unclosed', $line);
     }
 
-    public function testGenericContextInfoWithOperation(): void
+    public function testStatusSilentOnSuccess(): void
     {
-        $context = ['operation' => 'file_upload'];
-        $node = new TreeNode('generic_1', 'unknown_type', $context);
+        $node = new TreeNode('n1', 'some_type', ['operation' => 'ok']);
+        $node->setClose('some_type_close', ['success' => true]);
+        // status stays ''
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine();
 
-        $this->assertStringContainsString('unknown_type::file_upload', $displayLine);
+        $this->assertStringNotContainsString(': ', $line);
     }
 
-    public function testGenericContextInfoWithoutRecognizedFields(): void
+    public function testEventMarker(): void
     {
-        $context = ['custom_field' => 'value'];
-        $node = new TreeNode('generic_1', 'unknown_type', $context);
+        $node = new TreeNode('n1', 'http_request', ['method' => 'POST']);
+        $node->isEvent = true;
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine();
 
-        $this->assertStringContainsString('unknown_type [', $displayLine);
-        $this->assertStringNotContainsString('::', $displayLine);
+        $this->assertStringContainsString('[event]', $line);
     }
 
-    public function testHttpRequestWithHeaders(): void
+    public function testNoEventMarkerByDefault(): void
     {
-        $context = [
-            'method' => 'POST',
-            'uri' => '/api/orders',
-            'headers' => [
-                'Content-Type' => 'application/json',
-                'Authorization' => 'Bearer <TOKEN_REDACTED>',
-            ],
-        ];
-        $config = new RenderConfig(2, [], 0.0, false, 5);
-        $node = new TreeNode('req_1', 'http_request', $context);
+        $node = new TreeNode('n1', 'some_type', []);
+        $node->setClose('some_type_close', []);
 
-        $displayLine = $node->getDisplayLine($config);
+        $line = $node->getDisplayLine();
 
-        $this->assertStringContainsString('POST /api/orders', $displayLine);
-        $this->assertStringContainsString('headers:', $displayLine);
-        $this->assertStringContainsString('Content-Type: application/json', $displayLine);
+        $this->assertStringNotContainsString('[event]', $line);
     }
 
-    public function testComplexQueryWithParameters(): void
+    public function testRegisteredFormatterOverridesSignalExtractor(): void
     {
-        $context = [
-            'queryType' => 'SELECT',
-            'table' => 'users',
-            'parameters' => [
-                'id' => 123,
-                'status' => 'active',
-            ],
-        ];
-        $config = new RenderConfig(2, [], 0.0, false, 5);
-        $node = new TreeNode('query_1', 'complex_query', $context);
+        $node = new TreeNode('n1', 'fake_open', ['fromClass' => 'Ignored']);
+        $registry = new FormatterRegistry();
+        $registry->register('fake_open', new FakeFormatter());
+        $config = new RenderConfig(false, 0.0, 5, false, $registry);
 
-        $displayLine = $node->getDisplayLine($config);
+        $line = $node->getDisplayLine($config);
 
-        $this->assertStringContainsString('SELECT users', $displayLine);
-        $this->assertStringContainsString('params:', $displayLine);
-        $this->assertStringContainsString('id: 123', $displayLine);
+        $this->assertSame('fake open=fake_open', $line);
+        $this->assertStringNotContainsString('fromClass', $line);
     }
 
-    public function testFileProcessingContextInfo(): void
+    public function testFormatterCanEmitMultilineDisplay(): void
     {
-        $context = [
-            'operation' => 'pdf_generation',
-            'filename' => 'invoice_123.pdf',
-        ];
-        $node = new TreeNode('file_1', 'file_processing', $context);
+        $node = new TreeNode('n1', 'fake_open', []);
+        $node->setClose('fake_close', []);
+        $registry = new FormatterRegistry();
+        $registry->register('fake_open', new FakeFormatter());
+        $config = new RenderConfig(false, 0.0, 5, false, $registry);
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine($config);
 
-        $this->assertStringContainsString('file_processing::pdf_generation invoice_123.pdf', $displayLine);
+        $this->assertStringContainsString("\n", $line);
+        $this->assertStringContainsString('⎿ close=fake_close', $line);
     }
 
-    public function testBusinessLogicContextInfo(): void
+    public function testFormatterReceivesShowValuesFlag(): void
     {
-        $context = [
-            'operation' => 'order_validation',
-            'success' => true,
-        ];
-        $node = new TreeNode('biz_1', 'business_logic', $context);
+        $node = new TreeNode('n1', 'fake_open', []);
+        $registry = new FormatterRegistry();
+        $registry->register('fake_open', new FakeFormatter());
+        $config = new RenderConfig(false, 0.0, 5, true, $registry);
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine($config);
 
-        $this->assertStringContainsString('business_logic::order_validation (SUCCESS)', $displayLine);
+        $this->assertStringContainsString('values=on', $line);
     }
 
-    public function testBusinessLogicFailedContextInfo(): void
+    public function testUnregisteredTypeFallsBackToSignalExtractor(): void
     {
-        $context = [
-            'operation' => 'payment_processing',
-            'success' => false,
-        ];
-        $node = new TreeNode('biz_1', 'business_logic', $context);
+        $node = new TreeNode('n1', 'some_type', ['name' => 'task']);
+        $registry = new FormatterRegistry();
+        $registry->register('other_type', new FakeFormatter());
+        $config = new RenderConfig(false, 0.0, 5, false, $registry);
 
-        $displayLine = $node->getDisplayLine();
+        $line = $node->getDisplayLine($config);
 
-        $this->assertStringContainsString('business_logic::payment_processing (FAILED)', $displayLine);
-    }
-
-    public function testCacheMissContextInfo(): void
-    {
-        $context = [
-            'operation' => 'get',
-            'key' => 'user_profile_456',
-            'hit' => false,
-        ];
-        $node = new TreeNode('cache_1', 'cache_operation', $context);
-
-        $displayLine = $node->getDisplayLine();
-
-        $this->assertStringContainsString('cache_operation::get user_profile_456 (MISS)', $displayLine);
-    }
-
-    public function testGenericContextWithMethod(): void
-    {
-        $context = ['method' => 'GET'];
-        $node = new TreeNode('generic_1', 'custom_type', $context);
-
-        $displayLine = $node->getDisplayLine();
-
-        $this->assertStringContainsString('custom_type::GET', $displayLine);
-    }
-
-    public function testGenericContextWithName(): void
-    {
-        $context = ['name' => 'service_call'];
-        $node = new TreeNode('generic_1', 'custom_type', $context);
-
-        $displayLine = $node->getDisplayLine();
-
-        $this->assertStringContainsString('custom_type::service_call', $displayLine);
-    }
-
-    public function testShortenLongUrl(): void
-    {
-        $context = [
-            'service' => 'PaymentGateway',
-            'endpoint' => 'https://api.very-long-domain-name.example.com/v3/payments/authorize/with/very/long/path',
-        ];
-        $node = new TreeNode('api_1', 'external_api_request', $context);
-
-        $displayLine = $node->getDisplayLine();
-
-        $this->assertStringContainsString('PaymentGateway', $displayLine);
-        $this->assertStringContainsString('api.very-long-domain-name.example.com', $displayLine);
-    }
-
-    public function testShortenUrlFallback(): void
-    {
-        $context = [
-            'service' => 'Service',
-            'endpoint' => 'not-a-valid-url-but-very-long-string-that-should-be-truncated-because-it-exceeds-40-chars',
-        ];
-        $node = new TreeNode('api_1', 'external_api_request', $context);
-
-        $displayLine = $node->getDisplayLine();
-
-        $this->assertStringContainsString('Service', $displayLine);
-        $this->assertStringContainsString('...', $displayLine);
-    }
-
-    public function testTruncateLongErrorMessage(): void
-    {
-        $context = [
-            'errorType' => 'ValidationError',
-            'message' => 'This is a very long error message that should be truncated because it exceeds the maximum length limit',
-        ];
-        $node = new TreeNode('error_1', 'error', $context);
-
-        $displayLine = $node->getDisplayLine();
-
-        $this->assertStringContainsString('ValidationError:', $displayLine);
-        $this->assertStringContainsString('...', $displayLine);
-        $this->assertLessThan(120, strlen($displayLine)); // Should be truncated
-    }
-
-    public function testFormatBytesVariousUnits(): void
-    {
-        // Test bytes
-        $context = ['databaseQueries' => 3, 'memoryUsed' => 512];
-        $node = new TreeNode('perf_1', 'performance_metrics', $context);
-        $displayLine = $node->getDisplayLine();
-        $this->assertStringContainsString('512B', $displayLine);
-
-        // Test kilobytes
-        $context = ['databaseQueries' => 3, 'memoryUsed' => 2048];
-        $node = new TreeNode('perf_2', 'performance_metrics', $context);
-        $displayLine = $node->getDisplayLine();
-        $this->assertStringContainsString('2.0KB', $displayLine);
-
-        // Test megabytes
-        $context = ['databaseQueries' => 5, 'memoryUsed' => 2097152]; // 2MB
-        $node = new TreeNode('perf_3', 'performance_metrics', $context);
-        $displayLine = $node->getDisplayLine();
-        $this->assertStringContainsString('2.0MB', $displayLine);
-    }
-
-    public function testMultiLineDataWithLimits(): void
-    {
-        $context = [
-            'method' => 'POST',
-            'uri' => '/api/test',
-            'headers' => [
-                'Header1' => 'Value1',
-                'Header2' => 'Value2',
-                'Header3' => 'Value3',
-                'Header4' => 'Value4',
-                'Header5' => 'Value5',
-                'Header6' => 'Value6', // This should trigger truncation
-            ],
-        ];
-        $config = new RenderConfig(2, [], 0.0, false, 3); // Limit to 3 lines
-        $node = new TreeNode('req_1', 'http_request', $context);
-
-        $displayLine = $node->getDisplayLine($config);
-
-        $this->assertStringContainsString('POST /api/test', $displayLine);
-        $this->assertStringContainsString('... (3 more)', $displayLine);
-    }
-
-    public function testMultiLineDataWithoutLimits(): void
-    {
-        $context = [
-            'method' => 'POST',
-            'uri' => '/api/test',
-            'headers' => [
-                'Header1' => 'Value1',
-                'Header2' => 'Value2',
-                'Header3' => 'Value3',
-            ],
-        ];
-        $config = new RenderConfig(2, [], 0.0, false, 0); // No limit
-        $node = new TreeNode('req_1', 'http_request', $context);
-
-        $displayLine = $node->getDisplayLine($config);
-
-        $this->assertStringContainsString('POST /api/test', $displayLine);
-        $this->assertStringContainsString('Header1: Value1', $displayLine);
-        $this->assertStringContainsString('Header2: Value2', $displayLine);
-        $this->assertStringContainsString('Header3: Value3', $displayLine);
-        $this->assertStringNotContainsString('more)', $displayLine);
-    }
-
-    public function testComplexDataHandling(): void
-    {
-        $context = [
-            'queryType' => 'SELECT',
-            'table' => 'users',
-            'parameters' => [
-                'simple' => 'value',
-                'complex' => ['nested' => 'array'],
-                'another' => 'simple_value',
-            ],
-        ];
-        $config = new RenderConfig(2, [], 0.0, false, 5);
-        $node = new TreeNode('query_1', 'complex_query', $context);
-
-        $displayLine = $node->getDisplayLine($config);
-
-        $this->assertStringContainsString('SELECT users', $displayLine);
-        $this->assertStringContainsString('simple: value', $displayLine);
-        $this->assertStringContainsString('complex: [complex]', $displayLine);
-        $this->assertStringContainsString('another: simple_value', $displayLine);
+        $this->assertStringContainsString('some_type', $line);
+        $this->assertStringContainsString('name=task', $line);
+        $this->assertStringNotContainsString('fake open=', $line);
     }
 }
