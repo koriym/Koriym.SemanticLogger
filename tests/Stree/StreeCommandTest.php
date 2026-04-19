@@ -79,6 +79,7 @@ final class StreeCommandTest extends TestCase
                 'type' => 'test_close',
                 'schemaUrl' => 'test.json',
                 'context' => [],
+                'openId' => 'test_1',
             ],
             'events' => [],
         ];
@@ -97,52 +98,6 @@ final class StreeCommandTest extends TestCase
         $this->assertStringContainsString('[5.0ms]', $output);
     }
 
-    public function testDepthOption(): void
-    {
-        $logData = [
-            'open' => [
-                'id' => 'parent_1',
-                'type' => 'parent',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'open' => [
-                    'id' => 'child_1',
-                    'type' => 'child',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'open' => [
-                        'id' => 'grandchild_1',
-                        'type' => 'grandchild',
-                        'schemaUrl' => 'test.json',
-                        'context' => [],
-                    ],
-                ],
-            ],
-            'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-            ],
-            'events' => [],
-        ];
-
-        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
-        file_put_contents($this->tempFile, json_encode($logData, JSON_THROW_ON_ERROR));
-
-        $command = new StreeCommand();
-
-        // Test depth=1
-        ob_start();
-        $exitCode = $command->__invoke(['stree', '--depth=1', $this->tempFile]);
-        $output = ob_get_clean() ?: '';
-
-        $this->assertSame(0, $exitCode);
-        $this->assertStringContainsString('parent', $output);
-        $this->assertStringContainsString('[...]', $output);
-        $this->assertStringNotContainsString('grandchild', $output);
-    }
-
     public function testFullOption(): void
     {
         $logData = [
@@ -150,17 +105,17 @@ final class StreeCommandTest extends TestCase
                 'id' => 'parent_1',
                 'type' => 'parent',
                 'schemaUrl' => 'test.json',
-                'context' => [],
+                'context' => ['name' => 'root'],
                 'open' => [
                     'id' => 'child_1',
                     'type' => 'child',
                     'schemaUrl' => 'test.json',
-                    'context' => [],
+                    'context' => ['name' => 'nested'],
                     'open' => [
                         'id' => 'grandchild_1',
                         'type' => 'grandchild',
                         'schemaUrl' => 'test.json',
-                        'context' => [],
+                        'context' => ['name' => 'deep'],
                     ],
                 ],
             ],
@@ -186,50 +141,6 @@ final class StreeCommandTest extends TestCase
         $this->assertStringContainsString('parent', $output);
         $this->assertStringContainsString('child', $output);
         $this->assertStringContainsString('grandchild', $output);
-    }
-
-    public function testExpandOption(): void
-    {
-        $logData = [
-            'open' => [
-                'id' => 'parent_1',
-                'type' => 'parent',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'open' => [
-                    'id' => 'special_1',
-                    'type' => 'special_type',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'open' => [
-                        'id' => 'deep_1',
-                        'type' => 'deep_type',
-                        'schemaUrl' => 'test.json',
-                        'context' => [],
-                    ],
-                ],
-            ],
-            'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-            ],
-            'events' => [],
-        ];
-
-        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
-        file_put_contents($this->tempFile, json_encode($logData, JSON_THROW_ON_ERROR));
-
-        $command = new StreeCommand();
-
-        ob_start();
-        $exitCode = $command->__invoke(['stree', '--depth=2', '--expand=special_type', $this->tempFile]);
-        $output = ob_get_clean() ?: '';
-
-        $this->assertSame(0, $exitCode);
-        $this->assertStringContainsString('special_type', $output);
-        $this->assertStringContainsString('deep_type', $output);
     }
 
     public function testThresholdOption(): void
@@ -269,6 +180,28 @@ final class StreeCommandTest extends TestCase
         $this->assertStringNotContainsString('fast_operation', $output);
     }
 
+    public function testJsonPassthrough(): void
+    {
+        $logData = [
+            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []],
+            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
+            'events' => [],
+        ];
+
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode($logData));
+
+        $command = new StreeCommand();
+
+        ob_start();
+        $exitCode = $command->__invoke(['stree', '--json', $this->tempFile]);
+        $output = ob_get_clean() ?: '';
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('"open"', $output);
+        $this->assertStringContainsString('"close"', $output);
+    }
+
     public function testShortOptions(): void
     {
         $logData = [
@@ -292,18 +225,6 @@ final class StreeCommandTest extends TestCase
         ob_get_clean();
         $this->assertSame(0, $exitCode);
 
-        // Test -d (depth)
-        ob_start();
-        $exitCode = $command->__invoke(['stree', '-d', '3', $this->tempFile]);
-        ob_get_clean();
-        $this->assertSame(0, $exitCode);
-
-        // Test -e (expand)
-        ob_start();
-        $exitCode = $command->__invoke(['stree', '-e', 'database', $this->tempFile]);
-        ob_get_clean();
-        $this->assertSame(0, $exitCode);
-
         // Test -t (threshold)
         ob_start();
         $exitCode = $command->__invoke(['stree', '-t', '10ms', $this->tempFile]);
@@ -313,33 +234,6 @@ final class StreeCommandTest extends TestCase
         // Test -l (lines)
         ob_start();
         $exitCode = $command->__invoke(['stree', '-l', '10', $this->tempFile]);
-        ob_get_clean();
-        $this->assertSame(0, $exitCode);
-    }
-
-    public function testFormatOptions(): void
-    {
-        $logData = [
-            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []],
-            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
-            'events' => [],
-        ];
-
-        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
-        file_put_contents($this->tempFile, json_encode($logData));
-
-        $command = new StreeCommand();
-
-        // Test --format=html
-        ob_start();
-        $exitCode = $command->__invoke(['stree', '--format=html', $this->tempFile]);
-        $output = ob_get_clean() ?: '';
-        $this->assertSame(0, $exitCode);
-        $this->assertStringContainsString('<!DOCTYPE html>', $output);
-
-        // Test --format text (separate argument)
-        ob_start();
-        $exitCode = $command->__invoke(['stree', '--format', 'text', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
     }
@@ -376,52 +270,12 @@ final class StreeCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
     }
 
-    public function testMultipleExpand(): void
-    {
-        $logData = [
-            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []],
-            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
-            'events' => [],
-        ];
-
-        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
-        file_put_contents($this->tempFile, json_encode($logData));
-
-        $command = new StreeCommand();
-
-        // Test multiple --expand options
-        ob_start();
-        $exitCode = $command->__invoke(['stree', '-e', 'database', '-e', 'api', '--expand=cache', $this->tempFile]);
-        ob_get_clean();
-        $this->assertSame(0, $exitCode);
-    }
-
     public function testOptionValidationErrors(): void
     {
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
         file_put_contents($this->tempFile, '{}');
 
         $command = new StreeCommand();
-
-        // Test missing depth value
-        $exitCode = $command->__invoke(['stree', '--depth']);
-        $this->assertSame(1, $exitCode);
-
-        // Test invalid depth format
-        $exitCode = $command->__invoke(['stree', '--depth=abc', $this->tempFile]);
-        $this->assertSame(1, $exitCode);
-
-        // Test negative depth
-        $exitCode = $command->__invoke(['stree', '-d', '-1', $this->tempFile]);
-        $this->assertSame(1, $exitCode);
-
-        // Test missing expand value
-        $exitCode = $command->__invoke(['stree', '--expand']);
-        $this->assertSame(1, $exitCode);
-
-        // Test empty expand value
-        $exitCode = $command->__invoke(['stree', '--expand=', $this->tempFile]);
-        $this->assertSame(1, $exitCode);
 
         // Test missing threshold value
         $exitCode = $command->__invoke(['stree', '--threshold']);
@@ -453,14 +307,6 @@ final class StreeCommandTest extends TestCase
 
         // Test negative lines
         $exitCode = $command->__invoke(['stree', '-l', '-1', $this->tempFile]);
-        $this->assertSame(1, $exitCode);
-
-        // Test missing format value
-        $exitCode = $command->__invoke(['stree', '--format']);
-        $this->assertSame(1, $exitCode);
-
-        // Test invalid format value
-        $exitCode = $command->__invoke(['stree', '--format=xml', $this->tempFile]);
         $this->assertSame(1, $exitCode);
 
         // Test unknown option
