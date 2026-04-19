@@ -157,6 +157,42 @@ final class SignalExtractorTest extends TestCase
         $this->assertStringContainsString('items', $result);
     }
 
+    public function testArrayPartialOverflowPreservesFirstItems(): void
+    {
+        $arr = ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta'];
+        $result = $this->extractor->formatValue($arr);
+
+        // Keeps as many as fit under MAX_STRING_LENGTH, then "+N items".
+        $this->assertIsString($result);
+        $this->assertStringStartsWith('[alpha', $result);
+        $this->assertStringContainsString(' items]', $result);
+    }
+
+    public function testAssocArrayPartialOverflowShowsKeys(): void
+    {
+        $arr = [
+            'orderId' => 'x',
+            'status' => 'y',
+            'inventory' => 'z',
+            'payment' => 'w',
+            'shipping' => 'v',
+        ];
+        $result = $this->extractor->formatValue($arr);
+
+        $this->assertIsString($result);
+        // Partial overflow: starts with "[orderId, status..." and ends with "+N items]".
+        $this->assertStringStartsWith('[orderId', $result);
+        $this->assertStringContainsString(' items]', $result);
+    }
+
+    public function testAssocArraySmallShowsAllKeysInBrackets(): void
+    {
+        $arr = ['name' => 'a', 'email' => 'b'];
+        $result = $this->extractor->formatValue($arr);
+
+        $this->assertSame('[name, email]', $result);
+    }
+
     public function testExtractCloseDiffNewKey(): void
     {
         $open = ['operation' => 'checkout'];

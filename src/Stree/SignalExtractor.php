@@ -6,6 +6,7 @@ namespace Koriym\SemanticLogger\Stree;
 
 use function array_is_list;
 use function array_keys;
+use function array_map;
 use function count;
 use function end;
 use function explode;
@@ -308,24 +309,14 @@ final class SignalExtractor
             return '[]';
         }
 
-        // Assoc arrays: render as comma-joined keys. Keys are the structural
-        // signal (param names, property names, etc.), so showing them beats
-        // "[N items]". Values live in --full mode expansion.
+        // Assoc arrays: render keys (param names, property names — the structural signal).
         if (! array_is_list($arr)) {
-            $keys = [];
-            foreach (array_keys($arr) as $key) {
-                $keys[] = (string) $key;
-            }
+            $keys = array_map(static fn (mixed $k) => (string) $k, array_keys($arr));
 
-            $inline = implode(', ', $keys);
-            if (strlen($inline) > self::MAX_STRING_LENGTH) {
-                return '[' . count($arr) . ' items]';
-            }
-
-            return $inline;
+            return $this->joinWithOverflow($keys, count($arr));
         }
 
-        // List arrays: inline scalars, fall back to "[N items]" for mixed/long
+        // List arrays: inline scalar values; mixed-content falls back to count.
         $scalars = [];
         foreach ($arr as $item) {
             if (! is_scalar($item) && $item !== null) {
@@ -335,11 +326,40 @@ final class SignalExtractor
             $scalars[] = (string) $item;
         }
 
-        $inline = implode(', ', $scalars);
-        if (strlen($inline) > self::MAX_STRING_LENGTH) {
-            return '[' . count($arr) . ' items]';
+        return $this->joinWithOverflow($scalars, count($arr));
+    }
+
+    /**
+     * Join scalar parts into "[a, b, c]"; if the full list overflows
+     * MAX_STRING_LENGTH, keep as many as fit and append " +N items".
+     *
+     * @param string[] $parts
+     */
+    private function joinWithOverflow(array $parts, int $total): string
+    {
+        $inline = implode(', ', $parts);
+        if (strlen($inline) <= self::MAX_STRING_LENGTH) {
+            return '[' . $inline . ']';
         }
 
-        return '[' . $inline . ']';
+        $kept = [];
+        $used = 0;
+        foreach ($parts as $part) {
+            $addition = ($kept === [] ? 0 : 2) + strlen($part); // ", " + part
+            if ($used + $addition > self::MAX_STRING_LENGTH) {
+                break;
+            }
+
+            $kept[] = $part;
+            $used += $addition;
+        }
+
+        if ($kept === []) {
+            return '[' . $total . ' items]';
+        }
+
+        $remaining = $total - count($kept);
+
+        return '[' . implode(', ', $kept) . ' +' . $remaining . ' items]';
     }
 }
