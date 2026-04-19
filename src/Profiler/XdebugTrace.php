@@ -9,12 +9,10 @@ use Override;
 
 use function file_exists;
 use function file_get_contents;
-use function filesize;
 use function function_exists;
 use function ini_get;
 use function is_string;
 use function rtrim;
-use function str_ends_with;
 use function sys_get_temp_dir;
 use function uniqid;
 use function xdebug_get_tracefile_name;
@@ -38,9 +36,13 @@ final class XdebugTrace implements JsonSerializable
             return new self(); // @codeCoverageIgnore
         }
 
-        // Always start our own trace to ensure we have control over the file format
-        // Stop any existing trace first to ensure we get a fresh start
-        @xdebug_stop_trace(); // @codeCoverageIgnore - suppress errors if not running
+        // Non-destructive: if an external trace is already running, don't touch it.
+        // Use empty() so both "not running" runtime shapes (false and '') fall
+        // through to the start path; stubs advertise string but Xdebug 3 returns
+        // bool(false) when no trace is active.
+        if (function_exists('xdebug_get_tracefile_name') && ! empty(@xdebug_get_tracefile_name())) {
+            return new self(); // @codeCoverageIgnore
+        }
 
         $instance = new self();
         $instance->traceId = uniqid('profile_', true);
@@ -70,8 +72,9 @@ final class XdebugTrace implements JsonSerializable
 
     private function canStopTrace(): bool
     {
-        // Can stop if we started the trace ourselves, OR if there's an existing trace running
-        return $this->traceId !== null || function_exists('xdebug_get_tracefile_name');
+        // Only stop traces we started ourselves (traceId set) or whose content we already hold.
+        // Instances returned as no-ops from start() have neither and must not touch external traces.
+        return $this->traceId !== null || $this->content !== null;
     }
 
     private function performStopTrace(): self
@@ -102,24 +105,6 @@ final class XdebugTrace implements JsonSerializable
     public function getFilePath(): string|null
     {
         return $this->filePath;
-    }
-
-    /** @codeCoverageIgnore */
-    public function getFileSize(): int
-    {
-        if ($this->filePath === null || ! file_exists($this->filePath)) {
-            return 0;
-        }
-
-        $size = filesize($this->filePath);
-
-        return $size !== false ? $size : 0;
-    }
-
-    /** @codeCoverageIgnore */
-    public function isCompressed(): bool
-    {
-        return $this->filePath !== null && str_ends_with($this->filePath, '.gz');
     }
 
     /**

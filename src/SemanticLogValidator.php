@@ -105,8 +105,9 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     private function validateContext(array $contextData, string $schemaDir, string $path, array &$violations): void
     {
         // Validate current context if it has required fields
-        if (isset($contextData['schemaUrl'], $contextData['context'], $contextData['type'])) {
-            $this->validateSingleContext($contextData, $schemaDir, $path, $violations);
+        $schemaUrl = $this->extractSchemaUrl($contextData);
+        if ($schemaUrl !== null && isset($contextData['context'], $contextData['type'])) {
+            $this->validateSingleContext($contextData, $schemaUrl, $schemaDir, $path, $violations);
         }
 
         // Recursively validate nested structures
@@ -117,13 +118,12 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
      * @param array<mixed, mixed> $contextData
      * @param array<string>       $violations
      */
-    private function validateSingleContext(array $contextData, string $schemaDir, string $path, array &$violations): void
+    private function validateSingleContext(array $contextData, string $schemaUrl, string $schemaDir, string $path, array &$violations): void
     {
-        $schemaUrl = $contextData['schemaUrl'];
         $type = $contextData['type'];
         $context = $contextData['context'];
 
-        if (! is_string($schemaUrl) || ! is_string($type) || ! is_array($context)) {
+        if (! is_string($type) || ! is_array($context)) {
             $violations[] = "[{$path}] Invalid context structure";
 
             return;
@@ -142,6 +142,20 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         }
 
         $this->performValidation($context, $schema, $type, $schemaUrl, $path, $violations);
+    }
+
+    /** @param array<mixed, mixed> $contextData */
+    private function extractSchemaUrl(array $contextData): string|null
+    {
+        if (isset($contextData['$schema']) && is_string($contextData['$schema'])) {
+            return $contextData['$schema'];
+        }
+
+        if (isset($contextData['schemaUrl']) && is_string($contextData['schemaUrl'])) {
+            return $contextData['schemaUrl'];
+        }
+
+        return null;
     }
 
     /** @param array<string> $violations */

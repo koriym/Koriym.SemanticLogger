@@ -7,7 +7,6 @@ namespace Koriym\SemanticLogger\Profiler;
 use PHPUnit\Framework\TestCase;
 
 use function extension_loaded;
-use function file_put_contents;
 use function function_exists;
 use function getenv;
 use function glob;
@@ -15,8 +14,11 @@ use function ini_get;
 use function str_contains;
 use function strlen;
 use function sys_get_temp_dir;
-use function tempnam;
+use function uniqid;
 use function unlink;
+use function xdebug_get_tracefile_name;
+use function xdebug_start_trace;
+use function xdebug_stop_trace;
 
 class XdebugTraceTest extends TestCase
 {
@@ -69,58 +71,6 @@ class XdebugTraceTest extends TestCase
         $trace = new XdebugTrace();
 
         $this->assertNull($trace->getFilePath());
-    }
-
-    public function testGetFileSizeWithoutFile(): void
-    {
-        $trace = new XdebugTrace();
-
-        $this->assertSame(0, $trace->getFileSize());
-    }
-
-    public function testGetFileSizeWithNonExistentFile(): void
-    {
-        $trace = new XdebugTrace(null, '/path/to/nonexistent/file.xt');
-
-        $this->assertSame(0, $trace->getFileSize());
-    }
-
-    public function testGetFileSizeWithExistingFile(): void
-    {
-        // Create a temporary file for testing
-        $tempFile = tempnam(sys_get_temp_dir(), 'xdebug_test');
-        $testContent = 'test trace data for size calculation';
-        file_put_contents($tempFile, $testContent);
-
-        try {
-            $trace = new XdebugTrace(null, $tempFile);
-            $expectedSize = strlen($testContent);
-
-            $this->assertSame($expectedSize, $trace->getFileSize());
-        } finally {
-            unlink($tempFile);
-        }
-    }
-
-    public function testIsCompressedReturnsFalseForNonGzFiles(): void
-    {
-        $trace = new XdebugTrace(null, '/tmp/test.xt');
-
-        $this->assertFalse($trace->isCompressed());
-    }
-
-    public function testIsCompressedReturnsTrueForGzFiles(): void
-    {
-        $trace = new XdebugTrace(null, '/tmp/test.xt.gz');
-
-        $this->assertTrue($trace->isCompressed());
-    }
-
-    public function testIsCompressedReturnsFalseWithoutFilePath(): void
-    {
-        $trace = new XdebugTrace();
-
-        $this->assertFalse($trace->isCompressed());
     }
 
     public function testJsonSerializeWithoutContent(): void
@@ -297,5 +247,42 @@ class XdebugTraceTest extends TestCase
 
         // Each instance should be independent
         $this->assertNotSame($stopped1, $stopped2);
+    }
+
+    /** @requires extension xdebug */
+    public function testStartDoesNotClobberActiveExternalTrace(): void
+    {
+        if (! extension_loaded('xdebug') || ! function_exists('xdebug_start_trace') || ! function_exists('xdebug_stop_trace')) {
+            $this->markTestSkipped('Xdebug trace functions are not available');
+        }
+
+        $envMode = getenv('XDEBUG_MODE');
+        $iniMode = ini_get('xdebug.mode');
+        $xdebugMode = $envMode !== false ? $envMode : ($iniMode !== false ? $iniMode : '');
+
+        if (! str_contains($xdebugMode, 'trace')) {
+            $this->markTestSkipped('Xdebug trace mode is not configured');
+        }
+
+        // Simulate an external trace session already running.
+        $externalPrefix = sys_get_temp_dir() . '/external_trace_' . uniqid('', true);
+        xdebug_start_trace($externalPrefix);
+
+        try {
+            // Our start() should detect the active trace and return a no-op instance.
+            $ours = XdebugTrace::start();
+
+            // The external trace must still be active — start() must not have stopped it.
+            $this->assertNotFalse(xdebug_get_tracefile_name(), 'external trace was silently terminated');
+
+            // Our stop() must also be a no-op: it must not stop the external trace.
+            $ours->stop();
+            $this->assertNotFalse(xdebug_get_tracefile_name(), 'stop() on a no-op instance stopped the external trace');
+        } finally {
+            @xdebug_stop_trace();
+            foreach (glob($externalPrefix . '*') ?: [] as $file) {
+                @unlink($file);
+            }
+        }
     }
 }

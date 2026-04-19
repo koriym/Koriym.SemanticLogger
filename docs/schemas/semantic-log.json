@@ -10,16 +10,16 @@
       "title": "Semantic Logger Structure"
     },
     {
-      "anchor": "#/schemaUrl",
+      "anchor": "#/$schema",
       "rel": "describedby",
       "href": "https://tools.ietf.org/html/rfc3986",
       "title": "URI Generic Syntax (RFC 3986)"
     }
   ],
   "type": "object",
-  "required": ["schemaUrl", "open", "close"],
+  "required": ["$schema", "open", "close"],
   "properties": {
-    "schemaUrl": {
+    "$schema": {
       "$ref": "#/definitions/schemaUrl"
     },
     "open": {
@@ -71,6 +71,10 @@
           "type": "object",
           "description": "Application-specific context data conforming to the referenced schema",
           "additionalProperties": true
+        },
+        "profile": {
+          "$ref": "#/definitions/operationProfile",
+          "description": "Profile data attributed to this specific operation (wall time plus per-segment Xdebug/XHProf captures). Present when DevSemanticLogger produced the log."
         },
         "close": {
           "$ref": "#/properties/close",
@@ -165,6 +169,49 @@
     "contextType": {
       "type": "string",
       "description": "Application-defined context type identifier. Applications define their own context types through individual schema files"
+    },
+    "operationProfile": {
+      "type": "object",
+      "description": "Profile data for a single operation (open/close pair).",
+      "required": ["wallTime", "xdebug", "xhprof"],
+      "properties": {
+        "wallTime": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Wall time for this operation in seconds"
+        },
+        "xdebug": {
+          "type": "array",
+          "description": "Per-segment Xdebug trace references captured while this operation was active. Empty when Xdebug trace was not available.",
+          "items": {
+            "type": "object",
+            "required": ["source"],
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "Path to the Xdebug trace file on disk for this segment (a .gz suffix indicates a gzip-compressed trace)"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "xhprof": {
+          "type": "array",
+          "description": "Per-segment XHProf snapshot references captured while this operation was active. Empty when XHProf was not available.",
+          "items": {
+            "type": "object",
+            "required": ["source"],
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "Path to the XHProf snapshot file on disk for this segment"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "schemaUrl": {
       "oneOf": [

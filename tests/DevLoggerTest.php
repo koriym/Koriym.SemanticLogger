@@ -84,7 +84,7 @@ final class DevLoggerTest extends TestCase
         $data = json_decode($content, true);
 
         $this->assertIsArray($data);
-        $this->assertArrayHasKey('schemaUrl', $data);
+        $this->assertArrayHasKey('$schema', $data);
         $this->assertArrayHasKey('open', $data);
         $this->assertArrayHasKey('close', $data);
     }

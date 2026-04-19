@@ -1,5 +1,5 @@
 {
-    "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json",
+    "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json",
     "open": {
         "id": "business_logic_1",
         "type": "business_logic",
@@ -63,7 +63,7 @@
                     "schemaUrl": "./schemas/file_processing.json",
                     "context": {
                         "operation": "pdf_generation",
-                        "filename": "invoice_ORD_689843c5d976c.pdf",
+                        "filename": "invoice_ORD_69e2d6bee9c92.pdf",
                         "mimeType": "application/pdf",
                         "fileSize": 0,
                         "processingTime": 0,
@@ -141,46 +141,6 @@
             }
         }
     },
-    "close": {
-        "id": "business_logic_4",
-        "type": "business_logic",
-        "schemaUrl": "./schemas/business_logic.json",
-        "context": {
-            "operation": "order_validation",
-            "inputData": {
-                "endpoint": "/api/orders",
-                "method": "POST",
-                "customerId": 12345
-            },
-            "outputData": {
-                "orderId": "ORD_67890",
-                "status": "confirmed",
-                "responseCode": 201
-            },
-            "validationRules": {
-                "customer_exists": true,
-                "items_available": true,
-                "payment_valid": true,
-                "shipping_valid": true
-            },
-            "success": true
-        },
-        "openId": "business_logic_1",
-        "close": {
-            "id": "authentication_request_2",
-            "type": "authentication_request",
-            "schemaUrl": "./schemas/authentication.json",
-            "context": {
-                "method": "JWT",
-                "token": "user_12345",
-                "requestMetadata": {
-                    "role": "customer",
-                    "premium": true
-                }
-            },
-            "openId": "authentication_request_1"
-        }
-    },
     "events": [
         {
             "id": "http_request_1",
@@ -191,9 +151,9 @@
                 "uri": "/api/orders",
                 "headers": {
                     "Content-Type": "application/json",
-                    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "Authorization": "Bearer <TOKEN_REDACTED>",
                     "User-Agent": "ECommerceApp/2.1.0",
-                    "X-Request-ID": "req_689843c589d9e"
+                    "X-Request-ID": "req_69e2d6be94d5e"
                 },
                 "body": {
                     "customerId": 12345,
@@ -331,9 +291,9 @@
             "type": "performance_metrics",
             "schemaUrl": "./schemas/performance_metrics.json",
             "context": {
-                "executionTime": 0.4666140079498291,
-                "memoryUsed": 44952,
-                "peakMemory": 1698440,
+                "executionTime": 0.4947969913482666,
+                "memoryUsed": 47784,
+                "peakMemory": 2074640,
                 "databaseQueries": 5,
                 "totalQueryTime": 0.093,
                 "cacheHits": 2,
@@ -367,16 +327,55 @@
                 "statusCode": 201,
                 "headers": {
                     "Content-Type": "application/json",
-                    "X-Response-Time": "466.78ms",
-                    "X-Request-ID": "req_689843c607a6b"
+                    "X-Response-Time": "495.61ms",
+                    "X-Request-ID": "req_69e2d6bf199b0"
                 },
                 "contentLength": 512,
                 "contentType": "application/json",
-                "responseTime": 0.46677589416503906,
+                "responseTime": 0.4956088066101074,
                 "cached": false
             },
             "openId": "business_logic_1"
         }
     ],
-    "links": []
+    "close": {
+        "id": "business_logic_4",
+        "type": "business_logic",
+        "schemaUrl": "./schemas/business_logic.json",
+        "context": {
+            "operation": "order_validation",
+            "inputData": {
+                "endpoint": "/api/orders",
+                "method": "POST",
+                "customerId": 12345
+            },
+            "outputData": {
+                "orderId": "ORD_67890",
+                "status": "confirmed",
+                "responseCode": 201
+            },
+            "validationRules": {
+                "customer_exists": true,
+                "items_available": true,
+                "payment_valid": true,
+                "shipping_valid": true
+            },
+            "success": true
+        },
+        "openId": "business_logic_1",
+        "close": {
+            "id": "authentication_request_2",
+            "type": "authentication_request",
+            "schemaUrl": "./schemas/authentication.json",
+            "context": {
+                "method": "JWT",
+                "token": "user_12345",
+                "requestMetadata": {
+                    "role": "customer",
+                    "premium": true
+                }
+            },
+            "openId": "authentication_request_1"
+        }
+    }
 }

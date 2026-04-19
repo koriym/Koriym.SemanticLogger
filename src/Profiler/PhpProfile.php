@@ -34,6 +34,10 @@ final class PhpProfile implements JsonSerializable
         return new self(startTime: $startTime);
     }
 
+    /**
+     * @note Invokes debug_backtrace(); intended for development/profiling use
+     *       only and should not be placed on hot paths.
+     */
     public function stop(int $backtraceLimit = 10): self
     {
         $endTime = microtime(true);

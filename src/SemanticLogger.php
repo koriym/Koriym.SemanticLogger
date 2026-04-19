@@ -227,31 +227,30 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 
     private function buildNestedClose(): EventEntry
     {
-        // Convert stack to array and reverse to get correct order
+        // SplStack pops LIFO, so popping yields [outermost, ..., innermost].
+        // array_pop on that array then takes the innermost first, and we wrap
+        // outward using each parent's own fields so intermediate close entries
+        // are preserved at every level.
         $closeEntries = [];
         $stack = clone $this->closeStack;
         while (! $stack->isEmpty()) {
             $closeEntries[] = $stack->pop();
         }
 
-        $closeEntries = array_reverse($closeEntries);
-
-        // Build nested structure from outermost to innermost
         $result = array_pop($closeEntries);
 
         assert($result !== null, 'Internal error: closeStack is empty but completedOperations exist');
 
         while (! empty($closeEntries)) {
-            $child = array_pop($closeEntries);
-            // $child cannot be null since we checked ! empty($closeEntries)
-            /** @var EventEntry $child */
+            $parent = array_pop($closeEntries);
+            /** @var EventEntry $parent */
             $result = new EventEntry(
-                $result->id,
-                $result->type,
-                $result->schemaUrl,
-                $result->context,
-                $result->openId,
-                $child,
+                $parent->id,
+                $parent->type,
+                $parent->schemaUrl,
+                $parent->context,
+                $parent->openId,
+                $result,
             );
         }
 
