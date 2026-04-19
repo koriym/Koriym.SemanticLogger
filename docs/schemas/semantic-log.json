@@ -185,20 +185,11 @@
           "description": "Per-segment Xdebug trace references captured while this operation was active. Empty when Xdebug trace was not available.",
           "items": {
             "type": "object",
-            "required": ["source", "file_size", "compressed"],
+            "required": ["source"],
             "properties": {
               "source": {
                 "type": "string",
-                "description": "Path to the Xdebug trace file on disk for this segment"
-              },
-              "file_size": {
-                "type": "integer",
-                "minimum": 0,
-                "description": "Trace file size in bytes"
-              },
-              "compressed": {
-                "type": "boolean",
-                "description": "Whether the trace file is compressed (gzip)"
+                "description": "Path to the Xdebug trace file on disk for this segment (a .gz suffix indicates a gzip-compressed trace)"
               }
             },
             "additionalProperties": false

@@ -9,12 +9,10 @@ use Override;
 
 use function file_exists;
 use function file_get_contents;
-use function filesize;
 use function function_exists;
 use function ini_get;
 use function is_string;
 use function rtrim;
-use function str_ends_with;
 use function sys_get_temp_dir;
 use function uniqid;
 use function xdebug_get_tracefile_name;
@@ -107,24 +105,6 @@ final class XdebugTrace implements JsonSerializable
     public function getFilePath(): string|null
     {
         return $this->filePath;
-    }
-
-    /** @codeCoverageIgnore */
-    public function getFileSize(): int
-    {
-        if ($this->filePath === null || ! file_exists($this->filePath)) {
-            return 0;
-        }
-
-        $size = filesize($this->filePath);
-
-        return $size !== false ? $size : 0;
-    }
-
-    /** @codeCoverageIgnore */
-    public function isCompressed(): bool
-    {
-        return $this->filePath !== null && str_ends_with($this->filePath, '.gz');
     }
 
     /**

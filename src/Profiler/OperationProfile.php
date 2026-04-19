@@ -31,7 +31,7 @@ final class OperationProfile implements JsonSerializable
         ];
     }
 
-    /** @return list<array{source: string, file_size: int, compressed: bool}> */
+    /** @return list<array{source: string}> */
     private function serializeXdebugSegments(): array
     {
         $result = [];
@@ -41,11 +41,7 @@ final class OperationProfile implements JsonSerializable
                 continue;
             }
 
-            $result[] = [
-                'source' => $filePath,
-                'file_size' => $segment->getFileSize(),
-                'compressed' => $segment->isCompressed(),
-            ];
+            $result[] = ['source' => $filePath];
         }
 
         return $result;

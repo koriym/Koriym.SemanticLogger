@@ -7,7 +7,6 @@ namespace Koriym\SemanticLogger\Profiler;
 use PHPUnit\Framework\TestCase;
 
 use function file_put_contents;
-use function strlen;
 use function sys_get_temp_dir;
 use function tempnam;
 use function unlink;
@@ -66,8 +65,7 @@ final class OperationProfileTest extends TestCase
 
             $this->assertCount(1, $serialized['xdebug']);
             $this->assertSame($tempFile, $serialized['xdebug'][0]['source']);
-            $this->assertSame(strlen($testContent), $serialized['xdebug'][0]['file_size']);
-            $this->assertFalse($serialized['xdebug'][0]['compressed']);
+            $this->assertSame(['source' => $tempFile], $serialized['xdebug'][0]);
         } finally {
             unlink($tempFile);
         }

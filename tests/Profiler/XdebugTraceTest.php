@@ -7,7 +7,6 @@ namespace Koriym\SemanticLogger\Profiler;
 use PHPUnit\Framework\TestCase;
 
 use function extension_loaded;
-use function file_put_contents;
 use function function_exists;
 use function getenv;
 use function glob;
@@ -15,7 +14,6 @@ use function ini_get;
 use function str_contains;
 use function strlen;
 use function sys_get_temp_dir;
-use function tempnam;
 use function uniqid;
 use function unlink;
 use function xdebug_get_tracefile_name;
@@ -73,58 +71,6 @@ class XdebugTraceTest extends TestCase
         $trace = new XdebugTrace();
 
         $this->assertNull($trace->getFilePath());
-    }
-
-    public function testGetFileSizeWithoutFile(): void
-    {
-        $trace = new XdebugTrace();
-
-        $this->assertSame(0, $trace->getFileSize());
-    }
-
-    public function testGetFileSizeWithNonExistentFile(): void
-    {
-        $trace = new XdebugTrace(null, '/path/to/nonexistent/file.xt');
-
-        $this->assertSame(0, $trace->getFileSize());
-    }
-
-    public function testGetFileSizeWithExistingFile(): void
-    {
-        // Create a temporary file for testing
-        $tempFile = tempnam(sys_get_temp_dir(), 'xdebug_test');
-        $testContent = 'test trace data for size calculation';
-        file_put_contents($tempFile, $testContent);
-
-        try {
-            $trace = new XdebugTrace(null, $tempFile);
-            $expectedSize = strlen($testContent);
-
-            $this->assertSame($expectedSize, $trace->getFileSize());
-        } finally {
-            unlink($tempFile);
-        }
-    }
-
-    public function testIsCompressedReturnsFalseForNonGzFiles(): void
-    {
-        $trace = new XdebugTrace(null, '/tmp/test.xt');
-
-        $this->assertFalse($trace->isCompressed());
-    }
-
-    public function testIsCompressedReturnsTrueForGzFiles(): void
-    {
-        $trace = new XdebugTrace(null, '/tmp/test.xt.gz');
-
-        $this->assertTrue($trace->isCompressed());
-    }
-
-    public function testIsCompressedReturnsFalseWithoutFilePath(): void
-    {
-        $trace = new XdebugTrace();
-
-        $this->assertFalse($trace->isCompressed());
     }
 
     public function testJsonSerializeWithoutContent(): void
