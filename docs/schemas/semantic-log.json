@@ -183,41 +183,15 @@
             {
               "type": "object",
               "properties": {
-                "data": {
-                  "type": "object",
-                  "description": "Raw XHProf profiling data with function call metrics. Captured using xhprof_enable() and xhprof_disable() functions. Provides statistical performance data (wall time, memory usage, call counts) with low overhead, enabling production-ready performance monitoring unlike more intrusive tracing methods.",
-                  "additionalProperties": {
-                    "type": "object",
-                    "properties": {
-                      "wt": {
-                        "type": "integer",
-                        "description": "Wall time in microseconds"
-                      },
-                      "mu": {
-                        "type": "integer",
-                        "description": "Memory usage in bytes"
-                      },
-                      "pmu": {
-                        "type": "integer",
-                        "description": "Peak memory usage in bytes"
-                      },
-                      "ct": {
-                        "type": "integer",
-                        "description": "Call count"
-                      }
-                    }
-                  }
-                },
-                "spec_url": {
+                "source": {
                   "type": "string",
-                  "format": "uri",
-                  "description": "URL to XHProf data format specification"
+                  "description": "Path to the XHProf trace file on disk"
                 }
               },
               "additionalProperties": false
             }
           ],
-          "description": "XHProf performance profiling data with specification URL"
+          "description": "XHProf profile summary. Empty array when no profile was captured; otherwise an object pointing at the trace file."
         },
         "xdebug": {
           "oneOf": [
@@ -229,20 +203,24 @@
             {
               "type": "object",
               "properties": {
-                "data": {
+                "source": {
                   "type": "string",
-                  "description": "Raw Xdebug trace file content in trace format 4. Captured using xdebug_start_trace() and xdebug_stop_trace() functions. Provides granular execution flow beyond PHP's standard debug_backtrace(), capturing function entry/exit with precise timestamps, memory usage, and call depth for comprehensive performance analysis and bottleneck identification."
+                  "description": "Path to the Xdebug trace file on disk"
                 },
-                "spec_url": {
-                  "type": "string",
-                  "format": "uri",
-                  "description": "URL to Xdebug trace output formats specification"
+                "file_size": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Trace file size in bytes"
+                },
+                "compressed": {
+                  "type": "boolean",
+                  "description": "Whether the trace file is compressed (gzip)"
                 }
               },
               "additionalProperties": false
             }
           ],
-          "description": "Xdebug execution trace data with specification URL. Provides detailed function-by-function execution flow that standard PHP profiling cannot capture, essential for identifying complex performance issues, recursive calls, and execution path bottlenecks."
+          "description": "Xdebug trace summary. Empty array when no trace was captured; otherwise an object referencing the trace file."
         },
         "php": {
           "type": "object",
@@ -278,9 +256,27 @@
                 "required": ["function"],
                 "additionalProperties": true
               }
+            },
+            "wall_time": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Wall time captured by PhpProfile in seconds"
+            },
+            "total_wall_time": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Total wall time including overhead in seconds"
             }
           },
           "required": ["backtrace"]
+        },
+        "operations": {
+          "type": "object",
+          "description": "Per-operation wall times keyed by open id (seconds). Emitted by DevSemanticLogger when any operation has been closed.",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
         }
       },
       "additionalProperties": false
