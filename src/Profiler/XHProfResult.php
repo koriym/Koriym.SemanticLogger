@@ -20,6 +20,7 @@ use function xhprof_enable;
 use const JSON_PRETTY_PRINT;
 use const XHPROF_FLAGS_CPU;
 use const XHPROF_FLAGS_MEMORY;
+use const XHPROF_FLAGS_NO_BUILTINS;
 
 final class XHProfResult implements JsonSerializable
 {
@@ -36,8 +37,11 @@ final class XHProfResult implements JsonSerializable
             return new self(); // @codeCoverageIgnore
         }
 
+        // NO_BUILTINS drops PHP internal functions (count, array_*, strlen, ...)
+        // which otherwise dominate the call graph and drown out application
+        // hotspots when this output is fed to AI for analysis.
         /** @psalm-suppress UndefinedConstant, MixedArgument */
-        xhprof_enable(XHPROF_FLAGS_CPU | XHPROF_FLAGS_MEMORY); // development: include built-ins for complete analysis
+        xhprof_enable(XHPROF_FLAGS_CPU | XHPROF_FLAGS_MEMORY | XHPROF_FLAGS_NO_BUILTINS);
 
         return new self();
     }
