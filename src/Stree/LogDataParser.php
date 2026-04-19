@@ -120,6 +120,7 @@ final class LogDataParser
             $executionTime = $this->extractExecutionTime($eventContext);
 
             $eventNode = new TreeNode($eventId, $eventType, $eventContext, $executionTime);
+            $eventNode->isEvent = true;
 
             // Find the parent node by openId
             $parentNode = $this->findNodeById($rootNode, $openId);
