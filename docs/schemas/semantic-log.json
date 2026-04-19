@@ -171,59 +171,8 @@
     },
     "profile": {
       "type": "object",
-      "description": "Optional profiler data included with the semantic log",
+      "description": "Optional profiler data included with the semantic log. Trace/XHProf data is attributed per-operation via the operations map; nested opens split a parent operation into multiple segments so each being carries only its own execution.",
       "properties": {
-        "xhprof": {
-          "oneOf": [
-            {
-              "type": "array",
-              "maxItems": 0,
-              "description": "Empty array when XHProf is not available"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "source": {
-                  "type": "string",
-                  "description": "Path to the XHProf trace file on disk"
-                }
-              },
-              "required": ["source"],
-              "additionalProperties": false
-            }
-          ],
-          "description": "XHProf profile summary. Empty array when no profile was captured; otherwise an object pointing at the trace file."
-        },
-        "xdebug": {
-          "oneOf": [
-            {
-              "type": "array",
-              "maxItems": 0,
-              "description": "Empty array when Xdebug trace is not available"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "source": {
-                  "type": "string",
-                  "description": "Path to the Xdebug trace file on disk"
-                },
-                "file_size": {
-                  "type": "integer",
-                  "minimum": 0,
-                  "description": "Trace file size in bytes"
-                },
-                "compressed": {
-                  "type": "boolean",
-                  "description": "Whether the trace file is compressed (gzip)"
-                }
-              },
-              "required": ["source", "file_size", "compressed"],
-              "additionalProperties": false
-            }
-          ],
-          "description": "Xdebug trace summary. Empty array when no trace was captured; otherwise an object referencing the trace file."
-        },
         "php": {
           "type": "object",
           "properties": {
@@ -275,13 +224,64 @@
         },
         "operations": {
           "type": "object",
-          "description": "Per-operation wall times keyed by open id (seconds). Emitted by DevSemanticLogger when any operation has been closed.",
+          "description": "Per-operation profile data keyed by open id. Each value carries wall time plus per-segment Xdebug traces and XHProf snapshots. A being that spans nested child opens produces multiple trace/xhprof segments; a being without nested children produces one of each.",
           "propertyNames": {
             "$ref": "#/definitions/openIdReference"
           },
           "additionalProperties": {
-            "type": "number",
-            "minimum": 0
+            "$ref": "#/definitions/operationProfile"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "operationProfile": {
+      "type": "object",
+      "description": "Profile data for a single operation (open/close pair).",
+      "required": ["wallTime", "xdebug", "xhprof"],
+      "properties": {
+        "wallTime": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Wall time for this operation in seconds"
+        },
+        "xdebug": {
+          "type": "array",
+          "description": "Per-segment Xdebug trace references captured while this operation was active. Empty when Xdebug trace was not available.",
+          "items": {
+            "type": "object",
+            "required": ["source", "file_size", "compressed"],
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "Path to the Xdebug trace file on disk for this segment"
+              },
+              "file_size": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Trace file size in bytes"
+              },
+              "compressed": {
+                "type": "boolean",
+                "description": "Whether the trace file is compressed (gzip)"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "xhprof": {
+          "type": "array",
+          "description": "Per-segment XHProf snapshot references captured while this operation was active. Empty when XHProf was not available.",
+          "items": {
+            "type": "object",
+            "required": ["source"],
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "Path to the XHProf snapshot file on disk for this segment"
+              }
+            },
+            "additionalProperties": false
           }
         }
       },

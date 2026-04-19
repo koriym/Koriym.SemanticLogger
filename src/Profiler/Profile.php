@@ -7,17 +7,20 @@ namespace Koriym\SemanticLogger\Profiler;
 use JsonSerializable;
 use Override;
 
+use function array_map;
+
 final class Profile implements JsonSerializable
 {
     /**
-     * @param array<string, float> $operationWallTimes operation ID => wall time in seconds.
-     *                                                 Serialized under the JSON key "operations".
+     * @param array<string, OperationProfile> $operations Per-operation profile segments keyed by open id.
+     *                                                    Each OperationProfile captures the wall time and
+     *                                                    one-or-more trace/xhprof segments attributable to
+     *                                                    that specific operation. Nested opens split a
+     *                                                    parent operation into multiple segments.
      */
     public function __construct(
-        public XHProfResult|null $xhprof = null,
-        public XdebugTrace|null $xdebug = null,
-        public PhpProfile|null $php = null,
-        public array $operationWallTimes = [],
+        public readonly PhpProfile|null $php = null,
+        public readonly array $operations = [],
     ) {
     }
 
@@ -26,47 +29,17 @@ final class Profile implements JsonSerializable
     public function jsonSerialize(): array
     {
         $result = [
-            'xhprof' => $this->getXhprofSummary(),
-            'xdebug' => $this->getXdebugSummary(),
             'php' => $this->getPhpSummary(),
         ];
 
-        if (! empty($this->operationWallTimes)) {
-            $result['operations'] = $this->operationWallTimes;
+        if (! empty($this->operations)) {
+            $result['operations'] = array_map(
+                static fn (OperationProfile $op): array => $op->jsonSerialize(),
+                $this->operations,
+            );
         }
 
         return $result;
-    }
-
-    /** @return array<string, mixed> */
-    private function getXhprofSummary(): array
-    {
-        if ($this->xhprof === null) {
-            return [];
-        }
-
-        return [
-            'source' => $this->xhprof->filePath,
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private function getXdebugSummary(): array
-    {
-        if ($this->xdebug === null) {
-            return [];
-        }
-
-        $filePath = $this->xdebug->getFilePath();
-        if ($filePath === null) {
-            return [];
-        }
-
-        return [
-            'source' => $filePath,
-            'file_size' => $this->xdebug->getFileSize(),
-            'compressed' => $this->xdebug->isCompressed(),
-        ];
     }
 
     /** @return array<string, mixed> */

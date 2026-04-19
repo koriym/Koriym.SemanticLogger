@@ -37,10 +37,10 @@ final class DevSemanticLoggerTest extends TestCase
         $logJson = $this->logger->flush();
 
         $this->assertNotNull($logJson->profile);
-        $this->assertArrayHasKey($id1, $logJson->profile->operationWallTimes);
-        $this->assertArrayHasKey($id2, $logJson->profile->operationWallTimes);
-        $this->assertGreaterThanOrEqual(0.0, $logJson->profile->operationWallTimes[$id1]);
-        $this->assertGreaterThanOrEqual(0.0, $logJson->profile->operationWallTimes[$id2]);
+        $this->assertArrayHasKey($id1, $logJson->profile->operations);
+        $this->assertArrayHasKey($id2, $logJson->profile->operations);
+        $this->assertGreaterThanOrEqual(0.0, $logJson->profile->operations[$id1]->wallTime);
+        $this->assertGreaterThanOrEqual(0.0, $logJson->profile->operations[$id2]->wallTime);
     }
 
     public function testProfileAppearsInJsonOutput(): void
@@ -55,6 +55,40 @@ final class DevSemanticLoggerTest extends TestCase
         $profile = $array['profile'];
         $this->assertIsArray($profile);
         $this->assertArrayHasKey('operations', $profile);
+        $operations = $profile['operations'];
+        $this->assertIsArray($operations);
+        $this->assertArrayHasKey($openId, $operations);
+        $opEntry = $operations[$openId];
+        $this->assertIsArray($opEntry);
+        $this->assertArrayHasKey('wallTime', $opEntry);
+        $this->assertArrayHasKey('xdebug', $opEntry);
+        $this->assertArrayHasKey('xhprof', $opEntry);
+    }
+
+    public function testNestedOpensProduceSegmentedProfiles(): void
+    {
+        $outer = $this->logger->open(new FakeContext('outer'));
+        $inner = $this->logger->open(new FakeContext('inner'));
+        $this->logger->close(new FakeContext('inner-end'), $inner);
+        $this->logger->close(new FakeContext('outer-end'), $outer);
+
+        $logJson = $this->logger->flush();
+
+        $this->assertNotNull($logJson->profile);
+
+        // Outer being is split by the nested inner open into two segments
+        // (one before inner started, one after inner closed). Inner being has
+        // exactly one contiguous segment. The segment array shape is invariant
+        // whether or not Xdebug/XHProf extensions are actually loaded — no-op
+        // instances still occupy a slot in the list.
+        $outerProfile = $logJson->profile->operations[$outer];
+        $innerProfile = $logJson->profile->operations[$inner];
+
+        $this->assertCount(2, $outerProfile->xdebug, 'outer being must split into 2 xdebug segments around the nested inner open');
+        $this->assertCount(1, $innerProfile->xdebug, 'inner being has a single xdebug segment');
+
+        $this->assertCount(2, $outerProfile->xhprof, 'outer being must split into 2 xhprof segments around the nested inner open');
+        $this->assertCount(1, $innerProfile->xhprof, 'inner being has a single xhprof segment');
     }
 
     public function testEventIsDelegated(): void
@@ -81,8 +115,8 @@ final class DevSemanticLoggerTest extends TestCase
         // Each flush produces exactly one operation entry
         $this->assertNotNull($first->profile);
         $this->assertNotNull($second->profile);
-        $this->assertCount(1, $first->profile->operationWallTimes);
-        $this->assertCount(1, $second->profile->operationWallTimes);
+        $this->assertCount(1, $first->profile->operations);
+        $this->assertCount(1, $second->profile->operations);
     }
 
     public function testDevStateIsResetEvenWhenInnerFlushThrows(): void
@@ -120,9 +154,13 @@ final class DevSemanticLoggerTest extends TestCase
 
         // Dev-side state must have been reset by the finally block.
         $reflection = new ReflectionClass($logger);
-        $this->assertSame([], $reflection->getProperty('started')->getValue($logger));
+        $this->assertSame([], $reflection->getProperty('startedPhp')->getValue($logger));
         $this->assertSame([], $reflection->getProperty('wallTimes')->getValue($logger));
-        $this->assertNull($reflection->getProperty('xdebug')->getValue($logger));
+        $this->assertSame([], $reflection->getProperty('xdebugSegments')->getValue($logger));
+        $this->assertSame([], $reflection->getProperty('xhprofSegments')->getValue($logger));
+        $this->assertSame([], $reflection->getProperty('openStack')->getValue($logger));
+        $this->assertNull($reflection->getProperty('activeXdebug')->getValue($logger));
+        $this->assertNull($reflection->getProperty('activeXhprof')->getValue($logger));
         $this->assertSame(0, $reflection->getProperty('depth')->getValue($logger));
     }
 }

@@ -4,19 +4,35 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
+use Koriym\SemanticLogger\Profiler\OperationProfile;
 use Koriym\SemanticLogger\Profiler\PhpProfile;
 use Koriym\SemanticLogger\Profiler\Profile;
 use Koriym\SemanticLogger\Profiler\XdebugTrace;
+use Koriym\SemanticLogger\Profiler\XHProfResult;
 use Override;
+
+use function array_pop;
+use function end;
+use function uniqid;
 
 final class DevSemanticLogger implements SemanticLoggerInterface
 {
     /** @var array<string, PhpProfile> */
-    private array $started = [];
+    private array $startedPhp = [];
 
     /** @var array<string, float> */
     private array $wallTimes = [];
-    private XdebugTrace|null $xdebug = null;
+
+    /** @var array<string, list<XdebugTrace>> */
+    private array $xdebugSegments = [];
+
+    /** @var array<string, list<XHProfResult>> */
+    private array $xhprofSegments = [];
+
+    /** @var list<string> */
+    private array $openStack = [];
+    private XdebugTrace|null $activeXdebug = null;
+    private XHProfResult|null $activeXhprof = null;
     private int $depth = 0;
 
     public function __construct(
@@ -28,12 +44,19 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     public function open(AbstractContext $context): string
     {
         $id = $this->inner->open($context);
-        $this->started[$id] = PhpProfile::start();
 
-        if ($this->depth === 0) {
-            $this->xdebug = XdebugTrace::start();
+        // Before entering a child operation, stop the parent's current segment
+        // and attribute it to the parent. This gives each being its own
+        // per-segment trace/xhprof instead of one global trace for the whole run.
+        if ($this->depth > 0) {
+            $this->stopAndAttachToCurrent();
         }
 
+        $this->openStack[] = $id;
+        $this->startedPhp[$id] = PhpProfile::start();
+        $this->xdebugSegments[$id] = [];
+        $this->xhprofSegments[$id] = [];
+        $this->startNewSegment();
         $this->depth++;
 
         return $id;
@@ -44,16 +67,21 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     {
         $this->inner->close($context, $openId);
 
-        if (! isset($this->started[$openId])) {
+        if (! isset($this->startedPhp[$openId])) {
             return;
         }
 
-        $this->depth--;
-        $this->wallTimes[$openId] = $this->started[$openId]->stop()->wallTime;
-        unset($this->started[$openId]);
+        // Close out this being's final segment before popping it off the stack.
+        $this->stopAndAttachTo($openId);
 
-        if ($this->depth === 0 && $this->xdebug !== null) {
-            $this->xdebug = $this->xdebug->stop();
+        $this->wallTimes[$openId] = $this->startedPhp[$openId]->stop()->wallTime;
+        unset($this->startedPhp[$openId]);
+        array_pop($this->openStack);
+        $this->depth--;
+
+        // Returning to a parent operation: resume profiling under the parent.
+        if ($this->depth > 0) {
+            $this->startNewSegment();
         }
     }
 
@@ -69,7 +97,17 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     {
         try {
             $logJson = $this->inner->flush($links);
-            $profile = new Profile(xdebug: $this->xdebug, operationWallTimes: $this->wallTimes);
+
+            $operations = [];
+            foreach ($this->wallTimes as $id => $wallTime) {
+                $operations[$id] = new OperationProfile(
+                    wallTime: $wallTime,
+                    xdebug: $this->xdebugSegments[$id] ?? [],
+                    xhprof: $this->xhprofSegments[$id] ?? [],
+                );
+            }
+
+            $profile = new Profile(operations: $operations);
 
             return new LogJson(
                 $logJson->schemaUrl,
@@ -80,16 +118,56 @@ final class DevSemanticLogger implements SemanticLoggerInterface
                 $profile,
             );
         } finally {
-            // Stop any still-active outer xdebug trace (e.g. unclosed operations).
-            // XdebugTrace::stop() is a no-op on externally-owned traces.
-            if ($this->xdebug !== null && $this->depth > 0) {
-                $this->xdebug->stop();
+            // Best-effort cleanup: stop anything still running so it does not
+            // leak into the next request. Xdebug/XHProf can be start/stop'd
+            // repeatedly, but leaving either active would break the next run.
+            if ($this->activeXdebug !== null) {
+                $this->activeXdebug->stop();
             }
 
-            $this->started = [];
+            if ($this->activeXhprof !== null) {
+                $this->activeXhprof->stop(uniqid('dev_flush_', true));
+            }
+
+            $this->startedPhp = [];
             $this->wallTimes = [];
-            $this->xdebug = null;
+            $this->xdebugSegments = [];
+            $this->xhprofSegments = [];
+            $this->openStack = [];
+            $this->activeXdebug = null;
+            $this->activeXhprof = null;
             $this->depth = 0;
+        }
+    }
+
+    private function startNewSegment(): void
+    {
+        $this->activeXdebug = XdebugTrace::start();
+        $this->activeXhprof = XHProfResult::start();
+    }
+
+    private function stopAndAttachToCurrent(): void
+    {
+        $currentId = end($this->openStack);
+        if ($currentId === false) {
+            return;
+        }
+
+        $this->stopAndAttachTo($currentId);
+    }
+
+    private function stopAndAttachTo(string $openId): void
+    {
+        if ($this->activeXdebug !== null) {
+            $this->xdebugSegments[$openId][] = $this->activeXdebug->stop();
+            $this->activeXdebug = null;
+        }
+
+        if ($this->activeXhprof !== null) {
+            // XHProfResult::stop hashes this string into the output filename;
+            // segments within the same second would otherwise collide.
+            $this->xhprofSegments[$openId][] = $this->activeXhprof->stop(uniqid($openId . '_', true));
+            $this->activeXhprof = null;
         }
     }
 }
