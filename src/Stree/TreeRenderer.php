@@ -192,19 +192,22 @@ final class TreeRenderer
             $this->propagateStatus($child);
         }
 
-        // Set own status
         if ($node->closeType === null && ! $node->isEvent) {
-            // Open node with no matching close
             $node->status = 'unclosed';
-        } elseif ($node->closeType !== null && $extractor->hasFailureIndicator($node->closeContext)) {
+
+            return;
+        }
+
+        if ($node->closeType !== null && $extractor->hasFailureIndicator($node->closeContext)) {
             $node->status = 'Failed';
-        } else {
-            // Check if any child has failure
-            foreach ($node->children as $child) {
-                if ($child->status === 'Failed') {
-                    $node->status = 'Failed';
-                    break;
-                }
+
+            return;
+        }
+
+        foreach ($node->children as $child) {
+            if ($child->status === 'Failed') {
+                $node->status = 'Failed';
+                break;
             }
         }
     }

@@ -161,36 +161,35 @@ final class StreeCommand
 
     private function parseThreshold(string $value): float
     {
-        // Parse threshold value like "10ms", "0.5s"
-        $threshold = 0.0;
-
-        if (str_ends_with($value, 'ms')) {
-            $numericValue = substr($value, 0, -2);
-            if (! is_numeric($numericValue)) {
-                throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
-            }
-
-            $threshold = (float) $numericValue / 1000.0;
-        } elseif (str_ends_with($value, 's')) {
-            $numericValue = substr($value, 0, -1);
-            if (! is_numeric($numericValue)) {
-                throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
-            }
-
-            $threshold = (float) $numericValue;
-        } else {
-            if (! is_numeric($value)) {
-                throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $value));
-            }
-
-            $threshold = (float) $value;
-        }
+        $threshold = $this->parseThresholdValue($value);
 
         if ($threshold < 0) {
             throw new RuntimeException('--threshold must be 0 or greater');
         }
 
         return $threshold;
+    }
+
+    private function parseThresholdValue(string $value): float
+    {
+        if (str_ends_with($value, 'ms')) {
+            return $this->parseNumericPortion(substr($value, 0, -2), $value) / 1000.0;
+        }
+
+        if (str_ends_with($value, 's')) {
+            return $this->parseNumericPortion(substr($value, 0, -1), $value);
+        }
+
+        return $this->parseNumericPortion($value, $value);
+    }
+
+    private function parseNumericPortion(string $numericValue, string $original): float
+    {
+        if (! is_numeric($numericValue)) {
+            throw new RuntimeException(sprintf('Invalid threshold format: %s (expected: 10ms, 0.5s)', $original));
+        }
+
+        return (float) $numericValue;
     }
 
     /** @return array<string, mixed> */

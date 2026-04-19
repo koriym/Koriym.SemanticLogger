@@ -116,16 +116,9 @@ final class SignalExtractor
                 continue;
             }
 
-            if (! isset($openContext[$key])) {
-                // New in close
-                $diffs[] = '→ ' . $key . '=' . $formatted;
-            } else {
-                // Changed from open
-                $openFormatted = $this->formatValue($openContext[$key]);
-                $openFormatted ??= '';
-                if ($openFormatted !== $formatted) {
-                    $diffs[] = '→ ' . $key . '=' . $openFormatted . '→' . $formatted;
-                }
+            $diff = $this->diffForCloseKey($key, $formatted, $openContext);
+            if ($diff !== null) {
+                $diffs[] = $diff;
             }
 
             if (count($diffs) >= 2) {
@@ -138,6 +131,21 @@ final class SignalExtractor
         }
 
         return implode(' ', $diffs);
+    }
+
+    /** @param array<string, mixed> $openContext */
+    private function diffForCloseKey(string $key, string $formatted, array $openContext): string|null
+    {
+        if (! isset($openContext[$key])) {
+            return '→ ' . $key . '=' . $formatted;
+        }
+
+        $openFormatted = $this->formatValue($openContext[$key]) ?? '';
+        if ($openFormatted === $formatted) {
+            return null;
+        }
+
+        return '→ ' . $key . '=' . $openFormatted . '→' . $formatted;
     }
 
     /**

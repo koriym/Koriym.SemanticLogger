@@ -12,6 +12,8 @@ final class RenderConfig
      * @param int                    $maxLines      Maximum lines for multi-line data (default: 5, 0 = no limit)
      * @param bool                   $showValues    Opt-in flag for formatters that may render values (default: false)
      * @param FormatterRegistry|null $formatters    Optional registry of per-type formatters (overrides SignalExtractor)
+     *
+     * @SuppressWarnings("PHPMD.BooleanArgumentFlag")
      */
     public function __construct(
         public readonly bool $showFullTree,
