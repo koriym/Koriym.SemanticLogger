@@ -542,4 +542,39 @@ final class SemanticLoggerTest extends TestCase
         // Try to flush without any operations
         $this->logger->flush();
     }
+
+    public function testDeeplyNestedCloseKeepsEveryLevel(): void
+    {
+        // Regression test for buildNestedClose dropping intermediate close
+        // entries when three or more operations were stacked: the previous
+        // implementation reused $result's fields on every loop iteration, so
+        // levels between the outermost and innermost close were overwritten.
+        $ids = [];
+        for ($depth = 1; $depth <= 4; $depth++) {
+            $ids[] = $this->logger->open(new FakeContext("open {$depth}", $depth));
+        }
+
+        // Close LIFO so each level records its own context message.
+        for ($depth = 4; $depth >= 1; $depth--) {
+            $this->logger->close(new FakeContext("close {$depth}", $depth), $ids[$depth - 1]);
+        }
+
+        $logJson = $this->logger->flush();
+
+        $close = $logJson->close;
+        $this->assertSame('close 1', $close->context['message']);
+
+        $level2 = $close->close;
+        $this->assertNotNull($level2);
+        $this->assertSame('close 2', $level2->context['message']);
+
+        $level3 = $level2->close;
+        $this->assertNotNull($level3);
+        $this->assertSame('close 3', $level3->context['message']);
+
+        $level4 = $level3->close;
+        $this->assertNotNull($level4);
+        $this->assertSame('close 4', $level4->context['message']);
+        $this->assertNull($level4->close);
+    }
 }

@@ -518,4 +518,100 @@ final class LogDataParserTest extends TestCase
         $this->assertSame('test_operation', $tree->type);
         $this->assertEmpty($tree->children); // No events should be attached
     }
+
+    public function testCloseContextIsAttachedToMatchingOpen(): void
+    {
+        $logData = [
+            'open' => [
+                'id' => 'operation_1',
+                'type' => 'process_open',
+                'schemaUrl' => 'test.json',
+                'context' => [],
+            ],
+            'close' => [
+                'id' => 'close_1',
+                'type' => 'process_close',
+                'schemaUrl' => 'test.json',
+                'context' => ['result' => 'ok'],
+                'openId' => 'operation_1',
+            ],
+            'events' => [],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertSame('process_close', $tree->closeType);
+        $this->assertSame(['result' => 'ok'], $tree->closeContext);
+    }
+
+    public function testNestedCloseIsMatchedToNestedOpen(): void
+    {
+        $logData = [
+            'open' => [
+                'id' => 'outer_1',
+                'type' => 'outer_open',
+                'schemaUrl' => 'test.json',
+                'context' => [],
+                'open' => [
+                    'id' => 'inner_1',
+                    'type' => 'inner_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                'id' => 'close_outer',
+                'type' => 'outer_close',
+                'schemaUrl' => 'test.json',
+                'context' => ['outer' => true],
+                'openId' => 'outer_1',
+                'close' => [
+                    'id' => 'close_inner',
+                    'type' => 'inner_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['inner' => true],
+                    'openId' => 'inner_1',
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertSame('outer_close', $tree->closeType);
+        $this->assertSame(['outer' => true], $tree->closeContext);
+
+        $this->assertCount(1, $tree->children);
+        $inner = $tree->children[0];
+        $this->assertSame('inner_close', $inner->closeType);
+        $this->assertSame(['inner' => true], $inner->closeContext);
+    }
+
+    public function testCloseWithUnknownOpenIdIsIgnored(): void
+    {
+        $logData = [
+            'open' => [
+                'id' => 'operation_1',
+                'type' => 'process_open',
+                'schemaUrl' => 'test.json',
+                'context' => [],
+            ],
+            'close' => [
+                'id' => 'close_1',
+                'type' => 'process_close',
+                'schemaUrl' => 'test.json',
+                'context' => ['result' => 'ok'],
+                'openId' => 'does_not_exist',
+            ],
+            'events' => [],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertNull($tree->closeType);
+        $this->assertSame([], $tree->closeContext);
+    }
 }

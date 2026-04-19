@@ -26,6 +26,13 @@ final class LogDataParser
         // Parse the hierarchical open structure
         $rootNode = $this->parseOpenEntry($openData);
 
+        // Merge close entries into their matching open nodes by openId.
+        if (array_key_exists('close', $logData) && is_array($logData['close'])) {
+            /** @var array<string, mixed> $closeData */
+            $closeData = $logData['close'];
+            $this->attachCloses($rootNode, $closeData);
+        }
+
         // Add events as leaf nodes
         if (array_key_exists('events', $logData) && is_array($logData['events'])) {
             /** @var array<string, mixed>[] $events */
@@ -34,6 +41,34 @@ final class LogDataParser
         }
 
         return $rootNode;
+    }
+
+    /** @param array<string, mixed> $closeEntry */
+    private function attachCloses(TreeNode $rootNode, array $closeEntry): void
+    {
+        /** @var mixed $rawOpenId */
+        $rawOpenId = $closeEntry['openId'] ?? null;
+        $openId = is_scalar($rawOpenId) ? (string) $rawOpenId : null;
+        $type = self::stringifyScalar($closeEntry['type'] ?? null, 'unknown');
+        /** @var mixed $context */
+        $context = $closeEntry['context'] ?? [];
+        if (! is_array($context)) {
+            $context = [];
+        }
+
+        $node = $openId !== null ? $this->findNodeById($rootNode, $openId) : null;
+        if ($node !== null) {
+            /** @var array<string, mixed> $closeCtx */
+            $closeCtx = $context;
+            $node->setClose($type, $closeCtx);
+        }
+
+        /** @var mixed $next */
+        $next = $closeEntry['close'] ?? null;
+        if (is_array($next)) {
+            /** @var array<string, mixed> $next */
+            $this->attachCloses($rootNode, $next);
+        }
     }
 
     /** @param array<string, mixed> $openEntry */
@@ -99,7 +134,6 @@ final class LogDataParser
         }
     }
 
-    /** @codeCoverageIgnore */
     private function findNodeById(TreeNode $node, string|null $id): TreeNode|null
     {
         if ($id === null) {
