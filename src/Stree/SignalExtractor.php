@@ -138,7 +138,7 @@ final class SignalExtractor
     private function diffForCloseKey(string $key, string $formatted, array $openContext): string|null
     {
         if (! isset($openContext[$key])) {
-            return '→ ' . $key . '=' . $formatted;
+            return $key . '=' . $formatted;
         }
 
         $openFormatted = $this->formatValue($openContext[$key]) ?? '';
@@ -146,7 +146,7 @@ final class SignalExtractor
             return null;
         }
 
-        return '→ ' . $key . '=' . $openFormatted . '→' . $formatted;
+        return $key . '=' . $openFormatted . '→' . $formatted;
     }
 
     /**

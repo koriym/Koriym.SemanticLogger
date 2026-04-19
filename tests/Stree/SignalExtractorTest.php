@@ -6,11 +6,8 @@ namespace Koriym\SemanticLogger\Stree;
 
 use PHPUnit\Framework\TestCase;
 
-use function array_filter;
 use function array_map;
-use function count;
 use function explode;
-use function str_starts_with;
 use function strlen;
 
 final class SignalExtractorTest extends TestCase
@@ -167,7 +164,7 @@ final class SignalExtractorTest extends TestCase
 
         $result = $this->extractor->extractCloseDiff($open, $close);
 
-        $this->assertStringContainsString('→ success=true', $result);
+        $this->assertSame('success=true', $result);
     }
 
     public function testExtractCloseDiffChangedKey(): void
@@ -177,7 +174,7 @@ final class SignalExtractorTest extends TestCase
 
         $result = $this->extractor->extractCloseDiff($open, $close);
 
-        $this->assertStringContainsString('→ status=pending→done', $result);
+        $this->assertSame('status=pending→done', $result);
     }
 
     public function testExtractCloseDiffIdentical(): void
@@ -197,10 +194,9 @@ final class SignalExtractorTest extends TestCase
 
         $result = $this->extractor->extractCloseDiff($open, $close);
 
+        // Two space-joined key=value pairs: "a=x b=y"
         $parts = explode(' ', $result);
-        // Should have at most 2 diff entries (each "→ key=value")
-        $arrows = array_filter($parts, static fn ($p) => str_starts_with($p, '→'));
-        $this->assertLessThanOrEqual(2, count($arrows));
+        $this->assertCount(2, $parts);
     }
 
     public function testHasFailureIndicatorSuccessFalse(): void

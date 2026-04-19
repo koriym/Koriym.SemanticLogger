@@ -64,7 +64,9 @@ final class TreeNode
         $displayType = $this->stripOpenSuffix($this->type);
         $timeDisplay = $this->formatExecutionTime();
 
-        // Build compact 1-line: <type> <signals>[ → <close-diff>][ [timing]][ : <status>][ [event]]
+        // Build open-side line: <type> <signals>[ [timing]][ : <status>][ [event]].
+        // Close-side signals are emitted separately by getCloseLine() so the
+        // renderer can place them on a "⎿" continuation under the children.
         $parts = [$displayType];
 
         $signals = $extractor->extractSignals($this->context);
@@ -72,31 +74,35 @@ final class TreeNode
             $parts[] = $signals;
         }
 
-        if ($this->closeType !== null) {
-            $closeDiff = $extractor->extractCloseDiff($this->context, $this->closeContext);
-            if ($closeDiff !== '') {
-                $parts[] = $closeDiff;
-            }
-        }
-
         $line = implode(' ', $parts);
 
-        // Timing
         if ($this->executionTime > 0.0) {
             $line .= ' [' . $timeDisplay . ']';
         }
 
-        // Status
         if ($this->status !== '') {
             $line .= ' : ' . $this->status;
         }
 
-        // Event marker
         if ($this->isEvent) {
             $line .= ' [event]';
         }
 
         return $line;
+    }
+
+    /**
+     * Return close-diff signals as a space-joined string, or empty when the
+     * node has no close or no signals differ from open. The renderer decorates
+     * this with a "⎿" prefix and places it directly beneath the children.
+     */
+    public function getCloseSignals(): string
+    {
+        if ($this->closeType === null) {
+            return '';
+        }
+
+        return (new SignalExtractor())->extractCloseDiff($this->context, $this->closeContext);
     }
 
     private function stripOpenSuffix(string $type): string

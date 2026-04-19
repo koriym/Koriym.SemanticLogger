@@ -218,24 +218,28 @@ final class TreeNodeTest extends TestCase
         $this->assertStringNotContainsString('_open', $line);
     }
 
-    public function testCloseDiffNewKey(): void
+    public function testCloseDiffNewKeyLivesOnCloseSignals(): void
     {
         $node = new TreeNode('n1', 'business_logic', ['operation' => 'checkout']);
         $node->setClose('business_logic_close', ['operation' => 'checkout', 'success' => true]);
 
-        $line = $node->getDisplayLine();
+        // Open line no longer carries close-diff.
+        $this->assertStringNotContainsString('success=true', $node->getDisplayLine());
 
-        $this->assertStringContainsString('→ success=true', $line);
+        // Close signals carry it (without leading "→").
+        $this->assertSame('success=true', $node->getCloseSignals());
     }
 
-    public function testCloseDiffChangedKey(): void
+    public function testCloseDiffChangedKeyKeepsInlineArrow(): void
     {
         $node = new TreeNode('n1', 'some_type', ['status' => 'pending']);
         $node->setClose('some_type_close', ['status' => 'done']);
 
-        $line = $node->getDisplayLine();
-
-        $this->assertStringContainsString('→ status=pending→done', $line);
+        // Open line shows the open-side signal only; the change arrow is not on it.
+        $this->assertStringContainsString('status=pending', $node->getDisplayLine());
+        $this->assertStringNotContainsString('→done', $node->getDisplayLine());
+        // Close signals carry the full before→after.
+        $this->assertSame('status=pending→done', $node->getCloseSignals());
     }
 
     public function testCloseDiffOmittedWhenIdentical(): void
@@ -243,9 +247,7 @@ final class TreeNodeTest extends TestCase
         $node = new TreeNode('n1', 'some_type', ['operation' => 'validate']);
         $node->setClose('some_type_close', ['operation' => 'validate']);
 
-        $line = $node->getDisplayLine();
-
-        $this->assertStringNotContainsString('→', $line);
+        $this->assertSame('', $node->getCloseSignals());
     }
 
     public function testStatusFailedWhenSuccessFalse(): void

@@ -17,6 +17,7 @@ final class TreeRenderer
     private const TREE_LAST = '└';
     private const TREE_HORIZONTAL = '─';
     private const TREE_SPACE = ' ';
+    private const CLOSE_MARK = '⎿';
 
     /** @param array<string, mixed> $logData */
     public function render(array $logData, RenderConfig $config): string
@@ -31,9 +32,10 @@ final class TreeRenderer
     }
 
     /**
-     * Render the root node flush-left (no synthetic "session" header) and its children.
-     * Multi-line display (formatter-emitted open + continuation) is split so the
-     * continuation line sits directly under the open line without indentation.
+     * Render the root node flush-left (no synthetic "session" header) followed by
+     * events/nested-opens as children, and finally the root's close signals on a
+     * "⎿" continuation line. Multi-line display (formatter-emitted open + its own
+     * continuation) is split so both lines sit flush-left.
      */
     private function renderRoot(TreeNode $root, RenderConfig $config): string
     {
@@ -54,11 +56,18 @@ final class TreeRenderer
             $this->renderFullModeLeaves($root, $lines, '');
         }
 
+        $closeSignals = $root->getCloseSignals();
+        $hasCloseLine = $closeSignals !== '';
+
         $totalChildren = count($root->children);
         for ($i = 0; $i < $totalChildren; $i++) {
             $child = $root->children[$i];
-            $isLastChild = ($i === $totalChildren - 1) && ! $config->showFullTree;
+            $isLastChild = ($i === $totalChildren - 1) && ! $config->showFullTree && ! $hasCloseLine;
             $this->renderNode($child, $lines, '', $isLastChild, $config);
+        }
+
+        if ($hasCloseLine) {
+            $lines[] = self::CLOSE_MARK . ' ' . $closeSignals;
         }
 
         return implode("\n", $lines);
@@ -72,7 +81,6 @@ final class TreeRenderer
         bool $isLast,
         RenderConfig $config,
     ): void {
-        // Check time threshold
         if ($config->timeThreshold > 0 && $node->executionTime < $config->timeThreshold) {
             return;
         }
@@ -81,7 +89,7 @@ final class TreeRenderer
         $displayLine = $node->getDisplayLine($config);
         $childPrefix = $prefix . ($isLast ? self::TREE_SPACE : self::TREE_VERTICAL) . self::TREE_SPACE . self::TREE_SPACE . self::TREE_SPACE;
 
-        // Handle multi-line display (a formatter may emit "open\ncontinuation")
+        // Open line (plus optional continuation from a formatter that emitted "open\ncontinuation").
         $parts = explode("\n", $displayLine, 2);
         $lines[] = $prefix . $symbol . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $parts[0];
         if (isset($parts[1])) {
@@ -92,12 +100,18 @@ final class TreeRenderer
             $this->renderFullModeLeaves($node, $lines, $childPrefix);
         }
 
-        // Render children
+        $closeSignals = $node->getCloseSignals();
+        $hasCloseLine = $closeSignals !== '';
+
         $totalChildren = count($node->children);
         for ($i = 0; $i < $totalChildren; $i++) {
             $child = $node->children[$i];
-            $isLastChild = ($i === $totalChildren - 1) && ! $config->showFullTree;
+            $isLastChild = ($i === $totalChildren - 1) && ! $config->showFullTree && ! $hasCloseLine;
             $this->renderNode($child, $lines, $childPrefix, $isLastChild, $config);
+        }
+
+        if ($hasCloseLine) {
+            $lines[] = $childPrefix . self::CLOSE_MARK . ' ' . $closeSignals;
         }
     }
 
