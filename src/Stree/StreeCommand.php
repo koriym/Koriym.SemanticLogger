@@ -59,6 +59,7 @@ final class StreeCommand
                 (bool) ($options['full'] ?? false),
                 is_numeric($threshold) ? (float) $threshold : 0.0,
                 is_numeric($lines) ? (int) $lines : self::DEFAULT_MAX_LINES,
+                (bool) ($options['values'] ?? false),
             );
 
             /** @var mixed $fileOption */
@@ -127,7 +128,7 @@ final class StreeCommand
     private function parseArgument(string $arg, array $args, int $index): array
     {
         // Handle simple flags
-        $simpleFlags = ['--help' => 'help', '-h' => 'help', '--full' => 'full', '-f' => 'full', '--json' => 'json'];
+        $simpleFlags = ['--help' => 'help', '-h' => 'help', '--full' => 'full', '-f' => 'full', '--json' => 'json', '--values' => 'values', '-V' => 'values'];
         if (isset($simpleFlags[$arg])) {
             return ['option' => [$simpleFlags[$arg] => true], 'consumed' => false, 'index' => $index];
         }
@@ -323,6 +324,7 @@ OPTIONS:
     -t, --threshold=T Time threshold filter (e.g., 10ms, 0.5s)
     -l, --lines=N     Maximum lines to show for multi-line data (default: 5, 0 = no limit)
     -f, --full        Show full tree with all context keys as leaves
+    -V, --values      Opt-in flag consulted by registered formatters to show values
     --json            Pass through raw JSON (pretty-printed)
     -h, --help        Display this help message
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
 use PHPUnit\Framework\TestCase;
 
 final class TreeNodeTest extends TestCase
@@ -295,5 +296,58 @@ final class TreeNodeTest extends TestCase
         $line = $node->getDisplayLine();
 
         $this->assertStringNotContainsString('[event]', $line);
+    }
+
+    public function testRegisteredFormatterOverridesSignalExtractor(): void
+    {
+        $node = new TreeNode('n1', 'fake_open', ['fromClass' => 'Ignored']);
+        $registry = new FormatterRegistry();
+        $registry->register('fake_open', new FakeFormatter());
+        $config = new RenderConfig(false, 0.0, 5, false, $registry);
+
+        $line = $node->getDisplayLine($config);
+
+        $this->assertSame('fake open=fake_open', $line);
+        $this->assertStringNotContainsString('fromClass', $line);
+    }
+
+    public function testFormatterCanEmitMultilineDisplay(): void
+    {
+        $node = new TreeNode('n1', 'fake_open', []);
+        $node->setClose('fake_close', []);
+        $registry = new FormatterRegistry();
+        $registry->register('fake_open', new FakeFormatter());
+        $config = new RenderConfig(false, 0.0, 5, false, $registry);
+
+        $line = $node->getDisplayLine($config);
+
+        $this->assertStringContainsString("\n", $line);
+        $this->assertStringContainsString('⎿ close=fake_close', $line);
+    }
+
+    public function testFormatterReceivesShowValuesFlag(): void
+    {
+        $node = new TreeNode('n1', 'fake_open', []);
+        $registry = new FormatterRegistry();
+        $registry->register('fake_open', new FakeFormatter());
+        $config = new RenderConfig(false, 0.0, 5, true, $registry);
+
+        $line = $node->getDisplayLine($config);
+
+        $this->assertStringContainsString('values=on', $line);
+    }
+
+    public function testUnregisteredTypeFallsBackToSignalExtractor(): void
+    {
+        $node = new TreeNode('n1', 'some_type', ['name' => 'task']);
+        $registry = new FormatterRegistry();
+        $registry->register('other_type', new FakeFormatter());
+        $config = new RenderConfig(false, 0.0, 5, false, $registry);
+
+        $line = $node->getDisplayLine($config);
+
+        $this->assertStringContainsString('some_type', $line);
+        $this->assertStringContainsString('name=task', $line);
+        $this->assertStringNotContainsString('fake open=', $line);
     }
 }

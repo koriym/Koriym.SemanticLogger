@@ -236,6 +236,31 @@ final class StreeCommandTest extends TestCase
         $exitCode = $command->__invoke(['stree', '-l', '10', $this->tempFile]);
         ob_get_clean();
         $this->assertSame(0, $exitCode);
+
+        // Test -V (values)
+        ob_start();
+        $exitCode = $command->__invoke(['stree', '-V', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
+    }
+
+    public function testValuesFlagAccepted(): void
+    {
+        $logData = [
+            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []],
+            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
+            'events' => [],
+        ];
+
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode($logData, JSON_THROW_ON_ERROR));
+
+        $command = new StreeCommand();
+
+        ob_start();
+        $exitCode = $command->__invoke(['stree', '--values', $this->tempFile]);
+        ob_get_clean();
+        $this->assertSame(0, $exitCode);
     }
 
     public function testThresholdParsing(): void

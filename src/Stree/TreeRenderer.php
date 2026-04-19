@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Stree;
 
 use function count;
+use function explode;
 use function implode;
-use function sprintf;
 use function strpos;
 use function substr;
 
@@ -27,32 +27,39 @@ final class TreeRenderer
         // Propagate status up the tree
         $this->propagateStatus($root);
 
-        return $this->renderSession($root, $config);
+        return $this->renderRoot($root, $config);
     }
 
     /**
-     * Render session root + children.
-     * The root TreeNode becomes the sole top-level entry under the "session" line.
+     * Render the root node flush-left (no synthetic "session" header) and its children.
+     * Multi-line display (formatter-emitted open + continuation) is split so the
+     * continuation line sits directly under the open line without indentation.
      */
-    private function renderSession(TreeNode $root, RenderConfig $config): string
+    private function renderRoot(TreeNode $root, RenderConfig $config): string
     {
         $lines = [];
 
-        // Session header line uses root node timing and propagated status
-        $sessionLine = 'session';
-        $timeDisplay = $this->formatExecutionTime($root->executionTime);
-        if ($root->executionTime > 0.0) {
-            $sessionLine .= ' [' . $timeDisplay . ']';
+        if ($config->timeThreshold > 0 && $root->executionTime < $config->timeThreshold) {
+            return '';
         }
 
-        if ($root->status !== '') {
-            $sessionLine .= ' : ' . $root->status;
+        $displayLine = $root->getDisplayLine($config);
+        $parts = explode("\n", $displayLine, 2);
+        $lines[] = $parts[0];
+        if (isset($parts[1])) {
+            $lines[] = $parts[1];
         }
 
-        $lines[] = $sessionLine;
+        if ($config->showFullTree) {
+            $this->renderFullModeLeaves($root, $lines, '');
+        }
 
-        // The root node itself is the sole first-level child
-        $this->renderNode($root, $lines, '', true, $config);
+        $totalChildren = count($root->children);
+        for ($i = 0; $i < $totalChildren; $i++) {
+            $child = $root->children[$i];
+            $isLastChild = ($i === $totalChildren - 1) && ! $config->showFullTree;
+            $this->renderNode($child, $lines, '', $isLastChild, $config);
+        }
 
         return implode("\n", $lines);
     }
@@ -71,10 +78,15 @@ final class TreeRenderer
         }
 
         $symbol = $isLast ? self::TREE_LAST : self::TREE_BRANCH;
-        $nodeDisplay = $prefix . $symbol . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $node->getDisplayLine($config);
-        $lines[] = $nodeDisplay;
-
+        $displayLine = $node->getDisplayLine($config);
         $childPrefix = $prefix . ($isLast ? self::TREE_SPACE : self::TREE_VERTICAL) . self::TREE_SPACE . self::TREE_SPACE . self::TREE_SPACE;
+
+        // Handle multi-line display (a formatter may emit "open\ncontinuation")
+        $parts = explode("\n", $displayLine, 2);
+        $lines[] = $prefix . $symbol . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $parts[0];
+        if (isset($parts[1])) {
+            $lines[] = $childPrefix . $parts[1];
+        }
 
         if ($config->showFullTree) {
             $this->renderFullModeLeaves($node, $lines, $childPrefix);
@@ -195,18 +207,5 @@ final class TreeRenderer
                 }
             }
         }
-    }
-
-    private function formatExecutionTime(float $executionTime): string
-    {
-        if ($executionTime < 0.001) {
-            return sprintf('%.1fμs', $executionTime * 1_000_000.0);
-        }
-
-        if ($executionTime < 1.0) {
-            return sprintf('%.1fms', $executionTime * 1000.0);
-        }
-
-        return sprintf('%.1fs', $executionTime);
     }
 }

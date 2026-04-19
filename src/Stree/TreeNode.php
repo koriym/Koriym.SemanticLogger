@@ -53,6 +53,13 @@ final class TreeNode
 
     public function getDisplayLine(RenderConfig|null $config = null): string
     {
+        if ($config !== null) {
+            $formatter = $config->formatters?->get($this->type);
+            if ($formatter !== null) {
+                return $formatter->format($this, $config);
+            }
+        }
+
         $extractor = new SignalExtractor();
         $displayType = $this->stripOpenSuffix($this->type);
         $timeDisplay = $this->formatExecutionTime();

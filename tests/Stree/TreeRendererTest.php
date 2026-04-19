@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
 use PHPUnit\Framework\TestCase;
 
 use function explode;
@@ -35,13 +36,12 @@ final class TreeRendererTest extends TestCase
 
         $result = $renderer->render($logData, $config);
 
-        $this->assertStringContainsString('session', $result);
+        $this->assertStringNotContainsString('session', $result);
         $this->assertStringContainsString('test_operation', $result);
         $this->assertStringContainsString('[5.0ms]', $result);
-        $this->assertStringContainsString('└──', $result);
     }
 
-    public function testSessionRootLine(): void
+    public function testRootNodeRendersFlushLeft(): void
     {
         $logData = [
             'open' => [
@@ -66,8 +66,8 @@ final class TreeRendererTest extends TestCase
         $result = $renderer->render($logData, $config);
         $lines = explode("\n", trim($result));
 
-        // First line is session
-        $this->assertStringStartsWith('session', $lines[0]);
+        // First line is the root node itself, flush-left (no tree prefix, no "session" header)
+        $this->assertStringStartsWith('some_op', $lines[0]);
         $this->assertStringContainsString('[10.0ms]', $lines[0]);
     }
 
@@ -102,7 +102,7 @@ final class TreeRendererTest extends TestCase
 
         $this->assertStringContainsString('parent_operation', $result);
         $this->assertStringContainsString('child_operation', $result);
-        $this->assertStringContainsString('└──', $result);
+        $this->assertStringContainsString('── child_operation', $result);
     }
 
     public function testEventsRendering(): void
@@ -273,10 +273,10 @@ final class TreeRendererTest extends TestCase
 
         $result = $renderer->render($logData, $config);
 
-        // Both session and checkout should show Failed
+        // Root node (checkout) propagates the Failed status from its child (charge).
         $lines = explode("\n", trim($result));
-        $this->assertStringContainsString(': Failed', $lines[0]); // session line
-        $this->assertStringContainsString(': Failed', $result);   // at least one occurrence
+        $this->assertStringStartsWith('checkout', $lines[0]);
+        $this->assertStringContainsString(': Failed', $lines[0]);
     }
 
     public function testFullModeShowsContextLeaves(): void
@@ -343,5 +343,83 @@ final class TreeRendererTest extends TestCase
         $this->assertStringContainsString('fromClass=HelloInput', $result);
         // Not empty - context visible
         $this->assertStringContainsString('beAttribute=', $result);
+    }
+
+    public function testRegisteredFormatterRendersAtRootFlushLeft(): void
+    {
+        $logData = [
+            'open' => [
+                'id' => 'op_1',
+                'type' => 'fake_open',
+                'schemaUrl' => 'test.json',
+                'context' => [],
+            ],
+            'close' => [
+                'id' => 'close_1',
+                'type' => 'fake_close',
+                'schemaUrl' => 'test.json',
+                'context' => [],
+                'openId' => 'op_1',
+            ],
+            'events' => [],
+        ];
+
+        $registry = new FormatterRegistry();
+        $registry->register('fake_open', new FakeFormatter());
+        $renderer = new TreeRenderer();
+        $config = new RenderConfig(false, 0.0, 5, false, $registry);
+
+        $result = $renderer->render($logData, $config);
+        $lines = explode("\n", trim($result));
+
+        // Root line is the formatter's open line, flush-left.
+        $this->assertSame('fake open=fake_open', $lines[0]);
+        // Continuation line sits directly under the root, also flush-left (no tree prefix for root children).
+        $this->assertSame('⎿ close=fake_close', $lines[1]);
+    }
+
+    public function testRegisteredFormatterMultilineContinuationIndentsUnderChildPrefix(): void
+    {
+        $logData = [
+            'open' => [
+                'id' => 'root_1',
+                'type' => 'container',
+                'schemaUrl' => 'test.json',
+                'context' => [],
+                'open' => [
+                    'id' => 'child_1',
+                    'type' => 'fake_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                'id' => 'root_close',
+                'type' => 'container_close',
+                'schemaUrl' => 'test.json',
+                'context' => [],
+                'openId' => 'root_1',
+                'close' => [
+                    'id' => 'child_close',
+                    'type' => 'fake_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                    'openId' => 'child_1',
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $registry = new FormatterRegistry();
+        $registry->register('fake_open', new FakeFormatter());
+        $renderer = new TreeRenderer();
+        $config = new RenderConfig(false, 0.0, 5, false, $registry);
+
+        $result = $renderer->render($logData, $config);
+        $lines = explode("\n", trim($result));
+
+        // Child node rendered under a tree prefix; continuation indents to child-content column.
+        $this->assertStringContainsString('└── fake open=fake_open', $lines[1]);
+        $this->assertStringContainsString('    ⎿ close=fake_close', $lines[2]);
     }
 }
