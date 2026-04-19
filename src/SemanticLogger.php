@@ -15,6 +15,7 @@ use SplStack;
 use function array_pop;
 use function array_reverse;
 use function assert;
+use function is_array;
 use function is_string;
 
 final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
@@ -258,14 +259,25 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     }
 
     /**
-     * Convert context object to typed array
+     * Convert a context object to its stored array shape.
+     *
+     * Prefers `JsonSerializable::jsonSerialize()` when the context implements it,
+     * so callers that need an editorial shape (e.g. emitting empty maps as stdClass
+     * to satisfy `{}` schemas) retain control. Falls back to `(array)` cast for
+     * legacy contexts that rely on public-property introspection.
      *
      * @return array<string, mixed>
-     *
-     * @codeCoverageIgnore
      */
     private function contextToArray(AbstractContext $context): array
     {
+        if ($context instanceof JsonSerializable) {
+            $serialized = $context->jsonSerialize();
+            if (is_array($serialized)) {
+                /** @var array<string, mixed> $serialized */
+                return $serialized;
+            }
+        }
+
         /** @var array<string, mixed> $mixedArray */
         $mixedArray = (array) $context;
 
