@@ -57,8 +57,13 @@ final class Profile implements JsonSerializable
             return [];
         }
 
+        $filePath = $this->xdebug->getFilePath();
+        if ($filePath === null) {
+            return [];
+        }
+
         return [
-            'source' => $this->xdebug->getFilePath(),
+            'source' => $filePath,
             'file_size' => $this->xdebug->getFileSize(),
             'compressed' => $this->xdebug->isCompressed(),
         ];

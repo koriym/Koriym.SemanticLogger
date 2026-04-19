@@ -39,8 +39,10 @@ final class XdebugTrace implements JsonSerializable
         }
 
         // Non-destructive: if an external trace is already running, don't touch it.
-        // Return an empty instance whose stop() is a no-op (traceId remains null).
-        if (function_exists('xdebug_get_tracefile_name') && @xdebug_get_tracefile_name() !== '') {
+        // Use empty() so both "not running" runtime shapes (false and '') fall
+        // through to the start path; stubs advertise string but Xdebug 3 returns
+        // bool(false) when no trace is active.
+        if (function_exists('xdebug_get_tracefile_name') && ! empty(@xdebug_get_tracefile_name())) {
             return new self(); // @codeCoverageIgnore
         }
 
