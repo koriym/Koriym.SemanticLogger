@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Profiler;
 
 use JsonSerializable;
+use Koriym\SemanticLogger\DevSemanticLogger;
 use Override;
 
 use function count;
@@ -31,17 +32,36 @@ final class XHProfResult implements JsonSerializable
     ) {
     }
 
-    public static function start(): self
+    /** @param list<string> $ignoredFunctions Additional function/method names to exclude from the call graph (e.g. framework logger plumbing). */
+    public static function start(array $ignoredFunctions = []): self
     {
         if (! function_exists('xhprof_enable')) {
             return new self(); // @codeCoverageIgnore
         }
 
+        // Exclude our own stop/teardown path so the being's segment isn't
+        // dominated by the logger that's measuring it. Callers can add more
+        // (e.g. framework-level logger methods) via $ignoredFunctions.
+        $ignored = [
+            DevSemanticLogger::class . '::close',
+            DevSemanticLogger::class . '::stopAndAttachTo',
+            DevSemanticLogger::class . '::stopAndAttachToCurrent',
+            XdebugTrace::class . '::stop',
+            XdebugTrace::class . '::canStopTrace',
+            XdebugTrace::class . '::performStopTrace',
+            self::class . '::stop',
+            self::class . '::saveToFile',
+            ...$ignoredFunctions,
+        ];
+
         // NO_BUILTINS drops PHP internal functions (count, array_*, strlen, ...)
         // which otherwise dominate the call graph and drown out application
         // hotspots when this output is fed to AI for analysis.
         /** @psalm-suppress UndefinedConstant, MixedArgument */
-        xhprof_enable(XHPROF_FLAGS_CPU | XHPROF_FLAGS_MEMORY | XHPROF_FLAGS_NO_BUILTINS);
+        xhprof_enable(
+            XHPROF_FLAGS_CPU | XHPROF_FLAGS_MEMORY | XHPROF_FLAGS_NO_BUILTINS,
+            ['ignored_functions' => $ignored],
+        );
 
         return new self();
     }
