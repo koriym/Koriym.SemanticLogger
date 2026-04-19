@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Stree;
 
 use function array_is_list;
+use function array_keys;
 use function count;
 use function end;
 use function explode;
@@ -26,7 +27,7 @@ use function substr_count;
  */
 final class SignalExtractor
 {
-    private const MAX_SIGNALS = 3;
+    private const MAX_SIGNALS = 4;
     private const MAX_STRING_LENGTH = 40;
 
     /** Keys excluded from signal extraction */
@@ -42,7 +43,7 @@ final class SignalExtractor
     ];
 
     /**
-     * Extract up to 3 meaningful signals from open context.
+     * Extract up to MAX_SIGNALS meaningful signals from open context.
      *
      * @param  array<string, mixed> $context
      *
@@ -307,20 +308,31 @@ final class SignalExtractor
             return '[]';
         }
 
-        // Only format scalar arrays
+        // Assoc arrays: render as comma-joined keys. Keys are the structural
+        // signal (param names, property names, etc.), so showing them beats
+        // "[N items]". Values live in --full mode expansion.
+        if (! array_is_list($arr)) {
+            $keys = [];
+            foreach (array_keys($arr) as $key) {
+                $keys[] = (string) $key;
+            }
+
+            $inline = implode(', ', $keys);
+            if (strlen($inline) > self::MAX_STRING_LENGTH) {
+                return '[' . count($arr) . ' items]';
+            }
+
+            return $inline;
+        }
+
+        // List arrays: inline scalars, fall back to "[N items]" for mixed/long
         $scalars = [];
         foreach ($arr as $item) {
             if (! is_scalar($item) && $item !== null) {
-                // Has non-scalar items → skip in compact
                 return '[' . count($arr) . ' items]';
             }
 
             $scalars[] = (string) $item;
-        }
-
-        // Check if it's a list (sequential integer keys)
-        if (! array_is_list($arr)) {
-            return '[' . count($arr) . ' items]';
         }
 
         $inline = implode(', ', $scalars);

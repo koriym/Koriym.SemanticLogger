@@ -151,7 +151,7 @@ final class TreeNodeTest extends TestCase
         $this->assertStringContainsString('name=something', $line);
     }
 
-    public function testMaxThreeSignalsWithOverflow(): void
+    public function testMaxFourSignalsWithOverflow(): void
     {
         $context = [
             'a' => 'alpha',
@@ -159,6 +159,7 @@ final class TreeNodeTest extends TestCase
             'c' => 'gamma',
             'd' => 'delta',
             'e' => 'epsilon',
+            'f' => 'zeta',
         ];
         $node = new TreeNode('n1', 'some_type', $context);
 
@@ -167,8 +168,9 @@ final class TreeNodeTest extends TestCase
         $this->assertStringContainsString('a=alpha', $line);
         $this->assertStringContainsString('b=beta', $line);
         $this->assertStringContainsString('c=gamma', $line);
+        $this->assertStringContainsString('d=delta', $line);
         $this->assertStringContainsString('(+2 more)', $line);
-        $this->assertStringNotContainsString('d=', $line);
+        $this->assertStringNotContainsString('e=', $line);
     }
 
     public function testTimingKeysExcludedFromSignals(): void

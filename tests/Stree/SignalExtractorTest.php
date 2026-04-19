@@ -32,16 +32,17 @@ final class SignalExtractorTest extends TestCase
         $this->assertStringContainsString('status=active', $result);
     }
 
-    public function testExtractSignalsMaxThreeWithOverflow(): void
+    public function testExtractSignalsMaxFourWithOverflow(): void
     {
-        $context = ['a' => 'v1', 'b' => 'v2', 'c' => 'v3', 'd' => 'v4', 'e' => 'v5'];
+        $context = ['a' => 'v1', 'b' => 'v2', 'c' => 'v3', 'd' => 'v4', 'e' => 'v5', 'f' => 'v6'];
         $result = $this->extractor->extractSignals($context);
 
         $this->assertStringContainsString('a=v1', $result);
         $this->assertStringContainsString('b=v2', $result);
         $this->assertStringContainsString('c=v3', $result);
+        $this->assertStringContainsString('d=v4', $result);
         $this->assertStringContainsString('(+2 more)', $result);
-        $this->assertStringNotContainsString('d=', $result);
+        $this->assertStringNotContainsString('e=', $result);
     }
 
     public function testExtractSignalsExcludesTimingKeys(): void
