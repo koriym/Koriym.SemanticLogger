@@ -21,6 +21,10 @@ final class TreeNode
     /** @var TreeNode[] */
     public array $children = [];
 
+    /** @var array<string, mixed> */
+    public array $closeContext = [];
+    public string|null $closeType = null;
+
     /** @param array<string, mixed> $context */
     public function __construct(
         public readonly string $id,
@@ -36,21 +40,44 @@ final class TreeNode
         $this->children[] = $child;
     }
 
+    /** @param array<string, mixed> $context */
+    public function setClose(string $type, array $context): void
+    {
+        $this->closeType = $type;
+        $this->closeContext = $context;
+    }
+
     public function getDisplayName(): string
     {
-        return $this->type;
+        return $this->stripOpenSuffix($this->type);
     }
 
     public function getDisplayLine(RenderConfig|null $config = null): string
     {
         $timeDisplay = $this->formatExecutionTime();
         $contextInfo = $this->extractContextInfo($config);
+        $displayType = $this->stripOpenSuffix($this->type);
 
         if ($contextInfo !== '') {
-            return sprintf('%s::%s [%s]', $this->type, $contextInfo, $timeDisplay);
+            return sprintf('%s::%s [%s]', $displayType, $contextInfo, $timeDisplay);
         }
 
-        return sprintf('%s [%s]', $this->type, $timeDisplay);
+        return sprintf('%s [%s]', $displayType, $timeDisplay);
+    }
+
+    private function stripOpenSuffix(string $type): string
+    {
+        if ($this->closeType === null) {
+            return $type;
+        }
+
+        $suffix = '_open';
+        $len = strlen($suffix);
+        if (strlen($type) > $len && substr($type, -$len) === $suffix) {
+            return substr($type, 0, -$len);
+        }
+
+        return $type;
     }
 
     private function formatExecutionTime(): string
