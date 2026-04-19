@@ -188,6 +188,7 @@
                   "description": "Path to the XHProf trace file on disk"
                 }
               },
+              "required": ["source"],
               "additionalProperties": false
             }
           ],
@@ -217,6 +218,7 @@
                   "description": "Whether the trace file is compressed (gzip)"
                 }
               },
+              "required": ["source", "file_size", "compressed"],
               "additionalProperties": false
             }
           ],
@@ -268,11 +270,15 @@
               "description": "Total wall time including overhead in seconds"
             }
           },
-          "required": ["backtrace"]
+          "required": ["backtrace"],
+          "additionalProperties": false
         },
         "operations": {
           "type": "object",
           "description": "Per-operation wall times keyed by open id (seconds). Emitted by DevSemanticLogger when any operation has been closed.",
+          "propertyNames": {
+            "$ref": "#/definitions/openIdReference"
+          },
           "additionalProperties": {
             "type": "number",
             "minimum": 0
