@@ -6,7 +6,6 @@ namespace Koriym\SemanticLogger;
 
 use Koriym\SemanticLogger\Profiler\OperationProfile;
 use Koriym\SemanticLogger\Profiler\PhpProfile;
-use Koriym\SemanticLogger\Profiler\Profile;
 use Koriym\SemanticLogger\Profiler\XdebugTrace;
 use Koriym\SemanticLogger\Profiler\XHProfResult;
 use Override;
@@ -107,15 +106,14 @@ final class DevSemanticLogger implements SemanticLoggerInterface
                 );
             }
 
-            $profile = new Profile(operations: $operations);
+            $closeWithProfile = $this->attachProfilesToCloseChain($logJson->close, $operations);
 
             return new LogJson(
                 $logJson->schemaUrl,
                 $logJson->open,
-                $logJson->close,
+                $closeWithProfile,
                 $logJson->events,
                 $logJson->links,
-                $profile,
             );
         } finally {
             // Best-effort cleanup: stop anything still running so it does not
@@ -138,6 +136,27 @@ final class DevSemanticLogger implements SemanticLoggerInterface
             $this->activeXhprof = null;
             $this->depth = 0;
         }
+    }
+
+    /**
+     * Walk the close chain and, at each level, attach the matching OperationProfile
+     * directly to that close entry so each being carries its own profile data.
+     *
+     * @param array<string, OperationProfile> $operations
+     */
+    private function attachProfilesToCloseChain(EventEntry $close, array $operations): EventEntry
+    {
+        $nestedClose = $close->close !== null
+            ? $this->attachProfilesToCloseChain($close->close, $operations)
+            : null;
+
+        $withNested = $close->close === $nestedClose ? $close : $close->withClose($nestedClose);
+
+        if ($close->openId !== null && isset($operations[$close->openId])) {
+            return $withNested->withProfile($operations[$close->openId]);
+        }
+
+        return $withNested;
     }
 
     private function startNewSegment(): void

@@ -8,6 +8,8 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use RuntimeException;
 
+use function assert;
+
 final class DevSemanticLoggerTest extends TestCase
 {
     private DevSemanticLogger $logger;
@@ -17,55 +19,19 @@ final class DevSemanticLoggerTest extends TestCase
         $this->logger = new DevSemanticLogger(new SemanticLogger());
     }
 
-    public function testFlushContainsProfile(): void
+    public function testCloseCarriesOwnProfile(): void
     {
         $openId = $this->logger->open(new FakeContext('start'));
         $this->logger->close(new FakeContext('end'), $openId);
 
         $logJson = $this->logger->flush();
 
-        $this->assertNotNull($logJson->profile);
+        $this->assertNotNull($logJson->close->profile);
+        $this->assertSame($openId, $logJson->close->openId);
+        $this->assertGreaterThanOrEqual(0.0, $logJson->close->profile->wallTime);
     }
 
-    public function testPerOperationWallTimesAreRecorded(): void
-    {
-        $id1 = $this->logger->open(new FakeContext('outer'));
-        $id2 = $this->logger->open(new FakeContext('inner'));
-        $this->logger->close(new FakeContext('inner-end'), $id2);
-        $this->logger->close(new FakeContext('outer-end'), $id1);
-
-        $logJson = $this->logger->flush();
-
-        $this->assertNotNull($logJson->profile);
-        $this->assertArrayHasKey($id1, $logJson->profile->operations);
-        $this->assertArrayHasKey($id2, $logJson->profile->operations);
-        $this->assertGreaterThanOrEqual(0.0, $logJson->profile->operations[$id1]->wallTime);
-        $this->assertGreaterThanOrEqual(0.0, $logJson->profile->operations[$id2]->wallTime);
-    }
-
-    public function testProfileAppearsInJsonOutput(): void
-    {
-        $openId = $this->logger->open(new FakeContext('test'));
-        $this->logger->close(new FakeContext('done'), $openId);
-
-        $logJson = $this->logger->flush();
-        $array = $logJson->toArray();
-
-        $this->assertArrayHasKey('profile', $array);
-        $profile = $array['profile'];
-        $this->assertIsArray($profile);
-        $this->assertArrayHasKey('operations', $profile);
-        $operations = $profile['operations'];
-        $this->assertIsArray($operations);
-        $this->assertArrayHasKey($openId, $operations);
-        $opEntry = $operations[$openId];
-        $this->assertIsArray($opEntry);
-        $this->assertArrayHasKey('wallTime', $opEntry);
-        $this->assertArrayHasKey('xdebug', $opEntry);
-        $this->assertArrayHasKey('xhprof', $opEntry);
-    }
-
-    public function testNestedOpensProduceSegmentedProfiles(): void
+    public function testNestedClosesEachCarryTheirOwnProfile(): void
     {
         $outer = $this->logger->open(new FakeContext('outer'));
         $inner = $this->logger->open(new FakeContext('inner'));
@@ -74,21 +40,46 @@ final class DevSemanticLoggerTest extends TestCase
 
         $logJson = $this->logger->flush();
 
-        $this->assertNotNull($logJson->profile);
+        $outerClose = $logJson->close;
+        $innerClose = $outerClose->close;
+        assert($innerClose !== null);
+
+        $this->assertSame($outer, $outerClose->openId);
+        $this->assertSame($inner, $innerClose->openId);
+
+        $this->assertNotNull($outerClose->profile);
+        $this->assertNotNull($innerClose->profile);
 
         // Outer being is split by the nested inner open into two segments
         // (one before inner started, one after inner closed). Inner being has
         // exactly one contiguous segment. The segment array shape is invariant
         // whether or not Xdebug/XHProf extensions are actually loaded — no-op
         // instances still occupy a slot in the list.
-        $outerProfile = $logJson->profile->operations[$outer];
-        $innerProfile = $logJson->profile->operations[$inner];
+        $this->assertCount(2, $outerClose->profile->xdebug, 'outer being must split into 2 xdebug segments around the nested inner open');
+        $this->assertCount(1, $innerClose->profile->xdebug, 'inner being has a single xdebug segment');
 
-        $this->assertCount(2, $outerProfile->xdebug, 'outer being must split into 2 xdebug segments around the nested inner open');
-        $this->assertCount(1, $innerProfile->xdebug, 'inner being has a single xdebug segment');
+        $this->assertCount(2, $outerClose->profile->xhprof);
+        $this->assertCount(1, $innerClose->profile->xhprof);
+    }
 
-        $this->assertCount(2, $outerProfile->xhprof, 'outer being must split into 2 xhprof segments around the nested inner open');
-        $this->assertCount(1, $innerProfile->xhprof, 'inner being has a single xhprof segment');
+    public function testProfileAppearsInJsonOutputUnderClose(): void
+    {
+        $openId = $this->logger->open(new FakeContext('test'));
+        $this->logger->close(new FakeContext('done'), $openId);
+
+        $logJson = $this->logger->flush();
+        $array = $logJson->toArray();
+
+        $this->assertArrayNotHasKey('profile', $array, 'top-level profile must not exist');
+        $this->assertArrayHasKey('close', $array);
+        $close = $array['close'];
+        $this->assertIsArray($close);
+        $this->assertArrayHasKey('profile', $close);
+        $profile = $close['profile'];
+        $this->assertIsArray($profile);
+        $this->assertArrayHasKey('wallTime', $profile);
+        $this->assertArrayHasKey('xdebug', $profile);
+        $this->assertArrayHasKey('xhprof', $profile);
     }
 
     public function testEventIsDelegated(): void
@@ -112,11 +103,11 @@ final class DevSemanticLoggerTest extends TestCase
         $this->logger->close(new FakeContext('done'), $id2);
         $second = $this->logger->flush();
 
-        // Each flush produces exactly one operation entry
-        $this->assertNotNull($first->profile);
-        $this->assertNotNull($second->profile);
-        $this->assertCount(1, $first->profile->operations);
-        $this->assertCount(1, $second->profile->operations);
+        // Each flush produces exactly one operation, and its close carries profile.
+        $this->assertNotNull($first->close->profile);
+        $this->assertNotNull($second->close->profile);
+        $this->assertSame($id1, $first->close->openId);
+        $this->assertSame($id2, $second->close->openId);
     }
 
     public function testDevStateIsResetEvenWhenInnerFlushThrows(): void

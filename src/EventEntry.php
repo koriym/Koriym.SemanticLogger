@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger;
 
 use JsonSerializable;
+use Koriym\SemanticLogger\Profiler\OperationProfile;
 use Override;
 
 final class EventEntry implements JsonSerializable
@@ -17,10 +18,37 @@ final class EventEntry implements JsonSerializable
         public readonly array $context,
         public readonly string|null $openId = null,
         public readonly EventEntry|null $close = null,
+        public readonly OperationProfile|null $profile = null,
     ) {
     }
 
-    /** @return array{id: string, type: string, schemaUrl: string, context: array<string, mixed>, openId?: string, close?: array<string, mixed>} */
+    public function withProfile(OperationProfile $profile): self
+    {
+        return new self(
+            $this->id,
+            $this->type,
+            $this->schemaUrl,
+            $this->context,
+            $this->openId,
+            $this->close,
+            $profile,
+        );
+    }
+
+    public function withClose(EventEntry|null $close): self
+    {
+        return new self(
+            $this->id,
+            $this->type,
+            $this->schemaUrl,
+            $this->context,
+            $this->openId,
+            $close,
+            $this->profile,
+        );
+    }
+
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $result = [
@@ -32,6 +60,10 @@ final class EventEntry implements JsonSerializable
 
         if ($this->openId !== null) {
             $result['openId'] = $this->openId;
+        }
+
+        if ($this->profile !== null) {
+            $result['profile'] = $this->profile->jsonSerialize();
         }
 
         if ($this->close !== null) {

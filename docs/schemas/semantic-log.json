@@ -72,6 +72,10 @@
           "description": "Application-specific context data conforming to the referenced schema",
           "additionalProperties": true
         },
+        "profile": {
+          "$ref": "#/definitions/operationProfile",
+          "description": "Profile data attributed to this specific operation (wall time plus per-segment Xdebug/XHProf captures). Present when DevSemanticLogger produced the log."
+        },
         "close": {
           "$ref": "#/properties/close",
           "description": "Nested child operation completion within this close - enables hierarchical close tracking"
@@ -107,9 +111,6 @@
         },
         "additionalProperties": true
       }
-    },
-    "profile": {
-      "$ref": "#/definitions/profile"
     },
     "links": {
       "type": "array",
@@ -168,72 +169,6 @@
     "contextType": {
       "type": "string",
       "description": "Application-defined context type identifier. Applications define their own context types through individual schema files"
-    },
-    "profile": {
-      "type": "object",
-      "description": "Optional profiler data included with the semantic log. Trace/XHProf data is attributed per-operation via the operations map; nested opens split a parent operation into multiple segments so each being carries only its own execution.",
-      "properties": {
-        "php": {
-          "type": "object",
-          "properties": {
-            "backtrace": {
-              "type": "array",
-              "description": "PHP backtrace information captured using debug_backtrace() function",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "function": {
-                    "type": "string",
-                    "description": "Function name"
-                  },
-                  "file": {
-                    "type": "string",
-                    "description": "File path"
-                  },
-                  "line": {
-                    "type": "integer",
-                    "description": "Line number"
-                  },
-                  "class": {
-                    "type": "string",
-                    "description": "Class name (if applicable)"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": ["::", "->"],
-                    "description": "Method call type"
-                  }
-                },
-                "required": ["function"],
-                "additionalProperties": true
-              }
-            },
-            "wall_time": {
-              "type": "number",
-              "minimum": 0,
-              "description": "Wall time captured by PhpProfile in seconds"
-            },
-            "total_wall_time": {
-              "type": "number",
-              "minimum": 0,
-              "description": "Total wall time including overhead in seconds"
-            }
-          },
-          "required": ["backtrace"],
-          "additionalProperties": false
-        },
-        "operations": {
-          "type": "object",
-          "description": "Per-operation profile data keyed by open id. Each value carries wall time plus per-segment Xdebug traces and XHProf snapshots. A being that spans nested child opens produces multiple trace/xhprof segments; a being without nested children produces one of each.",
-          "propertyNames": {
-            "$ref": "#/definitions/openIdReference"
-          },
-          "additionalProperties": {
-            "$ref": "#/definitions/operationProfile"
-          }
-        }
-      },
-      "additionalProperties": false
     },
     "operationProfile": {
       "type": "object",
