@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-04-20
+
+### Added
+- **Generic `SignalExtractor`** (`src/Stree/SignalExtractor.php`) — domain-agnostic 1-line signal extraction: picks up to 4 meaningful scalars per open context, shortens FQCNs to the basename, truncates long strings at 40 chars, partial-overflow arrays render as `[a, b +N items]`, and timing / id / schemaUrl keys are excluded. Unknown-type contexts now render with useful signals instead of collapsing to a bare type label.
+- **`NodeFormatterInterface` + `FormatterRegistry`** — per-type formatter extension point. `TreeNode::getDisplayLine()` consults `$config->formatters?->get($type)` before the generic fallback, so domain vocabularies (e.g. the Be Framework `becoming_*` family) can supply their own renderer without this repo needing to know about them. A formatter may return a multi-line string; `TreeRenderer` splits on `\n` and places the continuation under the open line with matching indentation.
+- **`⎿` close-line** in `TreeRenderer` — open / event / close structure is visible at a glance: the node's open line, then events and nested opens as `├──` / `└──` children, then a `⎿` continuation with signals that differ from open.
+- **`--values` / `-V` flag** on `bin/stree` — opt-in signal that registered formatters may consult to render values instead of only keys.
+- **`SemanticLogger::contextToArray()`** now respects `JsonSerializable`, so contexts can emit editorial shapes (e.g. wrap empty maps in `stdClass` so they serialize as `{}` rather than `[]`).
+- **PHP 8.5** added to the CI build matrix.
+
+### Changed
+- `TreeNode::extractContextInfo()` no longer dispatches through hardcoded `match` arms; it defers to `SignalExtractor` (or a registered formatter) uniformly.
+- Close-diff signals dropped the leading `→ ` prefix — the renderer now supplies `⎿` as the close marker. The inline `old→new` arrow in changed values is preserved.
+- The session root is rendered flush-left rather than under a synthetic `session` header.
+- Status annotation (`: Failed`, `: unclosed`) propagates upward through the tree.
+- Demo JSON files (`demo/simple-demo.json`, `demo/complex-demo.json`) now validate cleanly against `demo/schemas/`.
+
+### Removed
+- **BREAKING**: `src/Stree/HtmlRenderer.php` and the `--format text|html`, `--depth`, `--expand` CLI flags. The text tree renderer (plus `--json` passthrough) is the sole output path.
+- **BREAKING**: the compact output shape changed (no `session` root, close signals on a `⎿` line instead of inline `→ …` on the open line). Consumers that parsed the old text format must re-adapt.
+
+### Closes
+
+- #15 (Redesign stree: generic JSON → tree rendering inspired by treelog)
+- #19 (demo files failing context-schema validation)
+- #22 (Extract Be Framework-specific formatters from stree; introduce generic formatter registry)
+
 ## [0.3.1] - 2026-04-17
 
 ### Fixed
