@@ -271,6 +271,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     private function contextToArray(AbstractContext $context): array
     {
         if ($context instanceof JsonSerializable) {
+            /** @var mixed $serialized */
             $serialized = $context->jsonSerialize();
             if (is_array($serialized)) {
                 /** @var array<string, mixed> $serialized */
