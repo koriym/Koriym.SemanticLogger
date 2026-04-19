@@ -73,8 +73,6 @@ final class TreeNodeTest extends TestCase
         $this->assertStringNotContainsString('[', $displayLine);
     }
 
-    // Generic signal extraction tests
-
     public function testGenericSignalExtraction(): void
     {
         $context = ['method' => 'POST', 'uri' => '/api/orders'];
@@ -217,8 +215,6 @@ final class TreeNodeTest extends TestCase
         $this->assertStringNotContainsString('_open', $line);
     }
 
-    // Close-diff tests
-
     public function testCloseDiffNewKey(): void
     {
         $node = new TreeNode('n1', 'business_logic', ['operation' => 'checkout']);
@@ -248,8 +244,6 @@ final class TreeNodeTest extends TestCase
 
         $this->assertStringNotContainsString('→', $line);
     }
-
-    // Status annotation tests
 
     public function testStatusFailedWhenSuccessFalse(): void
     {
@@ -282,8 +276,6 @@ final class TreeNodeTest extends TestCase
 
         $this->assertStringNotContainsString(': ', $line);
     }
-
-    // Event marker tests
 
     public function testEventMarker(): void
     {
