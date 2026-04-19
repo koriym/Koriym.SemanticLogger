@@ -11,7 +11,8 @@
                 "Content-Type": "application/json",
                 "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
             },
-            "responseTime": 0.580
+            "userAgent": "ECommerceApp/2.0.0",
+            "clientIp": "192.168.1.100"
         },
         "open": {
             "id": "authentication_1",
@@ -27,9 +28,23 @@
                 "type": "business_logic",
                 "schemaUrl": "./schemas/business_logic.json",
                 "context": {
-                    "operation": "process_order",
-                    "success": true,
-                    "executionTime": 0.520
+                    "operation": "order_validation",
+                    "inputData": {
+                        "customerId": 12345,
+                        "items": ["P001", "P002"],
+                        "total": 149.99
+                    },
+                    "outputData": {
+                        "orderId": "ORD_12345",
+                        "status": "confirmed"
+                    },
+                    "validationRules": {
+                        "customer_exists": true,
+                        "items_available": true,
+                        "payment_valid": true,
+                        "shipping_valid": true
+                    },
+                    "success": true
                 },
                 "open": {
                     "id": "database_connection_1",
@@ -59,6 +74,7 @@
                             "context": {
                                 "operation": "pdf_generation",
                                 "filename": "invoice_12345.pdf",
+                                "mimeType": "application/pdf",
                                 "fileSize": 245760,
                                 "processingTime": 0.095,
                                 "success": true
@@ -75,8 +91,11 @@
         "schemaUrl": "./schemas/http_response.json",
         "context": {
             "statusCode": 200,
-            "contentType": "application/json",
+            "headers": {
+                "Content-Type": "application/json"
+            },
             "contentLength": 1024,
+            "contentType": "application/json",
             "responseTime": 0.580
         },
         "openId": "http_request_1"

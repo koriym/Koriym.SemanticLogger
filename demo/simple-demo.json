@@ -11,16 +11,26 @@
                 "Content-Type": "application/json",
                 "Authorization": "Bearer <TOKEN_REDACTED>"
             },
-            "responseTime": 0.125
+            "userAgent": "SimpleApp/1.0.0",
+            "clientIp": "127.0.0.1"
         },
         "open": {
             "id": "business_logic_1", 
             "type": "business_logic",
             "schemaUrl": "./schemas/business_logic.json",
             "context": {
-                "operation": "create_user",
-                "success": true,
-                "executionTime": 0.095
+                "operation": "user_authentication",
+                "inputData": {
+                    "customerId": 1,
+                    "items": []
+                },
+                "outputData": {
+                    "status": "confirmed"
+                },
+                "validationRules": {
+                    "customer_exists": true
+                },
+                "success": true
             },
             "open": {
                 "id": "database_connection_1",
@@ -52,7 +62,11 @@
         "schemaUrl": "./schemas/http_response.json",
         "context": {
             "statusCode": 201,
-            "contentType": "application/json", 
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "contentLength": 256,
+            "contentType": "application/json",
             "responseTime": 0.125
         },
         "openId": "http_request_1"
