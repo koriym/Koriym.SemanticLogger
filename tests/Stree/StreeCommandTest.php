@@ -69,17 +69,21 @@ final class StreeCommandTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'test_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => ['executionTime' => 0.005],
+                [
+                    'id' => 'test_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['executionTime' => 0.005],
+                ],
             ],
             'close' => [
-                'id' => 'test_close_1',
-                'type' => 'test_close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'openId' => 'test_1',
+                [
+                    'id' => 'test_close_1',
+                    'type' => 'test_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                    'openId' => 'test_1',
+                ],
             ],
             'events' => [],
         ];
@@ -102,28 +106,36 @@ final class StreeCommandTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'parent_1',
-                'type' => 'parent',
-                'schemaUrl' => 'test.json',
-                'context' => ['name' => 'root'],
-                'open' => [
-                    'id' => 'child_1',
-                    'type' => 'child',
+                [
+                    'id' => 'parent_1',
+                    'type' => 'parent',
                     'schemaUrl' => 'test.json',
-                    'context' => ['name' => 'nested'],
+                    'context' => ['name' => 'root'],
                     'open' => [
-                        'id' => 'grandchild_1',
-                        'type' => 'grandchild',
-                        'schemaUrl' => 'test.json',
-                        'context' => ['name' => 'deep'],
+                        [
+                            'id' => 'child_1',
+                            'type' => 'child',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['name' => 'nested'],
+                            'open' => [
+                                [
+                                    'id' => 'grandchild_1',
+                                    'type' => 'grandchild',
+                                    'schemaUrl' => 'test.json',
+                                    'context' => ['name' => 'deep'],
+                                ],
+                            ],
+                        ],
                     ],
                 ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [],
         ];
@@ -147,22 +159,28 @@ final class StreeCommandTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'fast_1',
-                'type' => 'fast_operation',
-                'schemaUrl' => 'test.json',
-                'context' => ['executionTime' => 0.001], // 1ms
-                'open' => [
-                    'id' => 'slow_1',
-                    'type' => 'slow_operation',
+                [
+                    'id' => 'fast_1',
+                    'type' => 'fast_operation',
                     'schemaUrl' => 'test.json',
-                    'context' => ['executionTime' => 0.020], // 20ms
+                    'context' => ['executionTime' => 0.001], // 1ms
+                    'open' => [
+                        [
+                            'id' => 'slow_1',
+                            'type' => 'slow_operation',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['executionTime' => 0.020], // 20ms
+                        ],
+                    ],
                 ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [],
         ];
@@ -183,8 +201,8 @@ final class StreeCommandTest extends TestCase
     public function testJsonPassthrough(): void
     {
         $logData = [
-            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []],
-            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
+            'open' => [['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []]],
+            'close' => [['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []]],
             'events' => [],
         ];
 
@@ -205,8 +223,8 @@ final class StreeCommandTest extends TestCase
     public function testShortOptions(): void
     {
         $logData = [
-            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []],
-            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
+            'open' => [['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []]],
+            'close' => [['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []]],
             'events' => [],
         ];
 
@@ -247,8 +265,8 @@ final class StreeCommandTest extends TestCase
     public function testValuesFlagAccepted(): void
     {
         $logData = [
-            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []],
-            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
+            'open' => [['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => []]],
+            'close' => [['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []]],
             'events' => [],
         ];
 
@@ -266,8 +284,8 @@ final class StreeCommandTest extends TestCase
     public function testThresholdParsing(): void
     {
         $logData = [
-            'open' => ['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => ['executionTime' => 0.5]],
-            'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
+            'open' => [['id' => 'test_1', 'type' => 'test', 'schemaUrl' => 'test.json', 'context' => ['executionTime' => 0.5]]],
+            'close' => [['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []]],
             'events' => [],
         ];
 

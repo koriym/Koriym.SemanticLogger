@@ -28,11 +28,15 @@ final class RequestResponseAggregator
 
         // Extract all open operations from nested structure
         $openOperations = [];
-        $this->extractOpenOperations($logJson->open, $openOperations);
+        foreach ($logJson->open as $rootOpen) {
+            $this->extractOpenOperations($rootOpen, $openOperations);
+        }
 
         // Extract all close operations from nested structure
         $closeOperations = [];
-        $this->extractCloseOperations($logJson->close, $closeOperations);
+        foreach ($logJson->close as $rootClose) {
+            $this->extractCloseOperations($rootClose, $closeOperations);
+        }
 
         // Match open and close operations by base operation ID
         // For type-based IDs like "validation_1" and "validation_complete_1",
@@ -58,8 +62,8 @@ final class RequestResponseAggregator
     {
         $operations[] = $open;
 
-        if ($open->open !== null) {
-            $this->extractOpenOperations($open->open, $operations);
+        foreach ($open->open as $child) {
+            $this->extractOpenOperations($child, $operations);
         }
     }
 
@@ -68,16 +72,12 @@ final class RequestResponseAggregator
      *
      * @param array<int, EventEntry> $operations
      */
-    private function extractCloseOperations(EventEntry|null $close, array &$operations): void
+    private function extractCloseOperations(EventEntry $close, array &$operations): void
     {
-        if ($close === null) {
-            return;
-        }
-
         $operations[] = $close;
 
-        if ($close->close !== null) {
-            $this->extractCloseOperations($close->close, $operations);
+        foreach ($close->close as $child) {
+            $this->extractCloseOperations($child, $operations);
         }
     }
 

@@ -8,16 +8,21 @@ use JsonSerializable;
 use Koriym\SemanticLogger\Profiler\OperationProfile;
 use Override;
 
+use function array_map;
+
 final class EventEntry implements JsonSerializable
 {
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @param list<EventEntry>     $close   Child closes (zero or more) — immediate nested close entries in the order their opens closed.
+     */
     public function __construct(
         public readonly string $id,
         public readonly string $type,
         public readonly string $schemaUrl,
         public readonly array $context,
         public readonly string|null $openId = null,
-        public readonly EventEntry|null $close = null,
+        public readonly array $close = [],
         public readonly OperationProfile|null $profile = null,
     ) {
     }
@@ -35,7 +40,8 @@ final class EventEntry implements JsonSerializable
         );
     }
 
-    public function withClose(EventEntry|null $close): self
+    /** @param list<EventEntry> $close */
+    public function withClose(array $close): self
     {
         return new self(
             $this->id,
@@ -66,8 +72,8 @@ final class EventEntry implements JsonSerializable
             $result['profile'] = $this->profile->jsonSerialize();
         }
 
-        if ($this->close !== null) {
-            $result['close'] = $this->close->toArray();
+        if ($this->close !== []) {
+            $result['close'] = array_map(static fn (EventEntry $e) => $e->toArray(), $this->close);
         }
 
         return $result;

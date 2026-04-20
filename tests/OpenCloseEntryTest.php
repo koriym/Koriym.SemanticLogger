@@ -22,9 +22,10 @@ final class OpenCloseEntryTest extends TestCase
         $this->assertSame('https://example.com/simple.json', $entry->schemaUrl);
         $this->assertSame('hello', $entry->context['message']);
         $this->assertSame(42, $entry->context['value']);
-        $this->assertNull($entry->open);
+        $this->assertSame([], $entry->open);
+        $this->assertNull($entry->parentId);
 
-        // Test array serialization - open is null, so no 'open' key should be added
+        // Test array serialization - open is empty, so no 'open' key should be added
         $array = $entry->toArray();
         $this->assertArrayNotHasKey('open', $array);
         $this->assertSame([
@@ -35,13 +36,24 @@ final class OpenCloseEntryTest extends TestCase
         ], $array);
     }
 
-    public function testOpenCloseEntryWithNesting(): void
+    public function testOpenCloseEntryWithSiblingChildren(): void
     {
-        $nested = new OpenCloseEntry(
-            'nested_entry_1',
-            'nested_entry',
-            'https://example.com/nested.json',
-            ['nested' => true],
+        $child1 = new OpenCloseEntry(
+            'child_1',
+            'child_entry',
+            'https://example.com/child.json',
+            ['which' => 1],
+            [],
+            'parent_entry_1',
+        );
+
+        $child2 = new OpenCloseEntry(
+            'child_2',
+            'child_entry',
+            'https://example.com/child.json',
+            ['which' => 2],
+            [],
+            'parent_entry_1',
         );
 
         $entry = new OpenCloseEntry(
@@ -49,64 +61,50 @@ final class OpenCloseEntryTest extends TestCase
             'parent_entry',
             'https://example.com/parent.json',
             ['parent' => true],
-            $nested,
+            [$child1, $child2],
         );
 
-        $this->assertSame('parent_entry_1', $entry->id);
-        $this->assertSame('parent_entry', $entry->type);
-        $this->assertSame('https://example.com/parent.json', $entry->schemaUrl);
-        $this->assertSame(true, $entry->context['parent']);
+        $this->assertCount(2, $entry->open);
+        $this->assertSame('child_1', $entry->open[0]->id);
+        $this->assertSame('child_2', $entry->open[1]->id);
+        $this->assertSame('parent_entry_1', $entry->open[0]->parentId);
 
-        $this->assertNotNull($entry->open);
-        $this->assertSame('nested_entry_1', $entry->open->id);
-        $this->assertSame('nested_entry', $entry->open->type);
-        $this->assertSame('https://example.com/nested.json', $entry->open->schemaUrl);
-        $this->assertSame(true, $entry->open->context['nested']);
-
-        // Test array serialization - open is not null, so 'open' key should be added
         $array = $entry->toArray();
         $this->assertArrayHasKey('open', $array);
-        if (isset($array['open'])) {
-            /** @var array<string, mixed> $openArray */
-            $openArray = $array['open'];
-            $this->assertSame('nested_entry_1', $openArray['id']);
-            $this->assertSame('nested_entry', $openArray['type']);
-        }
+        $openArray = $array['open'];
+        $this->assertIsArray($openArray);
+        $this->assertCount(2, $openArray);
     }
 
     public function testDeepNesting(): void
     {
         $level3 = new OpenCloseEntry('level3_1', 'level3', 'https://example.com/3.json', ['level' => 3]);
-        $level2 = new OpenCloseEntry('level2_1', 'level2', 'https://example.com/2.json', ['level' => 2], $level3);
-        $level1 = new OpenCloseEntry('level1_1', 'level1', 'https://example.com/1.json', ['level' => 1], $level2);
+        $level2 = new OpenCloseEntry('level2_1', 'level2', 'https://example.com/2.json', ['level' => 2], [$level3]);
+        $level1 = new OpenCloseEntry('level1_1', 'level1', 'https://example.com/1.json', ['level' => 1], [$level2]);
 
         $this->assertSame('level1_1', $level1->id);
         $this->assertSame('level1', $level1->type);
         $this->assertSame(1, $level1->context['level']);
 
-        $this->assertNotNull($level1->open);
-        $this->assertSame('level2_1', $level1->open->id);
-        $this->assertSame('level2', $level1->open->type);
-        $this->assertSame(2, $level1->open->context['level']);
+        $this->assertCount(1, $level1->open);
+        $this->assertSame('level2_1', $level1->open[0]->id);
+        $this->assertSame(2, $level1->open[0]->context['level']);
 
-        $this->assertNotNull($level1->open->open);
-        $this->assertSame('level3_1', $level1->open->open->id);
-        $this->assertSame('level3', $level1->open->open->type);
-        $this->assertSame(3, $level1->open->open->context['level']);
-        $this->assertNull($level1->open->open->open);
+        $this->assertCount(1, $level1->open[0]->open);
+        $this->assertSame('level3_1', $level1->open[0]->open[0]->id);
+        $this->assertSame(3, $level1->open[0]->open[0]->context['level']);
+        $this->assertSame([], $level1->open[0]->open[0]->open);
 
         // Test array serialization - level3 should not have nested open
         $array = $level1->toArray();
         $this->assertArrayHasKey('open', $array);
-        if (isset($array['open'])) {
-            /** @var array<string, mixed> $level2Array */
-            $level2Array = $array['open'];
-            $this->assertArrayHasKey('open', $level2Array);
-            if (isset($level2Array['open'])) {
-                /** @var array<string, mixed> $level3Array */
-                $level3Array = $level2Array['open'];
-                $this->assertArrayNotHasKey('open', $level3Array);
-            }
-        }
+        /** @var list<array<string, mixed>> $level2List */
+        $level2List = $array['open'];
+        $level2Array = $level2List[0];
+        $this->assertArrayHasKey('open', $level2Array);
+        /** @var list<array<string, mixed>> $level3List */
+        $level3List = $level2Array['open'];
+        $level3Array = $level3List[0];
+        $this->assertArrayNotHasKey('open', $level3Array);
     }
 }

@@ -109,7 +109,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
                 );
             }
 
-            $closeWithProfile = $this->attachProfilesToCloseChain($logJson->close, $operations);
+            $closeWithProfile = $this->attachProfilesToCloses($logJson->close, $operations);
 
             return new LogJson(
                 $logJson->schemaUrl,
@@ -142,24 +142,30 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     }
 
     /**
-     * Walk the close chain and, at each level, attach the matching OperationProfile
+     * Walk the close tree and, at each node, attach the matching OperationProfile
      * directly to that close entry so each being carries its own profile data.
      *
+     * @param list<EventEntry>                $closes
      * @param array<string, OperationProfile> $operations
+     *
+     * @return list<EventEntry>
      */
-    private function attachProfilesToCloseChain(EventEntry $close, array $operations): EventEntry
+    private function attachProfilesToCloses(array $closes, array $operations): array
     {
-        $nestedClose = $close->close !== null
-            ? $this->attachProfilesToCloseChain($close->close, $operations)
-            : null;
+        $result = [];
+        foreach ($closes as $close) {
+            $withNested = $close->withClose($this->attachProfilesToCloses($close->close, $operations));
 
-        $withNested = $close->close === $nestedClose ? $close : $close->withClose($nestedClose);
+            if ($close->openId !== null && isset($operations[$close->openId])) {
+                $result[] = $withNested->withProfile($operations[$close->openId]);
 
-        if ($close->openId !== null && isset($operations[$close->openId])) {
-            return $withNested->withProfile($operations[$close->openId]);
+                continue;
+            }
+
+            $result[] = $withNested;
         }
 
-        return $withNested;
+        return $result;
     }
 
     private function startNewSegment(): void

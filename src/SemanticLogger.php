@@ -12,8 +12,6 @@ use Koriym\SemanticLogger\Exception\UnclosedLogicException;
 use Override;
 use SplStack;
 
-use function array_pop;
-use function array_reverse;
 use function assert;
 use function is_array;
 use function is_string;
@@ -28,10 +26,10 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     /** @var SplStack<OpenCloseEntry> */
     private SplStack $openStack;
 
-    /** @var SplStack<EventEntry> */
-    private SplStack $closeStack;
+    /** @var list<EventEntry> Close entries in chronological close order. */
+    private array $closeLog = [];
 
-    /** @var array<OpenCloseEntry> */
+    /** @var list<OpenCloseEntry> Completed opens in chronological close order; each carries the parentId captured at open time. */
     private array $completedOperations = [];
 
     /** @var array<string, int> */
@@ -42,9 +40,6 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         /** @var SplStack<OpenCloseEntry> $openStack */
         $openStack = new SplStack();
         $this->openStack = $openStack;
-        /** @var SplStack<EventEntry> $closeStack */
-        $closeStack = new SplStack();
-        $this->closeStack = $closeStack;
     }
 
     #[Override]
@@ -58,12 +53,16 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         $schemaUrl = $context::SCHEMA_URL;
         assert(is_string($schemaUrl));
 
+        $parentId = $this->openStack->isEmpty() ? null : $this->openStack->top()->id;
+
         $contextArray = $this->contextToArray($context);
         $this->openStack->push(new OpenCloseEntry(
             $operationId,
             $type,
             $schemaUrl,
             $contextArray,
+            [],
+            $parentId,
         ));
 
         return $operationId;
@@ -118,13 +117,13 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         assert(is_string($schemaUrl));
 
         $contextArray = $this->contextToArray($context);
-        $this->closeStack->push(new EventEntry(
+        $this->closeLog[] = new EventEntry(
             $closeId,
             $type,
             $schemaUrl,
             $contextArray,
             $openId,
-        ));
+        );
     }
 
     #[Override]
@@ -171,9 +170,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         /** @var SplStack<OpenCloseEntry> $openStack */
         $openStack = new SplStack();
         $this->openStack = $openStack;
-        /** @var SplStack<EventEntry> $closeStack */
-        $closeStack = new SplStack();
-        $this->closeStack = $closeStack;
+        $this->closeLog = [];
         $this->completedOperations = [];
         $this->events = [];
         $this->typeCounts = [];
@@ -202,60 +199,114 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         return $stack->top();
     }
 
-    private function buildNestedOpen(): OpenCloseEntry
+    /**
+     * Build the open tree from real parent-child links captured at open() time.
+     *
+     * Each completed operation carries its own parentId; children are grouped
+     * under their parent and appear in chronological close order (which equals
+     * open order for correctly-nested LIFO sessions).
+     *
+     * @return list<OpenCloseEntry>
+     */
+    private function buildNestedOpen(): array
     {
-        // Rebuild the nested structure from completed operations
-        $operations = array_reverse($this->completedOperations);
-        $result = array_pop($operations);
+        $childrenByParent = $this->groupByParent();
 
-        if ($result === null) {
-            throw new NoLogSessionException('no completed operations');
+        return $this->buildOpenChildren(null, $childrenByParent);
+    }
+
+    /**
+     * @param array<string, list<OpenCloseEntry>> $childrenByParent
+     *
+     * @return list<OpenCloseEntry>
+     */
+    private function buildOpenChildren(string|null $parentId, array $childrenByParent): array
+    {
+        $key = $parentId ?? '';
+        if (! isset($childrenByParent[$key])) {
+            return [];
         }
 
-        while (! empty($operations)) {
-            $parent = array_pop($operations);
-            $result = new OpenCloseEntry(
-                $parent->id,
-                $parent->type,
-                $parent->schemaUrl,
-                $parent->context,
-                $result,
+        $result = [];
+        foreach ($childrenByParent[$key] as $op) {
+            $result[] = new OpenCloseEntry(
+                $op->id,
+                $op->type,
+                $op->schemaUrl,
+                $op->context,
+                $this->buildOpenChildren($op->id, $childrenByParent),
+                $op->parentId,
             );
         }
 
         return $result;
     }
 
-    private function buildNestedClose(): EventEntry
+    /**
+     * Build the close tree that mirrors the open tree's shape but carries close contexts.
+     *
+     * Each close is paired to its open via openId; child-close ordering follows
+     * the open tree exactly so the two trees stay structurally parallel.
+     *
+     * @return list<EventEntry>
+     */
+    private function buildNestedClose(): array
     {
-        // SplStack pops LIFO, so popping yields [outermost, ..., innermost].
-        // array_pop on that array then takes the innermost first, and we wrap
-        // outward using each parent's own fields so intermediate close entries
-        // are preserved at every level.
-        $closeEntries = [];
-        $stack = clone $this->closeStack;
-        while (! $stack->isEmpty()) {
-            $closeEntries[] = $stack->pop();
+        $childrenByParent = $this->groupByParent();
+        $closeByOpenId = [];
+        foreach ($this->closeLog as $close) {
+            if ($close->openId !== null) {
+                $closeByOpenId[$close->openId] = $close;
+            }
         }
 
-        $result = array_pop($closeEntries);
+        return $this->buildCloseChildren(null, $childrenByParent, $closeByOpenId);
+    }
 
-        assert($result !== null, 'Internal error: closeStack is empty but completedOperations exist');
+    /**
+     * @param array<string, list<OpenCloseEntry>> $childrenByParent
+     * @param array<string, EventEntry>           $closeByOpenId
+     *
+     * @return list<EventEntry>
+     */
+    private function buildCloseChildren(string|null $parentId, array $childrenByParent, array $closeByOpenId): array
+    {
+        $key = $parentId ?? '';
+        if (! isset($childrenByParent[$key])) {
+            return [];
+        }
 
-        while (! empty($closeEntries)) {
-            $parent = array_pop($closeEntries);
-            /** @var EventEntry $parent */
-            $result = new EventEntry(
-                $parent->id,
-                $parent->type,
-                $parent->schemaUrl,
-                $parent->context,
-                $parent->openId,
-                $result,
+        $result = [];
+        foreach ($childrenByParent[$key] as $op) {
+            $close = $closeByOpenId[$op->id] ?? null;
+            if ($close === null) {
+                continue;
+            }
+
+            $result[] = new EventEntry(
+                $close->id,
+                $close->type,
+                $close->schemaUrl,
+                $close->context,
+                $close->openId,
+                $this->buildCloseChildren($op->id, $childrenByParent, $closeByOpenId),
+                $close->profile,
             );
         }
 
         return $result;
+    }
+
+    /** @return array<string, list<OpenCloseEntry>> */
+    private function groupByParent(): array
+    {
+        $childrenByParent = [];
+        foreach ($this->completedOperations as $op) {
+            $key = $op->parentId ?? '';
+            $childrenByParent[$key][] = $op;
+        }
+
+        return $childrenByParent;
     }
 
     /**

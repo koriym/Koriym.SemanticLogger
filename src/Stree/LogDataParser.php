@@ -7,6 +7,7 @@ namespace Koriym\SemanticLogger\Stree;
 use RuntimeException;
 
 use function array_key_exists;
+use function count;
 use function is_array;
 use function is_numeric;
 use function is_scalar;
@@ -20,17 +21,25 @@ final class LogDataParser
             throw new RuntimeException('Invalid log data: missing open section');
         }
 
-        /** @var array<string, mixed> $openData */
-        $openData = $logData['open'];
+        /** @var list<array<string, mixed>> $openList */
+        $openList = $logData['open'];
+        if ($openList === []) {
+            throw new RuntimeException('Invalid log data: open section is empty');
+        }
 
-        // Parse the hierarchical open structure
-        $rootNode = $this->parseOpenEntry($openData);
+        if (count($openList) !== 1) {
+            throw new RuntimeException('stree rendering expects a single root open entry; wrap sibling roots in a parent span.');
+        }
+
+        $rootNode = $this->parseOpenEntry($openList[0]);
 
         // Merge close entries into their matching open nodes by openId.
         if (array_key_exists('close', $logData) && is_array($logData['close'])) {
-            /** @var array<string, mixed> $closeData */
-            $closeData = $logData['close'];
-            $this->attachCloses($rootNode, $closeData);
+            /** @var list<array<string, mixed>> $closeList */
+            $closeList = $logData['close'];
+            foreach ($closeList as $closeEntry) {
+                $this->attachSingleClose($rootNode, $closeEntry);
+            }
         }
 
         // Add events as leaf nodes
@@ -44,7 +53,7 @@ final class LogDataParser
     }
 
     /** @param array<string, mixed> $closeEntry */
-    private function attachCloses(TreeNode $rootNode, array $closeEntry): void
+    private function attachSingleClose(TreeNode $rootNode, array $closeEntry): void
     {
         /** @var mixed $rawOpenId */
         $rawOpenId = $closeEntry['openId'] ?? null;
@@ -63,11 +72,12 @@ final class LogDataParser
             $node->setClose($type, $closeCtx);
         }
 
-        /** @var mixed $next */
-        $next = $closeEntry['close'] ?? null;
-        if (is_array($next)) {
-            /** @var array<string, mixed> $next */
-            $this->attachCloses($rootNode, $next);
+        if (array_key_exists('close', $closeEntry) && is_array($closeEntry['close'])) {
+            /** @var list<array<string, mixed>> $nested */
+            $nested = $closeEntry['close'];
+            foreach ($nested as $child) {
+                $this->attachSingleClose($rootNode, $child);
+            }
         }
     }
 
@@ -89,12 +99,13 @@ final class LogDataParser
 
         $node = new TreeNode($id, $type, $context, $executionTime, $parent);
 
-        // Check for nested open entries
+        // Walk nested sibling children (list shape).
         if (array_key_exists('open', $openEntry) && is_array($openEntry['open'])) {
-            /** @var array<string, mixed> $nestedOpen */
-            $nestedOpen = $openEntry['open'];
-            $childNode = $this->parseOpenEntry($nestedOpen, $node);
-            $node->addChild($childNode);
+            /** @var list<array<string, mixed>> $children */
+            $children = $openEntry['open'];
+            foreach ($children as $childEntry) {
+                $node->addChild($this->parseOpenEntry($childEntry, $node));
+            }
         }
 
         return $node;

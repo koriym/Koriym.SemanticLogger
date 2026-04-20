@@ -65,11 +65,12 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json', $logJson->schemaUrl);
 
         // Open - check ID
-        $this->assertSame('process_start_1', $logJson->open->id);
-        $this->assertSame('process_start', $logJson->open->type);
-        $this->assertSame('https://example.com/schemas/process_start.json', $logJson->open->schemaUrl);
-        $this->assertSame('starting process', $logJson->open->context['message']);
-        $this->assertSame(1, $logJson->open->context['id']);
+        $this->assertCount(1, $logJson->open);
+        $this->assertSame('process_start_1', $logJson->open[0]->id);
+        $this->assertSame('process_start', $logJson->open[0]->type);
+        $this->assertSame('https://example.com/schemas/process_start.json', $logJson->open[0]->schemaUrl);
+        $this->assertSame('starting process', $logJson->open[0]->context['message']);
+        $this->assertSame(1, $logJson->open[0]->context['id']);
 
         // Events - check ID
         $this->assertCount(1, $logJson->events);
@@ -80,10 +81,64 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame(42, $logJson->events[0]->context['value']);
 
         // Close - check ID
-        $this->assertSame('process_complete_1', $logJson->close->id);
-        $this->assertSame('process_complete', $logJson->close->type);
-        $this->assertSame('https://example.com/schemas/process_complete.json', $logJson->close->schemaUrl);
-        $this->assertSame('completed successfully', $logJson->close->context['result']);
+        $this->assertCount(1, $logJson->close);
+        $this->assertSame('process_complete_1', $logJson->close[0]->id);
+        $this->assertSame('process_complete', $logJson->close[0]->type);
+        $this->assertSame('https://example.com/schemas/process_complete.json', $logJson->close[0]->schemaUrl);
+        $this->assertSame('completed successfully', $logJson->close[0]->context['result']);
+    }
+
+    public function testSequentialSiblingsAreRecordedAsSiblings(): void
+    {
+        // open_1, close_1, open_2, close_2 at the top level — sequential siblings.
+        // Regression for #24: buildNestedOpen() previously reconstructed a fake
+        // nesting from close order alone, wrapping open_2 around open_1.
+        $first = $this->logger->open(new FakeContext('first', 1));
+        $this->logger->close(new FakeContext('first done', 2), $first);
+
+        $second = $this->logger->open(new FakeContext('second', 3));
+        $this->logger->close(new FakeContext('second done', 4), $second);
+
+        $logJson = $this->logger->flush();
+
+        $this->assertCount(2, $logJson->open, 'top-level opens should be siblings, not nested');
+        $this->assertSame($first, $logJson->open[0]->id);
+        $this->assertSame('first', $logJson->open[0]->context['message']);
+        $this->assertSame([], $logJson->open[0]->open);
+
+        $this->assertSame($second, $logJson->open[1]->id);
+        $this->assertSame('second', $logJson->open[1]->context['message']);
+        $this->assertSame([], $logJson->open[1]->open);
+
+        $this->assertCount(2, $logJson->close);
+        $this->assertSame($first, $logJson->close[0]->openId);
+        $this->assertSame($second, $logJson->close[1]->openId);
+    }
+
+    public function testOuterWithTwoSiblingInnersKeepsRealOrder(): void
+    {
+        // outer { inner_1; inner_2 } — one parent containing two sibling children,
+        // which is exactly the Be Framework metamorphosis-chain shape once the
+        // chain wrapper lands on the framework side.
+        $outer = $this->logger->open(new FakeContext('outer', 1));
+
+        $inner1 = $this->logger->open(new FakeContext('inner1', 2));
+        $this->logger->close(new FakeContext('inner1 done', 3), $inner1);
+
+        $inner2 = $this->logger->open(new FakeContext('inner2', 4));
+        $this->logger->close(new FakeContext('inner2 done', 5), $inner2);
+
+        $this->logger->close(new FakeContext('outer done', 6), $outer);
+
+        $logJson = $this->logger->flush();
+
+        $this->assertCount(1, $logJson->open);
+        $root = $logJson->open[0];
+        $this->assertSame($outer, $root->id);
+
+        $this->assertCount(2, $root->open, 'outer should list both inners as siblings in order');
+        $this->assertSame($inner1, $root->open[0]->id);
+        $this->assertSame($inner2, $root->open[1]->id);
     }
 
     public function testNestedOpen(): void
@@ -107,12 +162,12 @@ final class SemanticLoggerTest extends TestCase
         $logJson = $this->logger->flush();
 
         // Root operation
-        $this->assertSame('example_event', $logJson->open->type);
-        $this->assertSame('outer process', $logJson->open->context['message']);
+        $this->assertSame('example_event', $logJson->open[0]->type);
+        $this->assertSame('outer process', $logJson->open[0]->context['message']);
 
         // Close should be the root operation close
-        $this->assertSame('example_event', $logJson->close->type);
-        $this->assertSame('outer finished', $logJson->close->context['message']);
+        $this->assertSame('example_event', $logJson->close[0]->type);
+        $this->assertSame('outer finished', $logJson->close[0]->context['message']);
     }
 
     public function testJsonSerializableOutput(): void
@@ -146,7 +201,7 @@ final class SemanticLoggerTest extends TestCase
         $logJson = $this->logger->flush();
 
         // Verify open operation has expected ID
-        $this->assertSame($openId, $logJson->open->id);
+        $this->assertSame($openId, $logJson->open[0]->id);
 
         // Verify event has openId correlation
         $this->assertCount(1, $logJson->events);
@@ -157,7 +212,7 @@ final class SemanticLoggerTest extends TestCase
         }
 
         // Verify close has openId correlation
-        $closeArray = $logJson->close->toArray();
+        $closeArray = $logJson->close[0]->toArray();
         $this->assertArrayHasKey('openId', $closeArray);
         if (isset($closeArray['openId'])) {
             $this->assertSame($openId, $closeArray['openId']);
@@ -185,9 +240,9 @@ final class SemanticLoggerTest extends TestCase
         $logJson = $this->logger->flush();
 
         // Verify parent and child IDs
-        $this->assertSame($parentId, $logJson->open->id);
-        $this->assertNotNull($logJson->open->open);
-        $this->assertSame($childId, $logJson->open->open->id);
+        $this->assertSame($parentId, $logJson->open[0]->id);
+        $this->assertCount(1, $logJson->open[0]->open);
+        $this->assertSame($childId, $logJson->open[0]->open[0]->id);
 
         // Event should be correlated with child operation
         $this->assertCount(1, $logJson->events);
@@ -198,7 +253,7 @@ final class SemanticLoggerTest extends TestCase
         }
 
         // Close entries should have correct openId correlation
-        $closeArray = $logJson->close->toArray();
+        $closeArray = $logJson->close[0]->toArray();
         $this->assertArrayHasKey('openId', $closeArray);
         if (isset($closeArray['openId'])) {
             $this->assertSame($parentId, $closeArray['openId']);
@@ -207,8 +262,9 @@ final class SemanticLoggerTest extends TestCase
         // Nested close should have child openId
         $this->assertArrayHasKey('close', $closeArray);
         if (isset($closeArray['close'])) {
-            /** @var array<string, mixed> $nestedCloseArray */
-            $nestedCloseArray = $closeArray['close'];
+            /** @var list<array<string, mixed>> $nestedCloseList */
+            $nestedCloseList = $closeArray['close'];
+            $nestedCloseArray = $nestedCloseList[0];
             $this->assertArrayHasKey('openId', $nestedCloseArray);
             if (isset($nestedCloseArray['openId'])) {
                 $this->assertSame($childId, $nestedCloseArray['openId']);
@@ -275,17 +331,17 @@ final class SemanticLoggerTest extends TestCase
         $this->assertStringContainsString('schemas/combined.json', $logJson->schemaUrl);
 
         // Verify open structure
-        $this->assertSame('example_event_1', $logJson->open->id);
-        $this->assertSame('example_event', $logJson->open->type);
-        $this->assertSame('test message', $logJson->open->context['message']);
-        $this->assertSame(123, $logJson->open->context['value']);
+        $this->assertSame('example_event_1', $logJson->open[0]->id);
+        $this->assertSame('example_event', $logJson->open[0]->type);
+        $this->assertSame('test message', $logJson->open[0]->context['message']);
+        $this->assertSame(123, $logJson->open[0]->context['value']);
 
         // Verify close structure
-        $this->assertSame('example_event_2', $logJson->close->id);
-        $this->assertSame('example_event', $logJson->close->type);
-        $this->assertSame('test complete', $logJson->close->context['message']);
-        $this->assertSame(456, $logJson->close->context['value']);
-        $this->assertSame('example_event_1', $logJson->close->openId);
+        $this->assertSame('example_event_2', $logJson->close[0]->id);
+        $this->assertSame('example_event', $logJson->close[0]->type);
+        $this->assertSame('test complete', $logJson->close[0]->context['message']);
+        $this->assertSame(456, $logJson->close[0]->context['value']);
+        $this->assertSame('example_event_1', $logJson->close[0]->openId);
 
         // Verify JSON serialization quality
         $actualJson = json_encode($logJson, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
@@ -310,28 +366,28 @@ final class SemanticLoggerTest extends TestCase
         $this->assertStringContainsString('schemas/combined.json', $logJson->schemaUrl);
 
         // Verify outer open
-        $this->assertSame('example_event_1', $logJson->open->id);
-        $this->assertSame('outer task', $logJson->open->context['message']);
-        $this->assertSame(100, $logJson->open->context['value']);
+        $this->assertSame('example_event_1', $logJson->open[0]->id);
+        $this->assertSame('outer task', $logJson->open[0]->context['message']);
+        $this->assertSame(100, $logJson->open[0]->context['value']);
 
         // Verify inner open (nested)
-        $this->assertNotNull($logJson->open->open);
-        $this->assertSame('example_event_2', $logJson->open->open->id);
-        $this->assertSame('inner task', $logJson->open->open->context['message']);
-        $this->assertSame(200, $logJson->open->open->context['value']);
+        $this->assertCount(1, $logJson->open[0]->open);
+        $this->assertSame('example_event_2', $logJson->open[0]->open[0]->id);
+        $this->assertSame('inner task', $logJson->open[0]->open[0]->context['message']);
+        $this->assertSame(200, $logJson->open[0]->open[0]->context['value']);
 
         // Verify outer close
-        $this->assertSame('example_event_4', $logJson->close->id);
-        $this->assertSame('outer done', $logJson->close->context['message']);
-        $this->assertSame(400, $logJson->close->context['value']);
-        $this->assertSame('example_event_1', $logJson->close->openId);
+        $this->assertSame('example_event_4', $logJson->close[0]->id);
+        $this->assertSame('outer done', $logJson->close[0]->context['message']);
+        $this->assertSame(400, $logJson->close[0]->context['value']);
+        $this->assertSame('example_event_1', $logJson->close[0]->openId);
 
         // Verify inner close (nested)
-        $this->assertNotNull($logJson->close->close);
-        $this->assertSame('example_event_3', $logJson->close->close->id);
-        $this->assertSame('inner done', $logJson->close->close->context['message']);
-        $this->assertSame(300, $logJson->close->close->context['value']);
-        $this->assertSame('example_event_2', $logJson->close->close->openId);
+        $this->assertCount(1, $logJson->close[0]->close);
+        $this->assertSame('example_event_3', $logJson->close[0]->close[0]->id);
+        $this->assertSame('inner done', $logJson->close[0]->close[0]->context['message']);
+        $this->assertSame(300, $logJson->close[0]->close[0]->context['value']);
+        $this->assertSame('example_event_2', $logJson->close[0]->close[0]->openId);
 
         // Verify JSON serialization quality
         $actualJson = json_encode($logJson, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
@@ -561,20 +617,21 @@ final class SemanticLoggerTest extends TestCase
 
         $logJson = $this->logger->flush();
 
-        $close = $logJson->close;
+        $this->assertCount(1, $logJson->close);
+        $close = $logJson->close[0];
         $this->assertSame('close 1', $close->context['message']);
 
-        $level2 = $close->close;
-        $this->assertNotNull($level2);
+        $this->assertCount(1, $close->close);
+        $level2 = $close->close[0];
         $this->assertSame('close 2', $level2->context['message']);
 
-        $level3 = $level2->close;
-        $this->assertNotNull($level3);
+        $this->assertCount(1, $level2->close);
+        $level3 = $level2->close[0];
         $this->assertSame('close 3', $level3->context['message']);
 
-        $level4 = $level3->close;
-        $this->assertNotNull($level4);
+        $this->assertCount(1, $level3->close);
+        $level4 = $level3->close[0];
         $this->assertSame('close 4', $level4->context['message']);
-        $this->assertNull($level4->close);
+        $this->assertSame([], $level4->close);
     }
 }
