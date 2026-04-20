@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-04-21
+
+### Fixed
+- **#24 — sibling open/close pairs were falsely nested.** `buildNestedOpen()` reconstructed the hierarchy from completion order alone, so sequential `open/close` pairs at the same level had `open_2` wrapping `open_1` whenever they were siblings. `SemanticLogger` now captures the real parent at `open()` time via the open stack, and completed operations carry their own `parentId` — the flush step groups by `parentId` instead of reconstructing from close order.
+
+### Changed
+- **BREAKING — on-wire JSON shape.** `open` and `close` are now arrays of entries at every level (top-level and nested). `OpenCloseEntry.open` is `list<OpenCloseEntry>`; `EventEntry.close` is `list<EventEntry>`; `LogJson.open` / `LogJson.close` are top-level lists (multiple roots allowed). `OpenCloseEntry` gained a `parentId: string|null` field.
+- **BREAKING — PHP API.** `LogJson::$open` / `LogJson::$close` are lists; `OpenCloseEntry::$open` is a list; `EventEntry::$close` is a list. `EventEntry::withClose()` takes a list.
+- `DevSemanticLogger` walks the new list shape when attaching profiles (`attachProfilesToCloses` replaces `attachProfilesToCloseChain`).
+- `Stree/LogDataParser` walks the new list shape; the single-root constraint is enforced at render time (multi-root logs throw a clear error for `stree`).
+- Schema (`docs/schemas/semantic-log.json`) factored into `openEntry` / `closeEntry` definitions and updated to array-at-every-level.
+
+### Closes
+
+- #24 (sibling open/close pairs incorrectly nested)
+
 ## [0.4.0] - 2026-04-20
 
 ### Added
