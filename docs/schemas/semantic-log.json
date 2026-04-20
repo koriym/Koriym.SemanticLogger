@@ -23,65 +23,14 @@
       "$ref": "#/definitions/schemaUrl"
     },
     "open": {
-      "type": "object",
-      "description": "Application-defined open context - type and schema determined by application needs",
-      "required": ["id", "type", "schemaUrl"],
-      "properties": {
-        "id": {
-          "$ref": "#/definitions/operationId"
-        },
-        "type": {
-          "type": "string",
-          "description": "Application-defined context type (e.g., http_request, database_query, business_logic)"
-        },
-        "schemaUrl": {
-          "$ref": "#/definitions/schemaUrl"
-        },
-        "context": {
-          "type": "object",
-          "description": "Application-specific context data conforming to the referenced schema",
-          "additionalProperties": true
-        },
-        "open": {
-          "$ref": "#/properties/open",
-          "description": "Nested child operation within this operation - enables hierarchical operation tracking"
-        }
-      },
-      "additionalProperties": true
+      "type": "array",
+      "description": "Top-level open operations in chronological order. Each entry may carry its own nested children.",
+      "items": { "$ref": "#/definitions/openEntry" }
     },
     "close": {
-      "type": "object",
-      "description": "Application-defined close context - type and schema determined by application needs",
-      "required": ["id", "type", "schemaUrl", "openId"],
-      "properties": {
-        "id": {
-          "$ref": "#/definitions/operationId"
-        },
-        "type": {
-          "type": "string",
-          "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
-        },
-        "schemaUrl": {
-          "$ref": "#/definitions/schemaUrl"
-        },
-        "openId": {
-          "$ref": "#/definitions/openIdReference"
-        },
-        "context": {
-          "type": "object",
-          "description": "Application-specific context data conforming to the referenced schema",
-          "additionalProperties": true
-        },
-        "profile": {
-          "$ref": "#/definitions/operationProfile",
-          "description": "Profile data attributed to this specific operation (wall time plus per-segment Xdebug/XHProf captures). Present when DevSemanticLogger produced the log."
-        },
-        "close": {
-          "$ref": "#/properties/close",
-          "description": "Nested child operation completion within this close - enables hierarchical close tracking"
-        }
-      },
-      "additionalProperties": true
+      "type": "array",
+      "description": "Top-level close operations, parallel in shape to `open`.",
+      "items": { "$ref": "#/definitions/closeEntry" }
     },
     "events": {
       "type": "array",
@@ -155,6 +104,59 @@
   },
   "additionalProperties": false,
   "definitions": {
+    "openEntry": {
+      "type": "object",
+      "description": "Application-defined open context with optional sibling children.",
+      "required": ["id", "type", "schemaUrl"],
+      "properties": {
+        "id": { "$ref": "#/definitions/operationId" },
+        "type": {
+          "type": "string",
+          "description": "Application-defined context type (e.g., http_request, database_query, business_logic)"
+        },
+        "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
+        "context": {
+          "type": "object",
+          "description": "Application-specific context data conforming to the referenced schema",
+          "additionalProperties": true
+        },
+        "open": {
+          "type": "array",
+          "description": "Nested child operations in chronological order.",
+          "items": { "$ref": "#/definitions/openEntry" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "closeEntry": {
+      "type": "object",
+      "description": "Application-defined close context; mirrors an openEntry and carries child closes in parallel.",
+      "required": ["id", "type", "schemaUrl", "openId"],
+      "properties": {
+        "id": { "$ref": "#/definitions/operationId" },
+        "type": {
+          "type": "string",
+          "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
+        },
+        "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
+        "openId": { "$ref": "#/definitions/openIdReference" },
+        "context": {
+          "type": "object",
+          "description": "Application-specific context data conforming to the referenced schema",
+          "additionalProperties": true
+        },
+        "profile": {
+          "$ref": "#/definitions/operationProfile",
+          "description": "Profile data attributed to this specific operation (wall time plus per-segment Xdebug/XHProf captures). Present when DevSemanticLogger produced the log."
+        },
+        "close": {
+          "type": "array",
+          "description": "Nested child closes in the order their opens closed.",
+          "items": { "$ref": "#/definitions/closeEntry" }
+        }
+      },
+      "additionalProperties": true
+    },
     "operationId": {
       "type": "string",
       "pattern": "^[a-z_]+_[0-9]+$",

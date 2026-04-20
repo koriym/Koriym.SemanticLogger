@@ -16,17 +16,21 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'test_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => ['executionTime' => 0.005],
+                [
+                    'id' => 'test_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['executionTime' => 0.005],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'openId' => 'test_1',
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                    'openId' => 'test_1',
+                ],
             ],
             'events' => [],
         ];
@@ -45,17 +49,21 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'op_1',
-                'type' => 'some_op',
-                'schemaUrl' => 'test.json',
-                'context' => ['executionTime' => 0.010],
+                [
+                    'id' => 'op_1',
+                    'type' => 'some_op',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['executionTime' => 0.010],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'openId' => 'op_1',
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                    'openId' => 'op_1',
+                ],
             ],
             'events' => [],
         ];
@@ -75,22 +83,28 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'parent_1',
-                'type' => 'parent_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'open' => [
-                    'id' => 'child_1',
-                    'type' => 'child_operation',
+                [
+                    'id' => 'parent_1',
+                    'type' => 'parent_operation',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'open' => [
+                        [
+                            'id' => 'child_1',
+                            'type' => 'child_operation',
+                            'schemaUrl' => 'test.json',
+                            'context' => [],
+                        ],
+                    ],
                 ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [],
         ];
@@ -109,17 +123,21 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'openId' => 'operation_1',
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                    'openId' => 'operation_1',
+                ],
             ],
             'events' => [
                 [
@@ -147,22 +165,28 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'parent_1',
-                'type' => 'parent_operation',
-                'schemaUrl' => 'test.json',
-                'context' => ['executionTime' => 0.050], // 50ms - above threshold
-                'open' => [
-                    'id' => 'fast_1',
-                    'type' => 'fast_operation',
+                [
+                    'id' => 'parent_1',
+                    'type' => 'parent_operation',
                     'schemaUrl' => 'test.json',
-                    'context' => ['executionTime' => 0.001], // 1ms - below threshold
+                    'context' => ['executionTime' => 0.050], // 50ms - above threshold
+                    'open' => [
+                        [
+                            'id' => 'fast_1',
+                            'type' => 'fast_operation',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['executionTime' => 0.001], // 1ms - below threshold
+                        ],
+                    ],
                 ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [
                 [
@@ -192,12 +216,14 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'op_1',
-                'type' => 'some_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'op_1',
+                    'type' => 'some_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
-            'close' => null,
+            'close' => [],
             'events' => [],
         ];
 
@@ -213,17 +239,21 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'op_1',
-                'type' => 'payment',
-                'schemaUrl' => 'test.json',
-                'context' => ['amount' => 100],
+                [
+                    'id' => 'op_1',
+                    'type' => 'payment',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['amount' => 100],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'payment_close',
-                'schemaUrl' => 'test.json',
-                'context' => ['success' => false],
-                'openId' => 'op_1',
+                [
+                    'id' => 'close_1',
+                    'type' => 'payment_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['success' => false],
+                    'openId' => 'op_1',
+                ],
             ],
             'events' => [],
         ];
@@ -240,29 +270,37 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'parent_1',
-                'type' => 'checkout',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'open' => [
-                    'id' => 'child_1',
-                    'type' => 'charge',
+                [
+                    'id' => 'parent_1',
+                    'type' => 'checkout',
                     'schemaUrl' => 'test.json',
-                    'context' => ['amount' => 100],
+                    'context' => [],
+                    'open' => [
+                        [
+                            'id' => 'child_1',
+                            'type' => 'charge',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['amount' => 100],
+                        ],
+                    ],
                 ],
             ],
             'close' => [
-                'id' => 'parent_close',
-                'type' => 'checkout_close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'openId' => 'parent_1',
-                'close' => [
-                    'id' => 'child_close',
-                    'type' => 'charge_close',
+                [
+                    'id' => 'parent_close',
+                    'type' => 'checkout_close',
                     'schemaUrl' => 'test.json',
-                    'context' => ['success' => false],
-                    'openId' => 'child_1',
+                    'context' => [],
+                    'openId' => 'parent_1',
+                    'close' => [
+                        [
+                            'id' => 'child_close',
+                            'type' => 'charge_close',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['success' => false],
+                            'openId' => 'child_1',
+                        ],
+                    ],
                 ],
             ],
             'events' => [],
@@ -283,17 +321,21 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'op_1',
-                'type' => 'some_op',
-                'schemaUrl' => 'test.json',
-                'context' => ['operation' => 'validate', 'input' => 'data'],
+                [
+                    'id' => 'op_1',
+                    'type' => 'some_op',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['operation' => 'validate', 'input' => 'data'],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'some_op_close',
-                'schemaUrl' => 'test.json',
-                'context' => ['result' => 'ok'],
-                'openId' => 'op_1',
+                [
+                    'id' => 'close_1',
+                    'type' => 'some_op_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'ok'],
+                    'openId' => 'op_1',
+                ],
             ],
             'events' => [],
         ];
@@ -314,20 +356,24 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'meta_1',
-                'type' => 'metamorphosis_open',
-                'schemaUrl' => 'test.json',
-                'context' => [
-                    'fromClass' => 'Be\\Skeleton\\Input\\HelloInput',
-                    'beAttribute' => '#[Be(Be\\Skeleton\\Final\\Hello::class)]',
+                [
+                    'id' => 'meta_1',
+                    'type' => 'metamorphosis_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [
+                        'fromClass' => 'Be\\Skeleton\\Input\\HelloInput',
+                        'beAttribute' => '#[Be(Be\\Skeleton\\Final\\Hello::class)]',
+                    ],
                 ],
             ],
             'close' => [
-                'id' => 'meta_close_1',
-                'type' => 'metamorphosis_close',
-                'schemaUrl' => 'test.json',
-                'context' => ['finalClass' => 'Be\\Skeleton\\Final\\Hello'],
-                'openId' => 'meta_1',
+                [
+                    'id' => 'meta_close_1',
+                    'type' => 'metamorphosis_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['finalClass' => 'Be\\Skeleton\\Final\\Hello'],
+                    'openId' => 'meta_1',
+                ],
             ],
             'events' => [],
         ];
@@ -349,17 +395,21 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'op_1',
-                'type' => 'fake_open',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'op_1',
+                    'type' => 'fake_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'fake_close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'openId' => 'op_1',
+                [
+                    'id' => 'close_1',
+                    'type' => 'fake_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                    'openId' => 'op_1',
+                ],
             ],
             'events' => [],
         ];
@@ -382,29 +432,37 @@ final class TreeRendererTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'root_1',
-                'type' => 'container',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'open' => [
-                    'id' => 'child_1',
-                    'type' => 'fake_open',
+                [
+                    'id' => 'root_1',
+                    'type' => 'container',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'open' => [
+                        [
+                            'id' => 'child_1',
+                            'type' => 'fake_open',
+                            'schemaUrl' => 'test.json',
+                            'context' => [],
+                        ],
+                    ],
                 ],
             ],
             'close' => [
-                'id' => 'root_close',
-                'type' => 'container_close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'openId' => 'root_1',
-                'close' => [
-                    'id' => 'child_close',
-                    'type' => 'fake_close',
+                [
+                    'id' => 'root_close',
+                    'type' => 'container_close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
-                    'openId' => 'child_1',
+                    'openId' => 'root_1',
+                    'close' => [
+                        [
+                            'id' => 'child_close',
+                            'type' => 'fake_close',
+                            'schemaUrl' => 'test.json',
+                            'context' => [],
+                            'openId' => 'child_1',
+                        ],
+                    ],
                 ],
             ],
             'events' => [],

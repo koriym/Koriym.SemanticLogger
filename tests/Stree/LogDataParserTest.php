@@ -15,16 +15,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'test_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => ['executionTime' => 0.005],
+                [
+                    'id' => 'test_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['executionTime' => 0.005],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [],
         ];
@@ -42,22 +46,28 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'parent_1',
-                'type' => 'parent_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'open' => [
-                    'id' => 'child_1',
-                    'type' => 'child_operation',
+                [
+                    'id' => 'parent_1',
+                    'type' => 'parent_operation',
                     'schemaUrl' => 'test.json',
-                    'context' => ['responseTime' => 0.010],
+                    'context' => [],
+                    'open' => [
+                        [
+                            'id' => 'child_1',
+                            'type' => 'child_operation',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['responseTime' => 0.010],
+                        ],
+                    ],
                 ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [],
         ];
@@ -75,20 +85,85 @@ final class LogDataParserTest extends TestCase
         $this->assertSame(0.010, $child->executionTime);
     }
 
+    public function testParseSiblingChildren(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'parent_1',
+                    'type' => 'parent_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                    'open' => [
+                        [
+                            'id' => 'sib_1',
+                            'type' => 'first',
+                            'schemaUrl' => 'test.json',
+                            'context' => [],
+                        ],
+                        [
+                            'id' => 'sib_2',
+                            'type' => 'second',
+                            'schemaUrl' => 'test.json',
+                            'context' => [],
+                        ],
+                    ],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_parent',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                    'openId' => 'parent_1',
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertCount(2, $tree->children);
+        $this->assertSame('first', $tree->children[0]->type);
+        $this->assertSame('second', $tree->children[1]->type);
+    }
+
+    public function testMultipleRootsThrowForStreeRendering(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('single root open entry');
+
+        $parser = new LogDataParser();
+        $parser->parseLogData([
+            'open' => [
+                ['id' => 'a_1', 'type' => 'a', 'schemaUrl' => 'a.json', 'context' => []],
+                ['id' => 'b_1', 'type' => 'b', 'schemaUrl' => 'b.json', 'context' => []],
+            ],
+            'close' => [],
+            'events' => [],
+        ]);
+    }
+
     public function testParseEventsData(): void
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [
                 [
@@ -117,16 +192,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [
                 [
@@ -177,16 +256,20 @@ final class LogDataParserTest extends TestCase
 
             $logData = [
                 'open' => [
-                    'id' => 'test_1',
-                    'type' => 'test_operation',
-                    'schemaUrl' => 'test.json',
-                    'context' => $testCase,
+                    [
+                        'id' => 'test_1',
+                        'type' => 'test_operation',
+                        'schemaUrl' => 'test.json',
+                        'context' => $testCase,
+                    ],
                 ],
                 'close' => [
-                    'id' => 'close_1',
-                    'type' => 'close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
+                    [
+                        'id' => 'close_1',
+                        'type' => 'close',
+                        'schemaUrl' => 'test.json',
+                        'context' => [],
+                    ],
                 ],
                 'events' => [],
             ];
@@ -235,16 +318,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [
                 [
@@ -268,16 +355,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [
                 [
@@ -302,16 +393,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [
                 'invalid_event_string', // Non-array event should be skipped
@@ -338,16 +433,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [
                 [
@@ -372,16 +471,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => 'invalid_context', // Non-array context should be converted to empty array
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => 'invalid_context', // Non-array context should be converted to empty array
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [],
         ];
@@ -396,12 +499,14 @@ final class LogDataParserTest extends TestCase
     public function testOpenEntryWithMissingFields(): void
     {
         $logData = [
-            'open' => ['schemaUrl' => 'test.json'], // Missing id, type - should use defaults
+            'open' => [['schemaUrl' => 'test.json']], // Missing id, type - should use defaults
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [],
         ];
@@ -417,16 +522,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [
                 [
@@ -449,16 +558,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'test_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => ['executionTime' => 'not_a_number'], // Non-numeric should result in 0.0
+                [
+                    'id' => 'test_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['executionTime' => 'not_a_number'], // Non-numeric should result in 0.0
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => [],
         ];
@@ -473,16 +586,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             // No events section
         ];
@@ -498,16 +615,20 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'test_operation',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'test_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'close',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'close_1',
+                    'type' => 'close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'events' => 'not_an_array', // Invalid events section
         ];
@@ -523,17 +644,21 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'process_open',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'process_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'process_close',
-                'schemaUrl' => 'test.json',
-                'context' => ['result' => 'ok'],
-                'openId' => 'operation_1',
+                [
+                    'id' => 'close_1',
+                    'type' => 'process_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'ok'],
+                    'openId' => 'operation_1',
+                ],
             ],
             'events' => [],
         ];
@@ -549,29 +674,37 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'outer_1',
-                'type' => 'outer_open',
-                'schemaUrl' => 'test.json',
-                'context' => [],
-                'open' => [
-                    'id' => 'inner_1',
-                    'type' => 'inner_open',
+                [
+                    'id' => 'outer_1',
+                    'type' => 'outer_open',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'open' => [
+                        [
+                            'id' => 'inner_1',
+                            'type' => 'inner_open',
+                            'schemaUrl' => 'test.json',
+                            'context' => [],
+                        ],
+                    ],
                 ],
             ],
             'close' => [
-                'id' => 'close_outer',
-                'type' => 'outer_close',
-                'schemaUrl' => 'test.json',
-                'context' => ['outer' => true],
-                'openId' => 'outer_1',
-                'close' => [
-                    'id' => 'close_inner',
-                    'type' => 'inner_close',
+                [
+                    'id' => 'close_outer',
+                    'type' => 'outer_close',
                     'schemaUrl' => 'test.json',
-                    'context' => ['inner' => true],
-                    'openId' => 'inner_1',
+                    'context' => ['outer' => true],
+                    'openId' => 'outer_1',
+                    'close' => [
+                        [
+                            'id' => 'close_inner',
+                            'type' => 'inner_close',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['inner' => true],
+                            'openId' => 'inner_1',
+                        ],
+                    ],
                 ],
             ],
             'events' => [],
@@ -593,17 +726,21 @@ final class LogDataParserTest extends TestCase
     {
         $logData = [
             'open' => [
-                'id' => 'operation_1',
-                'type' => 'process_open',
-                'schemaUrl' => 'test.json',
-                'context' => [],
+                [
+                    'id' => 'operation_1',
+                    'type' => 'process_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
             ],
             'close' => [
-                'id' => 'close_1',
-                'type' => 'process_close',
-                'schemaUrl' => 'test.json',
-                'context' => ['result' => 'ok'],
-                'openId' => 'does_not_exist',
+                [
+                    'id' => 'close_1',
+                    'type' => 'process_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'ok'],
+                    'openId' => 'does_not_exist',
+                ],
             ],
             'events' => [],
         ];

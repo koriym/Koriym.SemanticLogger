@@ -8,8 +8,6 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use RuntimeException;
 
-use function assert;
-
 final class DevSemanticLoggerTest extends TestCase
 {
     private DevSemanticLogger $logger;
@@ -26,9 +24,11 @@ final class DevSemanticLoggerTest extends TestCase
 
         $logJson = $this->logger->flush();
 
-        $this->assertNotNull($logJson->close->profile);
-        $this->assertSame($openId, $logJson->close->openId);
-        $this->assertGreaterThanOrEqual(0.0, $logJson->close->profile->wallTime);
+        $this->assertCount(1, $logJson->close);
+        $close = $logJson->close[0];
+        $this->assertNotNull($close->profile);
+        $this->assertSame($openId, $close->openId);
+        $this->assertGreaterThanOrEqual(0.0, $close->profile->wallTime);
     }
 
     public function testNestedClosesEachCarryTheirOwnProfile(): void
@@ -40,9 +40,10 @@ final class DevSemanticLoggerTest extends TestCase
 
         $logJson = $this->logger->flush();
 
-        $outerClose = $logJson->close;
-        $innerClose = $outerClose->close;
-        assert($innerClose !== null);
+        $this->assertCount(1, $logJson->close);
+        $outerClose = $logJson->close[0];
+        $this->assertCount(1, $outerClose->close);
+        $innerClose = $outerClose->close[0];
 
         $this->assertSame($outer, $outerClose->openId);
         $this->assertSame($inner, $innerClose->openId);
@@ -72,7 +73,9 @@ final class DevSemanticLoggerTest extends TestCase
 
         $this->assertArrayNotHasKey('profile', $array, 'top-level profile must not exist');
         $this->assertArrayHasKey('close', $array);
-        $close = $array['close'];
+        $closeList = $array['close'];
+        $this->assertIsArray($closeList);
+        $close = $closeList[0];
         $this->assertIsArray($close);
         $this->assertArrayHasKey('profile', $close);
         $profile = $close['profile'];
@@ -104,10 +107,10 @@ final class DevSemanticLoggerTest extends TestCase
         $second = $this->logger->flush();
 
         // Each flush produces exactly one operation, and its close carries profile.
-        $this->assertNotNull($first->close->profile);
-        $this->assertNotNull($second->close->profile);
-        $this->assertSame($id1, $first->close->openId);
-        $this->assertSame($id2, $second->close->openId);
+        $this->assertNotNull($first->close[0]->profile);
+        $this->assertNotNull($second->close[0]->profile);
+        $this->assertSame($id1, $first->close[0]->openId);
+        $this->assertSame($id2, $second->close[0]->openId);
     }
 
     public function testDevStateIsResetEvenWhenInnerFlushThrows(): void

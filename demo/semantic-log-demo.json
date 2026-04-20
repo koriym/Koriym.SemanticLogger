@@ -1,38 +1,16 @@
 {
     "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json",
-    "open": {
-        "id": "business_logic_1",
-        "type": "business_logic",
-        "schemaUrl": "./schemas/business_logic.json",
-        "context": {
-            "operation": "order_validation",
-            "inputData": {
-                "endpoint": "/api/orders",
-                "method": "POST",
-                "customerId": 12345
-            },
-            "outputData": [],
-            "validationRules": {
-                "customer_exists": true,
-                "items_available": true,
-                "payment_valid": true,
-                "shipping_valid": true
-            },
-            "success": false
-        },
-        "open": {
-            "id": "business_logic_2",
+    "open": [
+        {
+            "id": "business_logic_1",
             "type": "business_logic",
             "schemaUrl": "./schemas/business_logic.json",
             "context": {
                 "operation": "order_validation",
                 "inputData": {
-                    "customerId": 12345,
-                    "items": [
-                        "P001",
-                        "P045"
-                    ],
-                    "total": 209.97
+                    "endpoint": "/api/orders",
+                    "method": "POST",
+                    "customerId": 12345
                 },
                 "outputData": [],
                 "validationRules": {
@@ -43,73 +21,54 @@
                 },
                 "success": false
             },
-            "open": {
-                "id": "external_api_request_5",
-                "type": "external_api_request",
-                "schemaUrl": "./schemas/external_api_request.json",
-                "context": {
-                    "service": "EmailService",
-                    "endpoint": "https://api.sendgrid.com/v3/mail/send",
-                    "method": "POST",
-                    "statusCode": 0,
-                    "responseTime": 0,
-                    "requestSize": 2048,
-                    "responseSize": 0,
-                    "errorCode": 0
-                },
-                "open": {
-                    "id": "file_processing_1",
-                    "type": "file_processing",
-                    "schemaUrl": "./schemas/file_processing.json",
+            "open": [
+                {
+                    "id": "authentication_request_1",
+                    "type": "authentication_request",
+                    "schemaUrl": "./schemas/authentication.json",
                     "context": {
-                        "operation": "pdf_generation",
-                        "filename": "invoice_ORD_69e2d6bee9c92.pdf",
-                        "mimeType": "application/pdf",
-                        "fileSize": 0,
-                        "processingTime": 0,
-                        "success": false,
-                        "outputPath": null
-                    },
-                    "open": {
-                        "id": "external_api_request_3",
-                        "type": "external_api_request",
-                        "schemaUrl": "./schemas/external_api_request.json",
-                        "context": {
-                            "service": "ShippingService",
-                            "endpoint": "https://api.fedex.com/v1/shipments",
-                            "method": "POST",
-                            "statusCode": 0,
-                            "responseTime": 0,
-                            "requestSize": 1024,
-                            "responseSize": 0,
-                            "errorCode": 0
+                        "method": "JWT",
+                        "token": null,
+                        "requestMetadata": []
+                    }
+                },
+                {
+                    "id": "business_logic_2",
+                    "type": "business_logic",
+                    "schemaUrl": "./schemas/business_logic.json",
+                    "context": {
+                        "operation": "order_validation",
+                        "inputData": {
+                            "customerId": 12345,
+                            "items": [
+                                "P001",
+                                "P045"
+                            ],
+                            "total": 209.97
                         },
-                        "open": {
-                            "id": "external_api_request_1",
-                            "type": "external_api_request",
-                            "schemaUrl": "./schemas/external_api_request.json",
+                        "outputData": [],
+                        "validationRules": {
+                            "customer_exists": true,
+                            "items_available": true,
+                            "payment_valid": true,
+                            "shipping_valid": true
+                        },
+                        "success": false
+                    },
+                    "open": [
+                        {
+                            "id": "database_connection_1",
+                            "type": "database_connection",
+                            "schemaUrl": "./schemas/database_connection.json",
                             "context": {
-                                "service": "PaymentGateway",
-                                "endpoint": "https://api.stripe.com/v1/charges",
-                                "method": "POST",
-                                "statusCode": 0,
-                                "responseTime": 0,
-                                "requestSize": 512,
-                                "responseSize": 0,
-                                "errorCode": 0
+                                "driver": "mysql",
+                                "host": "db-cluster-1.example.com",
+                                "database": "ecommerce_prod",
+                                "connectionTime": 0.045,
+                                "pooled": true
                             },
-                            "open": {
-                                "id": "database_connection_1",
-                                "type": "database_connection",
-                                "schemaUrl": "./schemas/database_connection.json",
-                                "context": {
-                                    "driver": "mysql",
-                                    "host": "db-cluster-1.example.com",
-                                    "database": "ecommerce_prod",
-                                    "connectionTime": 0.045,
-                                    "pooled": true
-                                },
-                                "open": {
+                            "open": [
+                                {
                                     "id": "complex_query_4",
                                     "type": "complex_query",
                                     "schemaUrl": "https://example.com/schema/complex-query.json",
@@ -122,25 +81,74 @@
                                         "affectedRows": 0,
                                         "hasError": false,
                                         "customerId": null
-                                    },
-                                    "open": {
-                                        "id": "authentication_request_1",
-                                        "type": "authentication_request",
-                                        "schemaUrl": "./schemas/authentication.json",
-                                        "context": {
-                                            "method": "JWT",
-                                            "token": null,
-                                            "requestMetadata": []
-                                        }
                                     }
                                 }
+                            ]
+                        },
+                        {
+                            "id": "external_api_request_1",
+                            "type": "external_api_request",
+                            "schemaUrl": "./schemas/external_api_request.json",
+                            "context": {
+                                "service": "PaymentGateway",
+                                "endpoint": "https://api.stripe.com/v1/charges",
+                                "method": "POST",
+                                "statusCode": 0,
+                                "responseTime": 0,
+                                "requestSize": 512,
+                                "responseSize": 0,
+                                "errorCode": 0
+                            }
+                        },
+                        {
+                            "id": "external_api_request_3",
+                            "type": "external_api_request",
+                            "schemaUrl": "./schemas/external_api_request.json",
+                            "context": {
+                                "service": "ShippingService",
+                                "endpoint": "https://api.fedex.com/v1/shipments",
+                                "method": "POST",
+                                "statusCode": 0,
+                                "responseTime": 0,
+                                "requestSize": 1024,
+                                "responseSize": 0,
+                                "errorCode": 0
+                            }
+                        },
+                        {
+                            "id": "file_processing_1",
+                            "type": "file_processing",
+                            "schemaUrl": "./schemas/file_processing.json",
+                            "context": {
+                                "operation": "pdf_generation",
+                                "filename": "invoice_ORD_69e634e37dd0c.pdf",
+                                "mimeType": "application/pdf",
+                                "fileSize": 0,
+                                "processingTime": 0,
+                                "success": false,
+                                "outputPath": null
+                            }
+                        },
+                        {
+                            "id": "external_api_request_5",
+                            "type": "external_api_request",
+                            "schemaUrl": "./schemas/external_api_request.json",
+                            "context": {
+                                "service": "EmailService",
+                                "endpoint": "https://api.sendgrid.com/v3/mail/send",
+                                "method": "POST",
+                                "statusCode": 0,
+                                "responseTime": 0,
+                                "requestSize": 2048,
+                                "responseSize": 0,
+                                "errorCode": 0
                             }
                         }
-                    }
+                    ]
                 }
-            }
+            ]
         }
-    },
+    ],
     "events": [
         {
             "id": "http_request_1",
@@ -153,7 +161,7 @@
                     "Content-Type": "application/json",
                     "Authorization": "Bearer <TOKEN_REDACTED>",
                     "User-Agent": "ECommerceApp/2.1.0",
-                    "X-Request-ID": "req_69e2d6be94d5e"
+                    "X-Request-ID": "req_69e634e32a113"
                 },
                 "body": {
                     "customerId": 12345,
@@ -291,9 +299,9 @@
             "type": "performance_metrics",
             "schemaUrl": "./schemas/performance_metrics.json",
             "context": {
-                "executionTime": 0.4947969913482666,
-                "memoryUsed": 47784,
-                "peakMemory": 2074640,
+                "executionTime": 0.5016701221466064,
+                "memoryUsed": 52280,
+                "peakMemory": 1995368,
                 "databaseQueries": 5,
                 "totalQueryTime": 0.093,
                 "cacheHits": 2,
@@ -327,55 +335,184 @@
                 "statusCode": 201,
                 "headers": {
                     "Content-Type": "application/json",
-                    "X-Response-Time": "495.61ms",
-                    "X-Request-ID": "req_69e2d6bf199b0"
+                    "X-Response-Time": "502.30ms",
+                    "X-Request-ID": "req_69e634e3a490e"
                 },
                 "contentLength": 512,
                 "contentType": "application/json",
-                "responseTime": 0.4956088066101074,
+                "responseTime": 0.5023040771484375,
                 "cached": false
             },
             "openId": "business_logic_1"
         }
     ],
-    "close": {
-        "id": "business_logic_4",
-        "type": "business_logic",
-        "schemaUrl": "./schemas/business_logic.json",
-        "context": {
-            "operation": "order_validation",
-            "inputData": {
-                "endpoint": "/api/orders",
-                "method": "POST",
-                "customerId": 12345
-            },
-            "outputData": {
-                "orderId": "ORD_67890",
-                "status": "confirmed",
-                "responseCode": 201
-            },
-            "validationRules": {
-                "customer_exists": true,
-                "items_available": true,
-                "payment_valid": true,
-                "shipping_valid": true
-            },
-            "success": true
-        },
-        "openId": "business_logic_1",
-        "close": {
-            "id": "authentication_request_2",
-            "type": "authentication_request",
-            "schemaUrl": "./schemas/authentication.json",
+    "close": [
+        {
+            "id": "business_logic_4",
+            "type": "business_logic",
+            "schemaUrl": "./schemas/business_logic.json",
             "context": {
-                "method": "JWT",
-                "token": "user_12345",
-                "requestMetadata": {
-                    "role": "customer",
-                    "premium": true
-                }
+                "operation": "order_validation",
+                "inputData": {
+                    "endpoint": "/api/orders",
+                    "method": "POST",
+                    "customerId": 12345
+                },
+                "outputData": {
+                    "orderId": "ORD_67890",
+                    "status": "confirmed",
+                    "responseCode": 201
+                },
+                "validationRules": {
+                    "customer_exists": true,
+                    "items_available": true,
+                    "payment_valid": true,
+                    "shipping_valid": true
+                },
+                "success": true
             },
-            "openId": "authentication_request_1"
+            "openId": "business_logic_1",
+            "close": [
+                {
+                    "id": "authentication_request_2",
+                    "type": "authentication_request",
+                    "schemaUrl": "./schemas/authentication.json",
+                    "context": {
+                        "method": "JWT",
+                        "token": "user_12345",
+                        "requestMetadata": {
+                            "role": "customer",
+                            "premium": true
+                        }
+                    },
+                    "openId": "authentication_request_1"
+                },
+                {
+                    "id": "business_logic_3",
+                    "type": "business_logic",
+                    "schemaUrl": "./schemas/business_logic.json",
+                    "context": {
+                        "operation": "order_validation",
+                        "inputData": {
+                            "customerId": 12345,
+                            "items": [
+                                "P001",
+                                "P045"
+                            ],
+                            "total": 209.97
+                        },
+                        "outputData": {
+                            "orderId": "ORD_67890",
+                            "status": "confirmed",
+                            "estimatedDelivery": "2025-08-12"
+                        },
+                        "validationRules": {
+                            "customer_exists": true,
+                            "items_available": true,
+                            "payment_valid": true,
+                            "shipping_valid": true
+                        },
+                        "success": true
+                    },
+                    "openId": "business_logic_2",
+                    "close": [
+                        {
+                            "id": "database_connection_2",
+                            "type": "database_connection",
+                            "schemaUrl": "./schemas/database_connection.json",
+                            "context": {
+                                "driver": "mysql",
+                                "host": "db-cluster-1.example.com",
+                                "database": "ecommerce_prod",
+                                "connectionTime": 0.045,
+                                "pooled": true
+                            },
+                            "openId": "database_connection_1",
+                            "close": [
+                                {
+                                    "id": "complex_query_6",
+                                    "type": "complex_query",
+                                    "schemaUrl": "https://example.com/schema/complex-query.json",
+                                    "context": {
+                                        "queryType": "INSERT",
+                                        "table": "orders",
+                                        "parameters": [],
+                                        "fieldCount": 8,
+                                        "executionTime": 0.042,
+                                        "affectedRows": 1,
+                                        "hasError": false,
+                                        "customerId": null
+                                    },
+                                    "openId": "complex_query_4"
+                                }
+                            ]
+                        },
+                        {
+                            "id": "external_api_request_2",
+                            "type": "external_api_request",
+                            "schemaUrl": "./schemas/external_api_request.json",
+                            "context": {
+                                "service": "PaymentGateway",
+                                "endpoint": "https://api.stripe.com/v1/charges",
+                                "method": "POST",
+                                "statusCode": 200,
+                                "responseTime": 0.182,
+                                "requestSize": 512,
+                                "responseSize": 256,
+                                "errorCode": 0
+                            },
+                            "openId": "external_api_request_1"
+                        },
+                        {
+                            "id": "external_api_request_4",
+                            "type": "external_api_request",
+                            "schemaUrl": "./schemas/external_api_request.json",
+                            "context": {
+                                "service": "ShippingService",
+                                "endpoint": "https://api.fedex.com/v1/shipments",
+                                "method": "POST",
+                                "statusCode": 201,
+                                "responseTime": 0.098,
+                                "requestSize": 1024,
+                                "responseSize": 2048,
+                                "errorCode": 0
+                            },
+                            "openId": "external_api_request_3"
+                        },
+                        {
+                            "id": "file_processing_2",
+                            "type": "file_processing",
+                            "schemaUrl": "./schemas/file_processing.json",
+                            "context": {
+                                "operation": "pdf_generation",
+                                "filename": "invoice_ORD_67890.pdf",
+                                "mimeType": "application/pdf",
+                                "fileSize": 15360,
+                                "processingTime": 0.078,
+                                "success": true,
+                                "outputPath": "/tmp/invoices/invoice_ORD_67890.pdf"
+                            },
+                            "openId": "file_processing_1"
+                        },
+                        {
+                            "id": "external_api_request_6",
+                            "type": "external_api_request",
+                            "schemaUrl": "./schemas/external_api_request.json",
+                            "context": {
+                                "service": "EmailService",
+                                "endpoint": "https://api.sendgrid.com/v3/mail/send",
+                                "method": "POST",
+                                "statusCode": 202,
+                                "responseTime": 0.067,
+                                "requestSize": 2048,
+                                "responseSize": 128,
+                                "errorCode": 0
+                            },
+                            "openId": "external_api_request_5"
+                        }
+                    ]
+                }
+            ]
         }
-    }
+    ]
 }

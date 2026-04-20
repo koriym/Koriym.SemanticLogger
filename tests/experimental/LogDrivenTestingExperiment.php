@@ -13,6 +13,7 @@ use Koriym\SemanticLogger\Experimental\LogDrivenTesting\RequestResponseAggregato
 use Koriym\SemanticLogger\SemanticLogger;
 use PHPUnit\Framework\TestCase;
 
+use function array_map;
 use function count;
 use function json_encode;
 use function sprintf;
@@ -56,8 +57,8 @@ final class LogDrivenTestingExperiment extends TestCase
 
         // Debug output
         echo "\n=== LogJson Debug ===\n";
-        echo 'Open: ' . json_encode($logJson->open->toArray(), JSON_PRETTY_PRINT) . "\n";
-        echo 'Close: ' . json_encode($logJson->close->toArray(), JSON_PRETTY_PRINT) . "\n";
+        echo 'Open: ' . json_encode(array_map(static fn ($entry) => $entry->toArray(), $logJson->open), JSON_PRETTY_PRINT) . "\n";
+        echo 'Close: ' . json_encode(array_map(static fn ($entry) => $entry->toArray(), $logJson->close), JSON_PRETTY_PRINT) . "\n";
         echo 'Pairs found: ' . count($pairs) . "\n";
 
         $this->assertCount(2, $pairs);

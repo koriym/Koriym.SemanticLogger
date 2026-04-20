@@ -7,20 +7,25 @@ namespace Koriym\SemanticLogger;
 use JsonSerializable;
 use Override;
 
+use function array_map;
+
 final class OpenCloseEntry implements JsonSerializable
 {
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @param list<OpenCloseEntry> $open    Child opens (zero or more) — immediate nested operations in chronological order.
+     */
     public function __construct(
         public readonly string $id,
         public readonly string $type,
         public readonly string $schemaUrl,
         public readonly array $context,
-        public readonly OpenCloseEntry|null $open = null,
-        public readonly EventEntry|null $close = null,
+        public readonly array $open = [],
+        public readonly string|null $parentId = null,
     ) {
     }
 
-    /** @return array{id: string, type: string, schemaUrl: string, context: array<string, mixed>, open?: array<string, mixed>, close?: array<string, mixed>} */
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         $result = [
@@ -30,12 +35,8 @@ final class OpenCloseEntry implements JsonSerializable
             'context' => $this->context,
         ];
 
-        if ($this->open !== null) {
-            $result['open'] = $this->open->toArray();
-        }
-
-        if ($this->close !== null) {
-            $result['close'] = $this->close->toArray();
+        if ($this->open !== []) {
+            $result['open'] = array_map(static fn (OpenCloseEntry $e) => $e->toArray(), $this->open);
         }
 
         return $result;

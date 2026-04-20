@@ -70,9 +70,9 @@ final class ErrorHandlingTest extends TestCase
         $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json', $logJson->schemaUrl);
 
         // Test nested structure
-        $this->assertSame('outer', $logJson->open->context['message']);
-        $this->assertNotNull($logJson->open->open);
-        $this->assertSame('inner', $logJson->open->open->context['message']);
+        $this->assertSame('outer', $logJson->open[0]->context['message']);
+        $this->assertCount(1, $logJson->open[0]->open);
+        $this->assertSame('inner', $logJson->open[0]->open[0]->context['message']);
 
         // Test events
         $this->assertCount(2, $logJson->events);
@@ -80,7 +80,7 @@ final class ErrorHandlingTest extends TestCase
         $this->assertSame('event2', $logJson->events[1]->context['message']);
 
         // Test close (should be outer close since it's the root operation)
-        $this->assertSame('outer_finished', $logJson->close->context['message']);
+        $this->assertSame('outer_finished', $logJson->close[0]->context['message']);
 
         // Test that logger is cleared after flush
         $this->expectException(NoLogSessionException::class);
