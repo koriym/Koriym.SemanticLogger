@@ -178,13 +178,14 @@ final class DevLoggerTest extends TestCase
         $this->assertNotEquals($jsonFiles[0], $jsonFiles[1]);
     }
 
-    /** @return array{'$schema'?: mixed, open: list<array<mixed, mixed>>} */
+    /** @return array{open: list<array<mixed, mixed>>} */
     private function readLogData(string $file): array
     {
         $content = file_get_contents($file);
         $this->assertIsString($content);
         $data = json_decode($content, true);
         $this->assertIsArray($data);
+        $this->assertArrayHasKey('$schema', $data);
         $this->assertArrayHasKey('open', $data);
         $openEntries = $data['open'];
         $this->assertIsArray($openEntries);
@@ -195,14 +196,11 @@ final class DevLoggerTest extends TestCase
             $validatedOpenEntries[] = $openEntry;
         }
 
-        return [
-            '$schema' => $data['$schema'] ?? null,
-            'open' => $validatedOpenEntries,
-        ];
+        return ['open' => $validatedOpenEntries];
     }
 
     /**
-     * @param array{'$schema'?: mixed, open: list<array<mixed, mixed>>} $data
+     * @param array{open: list<array<mixed, mixed>>} $data
      *
      * @return array<mixed, mixed>
      */
