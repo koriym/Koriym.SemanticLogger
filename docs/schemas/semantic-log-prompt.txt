@@ -13,7 +13,7 @@ The Semantic Profiler functions as a true Semantic Web application where:
    - HTTP semantics (status codes, headers, URIs) provide web-native context
 
 3. **AI-Native Design**: 
-   - Claude Code and MCP servers can directly consume and analyze performance data
+   - Tools can directly consume and analyze performance data
    - Automated bottleneck detection through semantic understanding
    - Self-describing schemas eliminate human documentation dependency
 

@@ -1,147 +1,14 @@
 # Koriym.SemanticLogger
 
-Type-safe structured logging with JSON schema validation for hierarchical application workflows.
+Type-safe semantic logging for hierarchical application workflows.
 
-## AI-Native Analysis with MCP Server
+`Koriym.SemanticLogger` records three kinds of facts as structured JSON:
 
-**Realizing Tim Berners-Lee's Semantic Web Vision** - structured data that AI can understand and reason about autonomously.
+- `open`: what is starting
+- `event`: what happened while it was running
+- `close`: how it ended
 
-```bash
-# Install and run MCP server for Claude Code integration
-composer require koriym/semantic-logger
-php vendor/koriym/semantic-logger/bin/server.php /tmp
-```
-
-### AI-Powered Performance Analysis
-
-The included MCP Server provides two powerful tools for AI-native analysis:
-
-**`getSemanticProfile`** - Retrieve latest semantic performance profile with AI-optimized prompts  
-**`semanticAnalyze`** - Execute PHP script with profiling + automatic AI analysis in one command
-
-### MCP Server Configuration
-
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "semantic-profiler": {
-      "command": "php",
-      "args": [
-        "vendor/koriym/semantic-logger/bin/server.php",
-        "/tmp"
-      ]
-    }
-  }
-}
-```
-
-See [docs/mcp-setup.md](docs/mcp-setup.md) for detailed configuration options.
-
-### Semantic Web Architecture
-
-**Everything is Linked for Machine Understanding:**
-
-1. **JSON Schema URLs** - Every context includes `$schema` for semantic validation
-2. **JSON Pointer Links** - Schema properties include `links` arrays pointing to specifications
-3. **RFC 8288 Relations** - Standard `rel` attributes (describedby, related, canonical) for semantic connections
-4. **AI Interview Process** - Regular AI feedback to minimize non-semantic noise
-
-**Example Schema with Semantic Links:**
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "properties": {
-    "method": {
-      "type": "string",
-      "enum": ["GET", "POST", "PUT", "DELETE"]
-    }
-  },
-  "links": [
-    {
-      "anchor": "#/properties/method",
-      "rel": "describedby", 
-      "href": "https://tools.ietf.org/html/rfc7231#section-4",
-      "title": "HTTP Methods (RFC 7231)"
-    }
-  ]
-}
-```
-
-**Semantic Web Mindset:**
-- **Everything is machine-readable** - No human-only documentation
-- **Links over comments** - Semantic relationships through URIs, not prose
-- **AI as quality gatekeeper** - Regular AI interviews to identify non-semantic patterns
-- **Schema-first design** - Structure meaning before implementation
-- **Minimize semantic noise** - Every field must have clear semantic purpose
-
-This approach enables AI to autonomously understand system behavior, diagnose issues, and provide architectural insights beyond basic metrics.
-
-### DevLogger for Development
-
-Development logging with AI-native analysis prompt generation:
-
-```php
-use Koriym\SemanticLogger\DevLogger;
-use Koriym\SemanticLogger\SemanticLogger;
-
-// Initialize with log directory (defaults to system temp)
-$devLogger = new DevLogger('/path/to/logs');
-
-// Output semantic logs with AI analysis prompts
-$semanticLogger = new SemanticLogger();
-$devLogger->log($semanticLogger);
-```
-
-Creates two files:
-- `semantic-dev-*.json` - Structured semantic log data
-- `semantic-dev-*-prompt.md` - AI-optimized analysis prompt with embedded JSON
-
-Perfect for development debugging and AI-assisted performance analysis.
-
-## Self-Proving Responses
-
-Every response becomes self-proving by logging **how** it was generated. When your API returns "restaurant menu list", the semantic log proves **why** those specific items were returned through the complete chain of web API calls, database queries, and business logic.
-
-**Response (what):** `{"menu": ["pasta", "pizza", "salad"]}`  
-**Semantic Log (how/why):** Complete proof of why these 3 items were returned
-
-Provides equal context to both AI systems and human developers for comprehensive system understanding.
-
-## Beyond Traditional Logging: Semantic Structure
-
-Traditional logging captures **level and message for humans**:
-```
-[INFO] User query executed: SELECT * FROM users WHERE id = 123
-[DEBUG] Query took 12.5ms, returned 1 row
-```
-
-Semantic logging captures **data structure AND meaning structure**:
-- **Open**: "what we plan to do" (intent)
-- **Event**: "what happened during execution" (occurrences)
-- **Close**: "what actually occurred" (result)
-
-This structure enables understanding not just *what* happened, but *why* it happened and *how* it relates to the intended operation.
-
-**Best Practice: Use alongside traditional logging**
-- Traditional logs for quick debugging and stack traces
-- Semantic logs for complex workflows and system analysis
-
-## Use Cases
-
-- **Development & Debugging** - Complex workflow tracing with intent vs result analysis
-- **Compliance & Auditing** - GDPR, SOX, HIPAA compliance with complete audit trails
-- **Security & Monitoring** - Track data modifications and detect anomalous behavior
-- **Business Intelligence** - Analyze behavior patterns and optimize processes
-
-## Features
-
-- **Type-safe context objects** with const properties
-- **Hierarchical logging** with open/event/close patterns
-- **JSON Schema validation** for log entries
-
-Structured, semantic, type-safe logging with web linking enables deep understanding for humans, AI, and data science.
+Each entry carries a schema URL and typed context data, so logs stay machine-readable and can be validated, rendered, and inspected without depending on free-form log messages.
 
 ## Installation
 
@@ -149,11 +16,29 @@ Structured, semantic, type-safe logging with web linking enables deep understand
 composer require koriym/semantic-logger
 ```
 
+## Core Model
+
+Semantic logs are built from matching `open` / `close` pairs plus optional `event`s:
+
+```text
+request open
+  database_query event
+  cache_lookup event
+request close
+```
+
+This gives you:
+
+- explicit operation boundaries
+- nested workflow structure
+- intent vs outcome
+- schema-backed context instead of ad-hoc strings
+
+Optional RFC 8288 links can be attached at flush time when you want to point to related resources such as source code, schemas, or external specs.
+
 ## Quick Start
 
 ### 1. Define Context Classes
-
-Create type-safe context classes by extending `AbstractContext`:
 
 ```php
 use Koriym\SemanticLogger\AbstractContext;
@@ -162,201 +47,179 @@ final class ProcessContext extends AbstractContext
 {
     public const TYPE = 'process';
     public const SCHEMA_URL = 'https://example.com/schemas/process.json';
-    
+
     public function __construct(
         public readonly string $name,
     ) {}
 }
 
-final class EventContext extends AbstractContext
+final class ProcessEventContext extends AbstractContext
 {
-    public const TYPE = 'event';
-    public const SCHEMA_URL = 'https://example.com/schemas/event.json';
-    
+    public const TYPE = 'process_event';
+    public const SCHEMA_URL = 'https://example.com/schemas/process-event.json';
+
     public function __construct(
         public readonly string $message,
     ) {}
 }
 
-final class ResultContext extends AbstractContext
+final class ProcessResultContext extends AbstractContext
 {
-    public const TYPE = 'result';
-    public const SCHEMA_URL = 'https://example.com/schemas/result.json';
-    
+    public const TYPE = 'process_result';
+    public const SCHEMA_URL = 'https://example.com/schemas/process-result.json';
+
     public function __construct(
         public readonly string $status,
     ) {}
 }
 ```
 
-### 2. Log with Semantic Structure: Intent → Events → Result
+### 2. Log a Workflow
 
 ```php
 use Koriym\SemanticLogger\SemanticLogger;
 
 $logger = new SemanticLogger();
 
-// OPEN: Declare intent - what we plan to do
-$processId = $logger->open(new ProcessContext('data processing'));
+$processId = $logger->open(new ProcessContext('data import'));
+$logger->event(new ProcessEventContext('processing started'));
+$logger->close(new ProcessResultContext('success'), $processId);
 
-// EVENT: What happened during execution
-$logger->event(new EventContext('processing started'));
-
-// CLOSE: What actually occurred - the result
-$logger->close(new ResultContext('success'), $processId);
-
-// Optional: Add relations for debugging context
-$relations = [
-    ['rel' => 'related', 'href' => 'https://github.com/example/my-app', 'title' => 'Source Code Repository'],
-    ['rel' => 'describedby', 'href' => 'https://example.com/db/schema/processes.sql', 'title' => 'Database Schema']
+$links = [
+    [
+        'rel' => 'describedby',
+        'href' => 'https://example.com/specs/import-flow',
+        'title' => 'Import Flow Specification',
+    ],
 ];
 
-// Get structured log with complete intent→result mapping
-$logJson = $logger->flush($relations);
-echo json_encode($logJson, JSON_PRETTY_PRINT);
+$log = $logger->flush($links);
+
+echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 ```
 
-### 3. Output Structure
+### 3. Output Shape
 
-The semantic structure captures the complete intent→result flow with **hierarchical nesting**:
+`flush()` returns a `LogJson` object. Its default serialized shape keeps `open` and `close` as parallel trees and uses `openId` to pair them:
 
 ```json
 {
-  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "open": {
-    "type": "process",
-    "schemaUrl": "https://example.com/schemas/process.json",
-    "context": {
-      "name": "data processing"
-    },
-    "events": [
-      {
-        "type": "event",
-        "schemaUrl": "https://example.com/schemas/event.json",
-        "context": {
-          "message": "processing started"
-        }
-      }
-    ],
-    "close": {
-      "type": "result",
-      "schemaUrl": "https://example.com/schemas/result.json",
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json",
+  "open": [
+    {
+      "id": "process_1",
+      "type": "process",
+      "schemaUrl": "https://example.com/schemas/process.json",
       "context": {
-        "status": "success"
+        "name": "data import"
       }
     }
-  },
-  "relations": [
+  ],
+  "events": [
     {
-      "rel": "related",
-      "href": "https://github.com/example/my-app",
-      "title": "Source Code Repository"
-    },
+      "id": "process_event_1",
+      "type": "process_event",
+      "schemaUrl": "https://example.com/schemas/process-event.json",
+      "context": {
+        "message": "processing started"
+      },
+      "openId": "process_1"
+    }
+  ],
+  "close": [
     {
-      "rel": "describedby", 
-      "href": "https://example.com/db/schema/processes.sql",
-      "title": "Database Schema"
+      "id": "process_result_1",
+      "type": "process_result",
+      "schemaUrl": "https://example.com/schemas/process-result.json",
+      "context": {
+        "status": "success"
+      },
+      "openId": "process_1"
+    }
+  ],
+  "links": [
+    {
+      "rel": "describedby",
+      "href": "https://example.com/specs/import-flow",
+      "title": "Import Flow Specification"
     }
   ]
 }
 ```
 
-**Structure Meaning:**
-- **open**: Intent and planned operations with nested events and close results (hierarchical structure)
-- **events**: Occurrences during execution (nested within their operation context)
-- **close**: Actual results and outcomes (nested within the corresponding open operation)
-- **schemaUrl**: JSON Schema URL for validation and documentation
-- **relations**: Optional RFC 8288 compliant links (related resources, schemas, etc.)
+## Development Logs
 
-**Hierarchical Nesting Benefits:**
-- **Request Tracing**: Clear operation boundaries through nested structure in complex workflows
-- **Debugging**: Trace the flow from intent (open) → events → result (close) within each operation context
-- **Monitoring**: Track operation completion and identify unclosed operations
-- **Compliance**: Maintain audit trails with clear operation boundaries
+Use `DevLogger` to write logs to disk during development:
 
-## Semantic Log Validation
+```php
+use Koriym\SemanticLogger\DevLogger;
+use Koriym\SemanticLogger\SemanticLogger;
 
-Validate your semantic logs with our custom validator that understands the AI-human understanding bridge approach:
+$semanticLogger = new SemanticLogger();
+$devLogger = new DevLogger(__DIR__ . '/var/log');
 
-### Command Line Usage
+$operationId = $semanticLogger->open(new ProcessContext('data import'));
+$semanticLogger->event(new ProcessEventContext('processing started'));
+$semanticLogger->close(new ProcessResultContext('success'), $operationId);
 
-```bash
-# Validate a semantic log against schema directory
-php vendor/bin/validate-semantic-log.php path/to/semantic-log.json path/to/schemas/
-
-# Example with demo
-composer demo  # Generates demo.json and validates it automatically
+$devLogger->log($semanticLogger);
 ```
 
-### PHP Usage
+This creates `semantic-dev-*.json`.
+
+Unlike `flush()`, `DevLogger` writes a tree-shaped view that nests `events`, child `open`s, and the matching `close` under each node. That makes the file easier to read directly and works naturally with `stree`.
+
+## Validate Semantic Logs
+
+```bash
+php vendor/bin/validate-semantic-log.php path/to/semantic-log.json path/to/schemas
+```
 
 ```php
 use Koriym\SemanticLogger\SemanticLogValidator;
 
 $validator = new SemanticLogValidator();
-
-try {
-    $validator->validate('path/to/semantic-log.json', 'path/to/schemas/');
-    echo "✅ All contexts validate successfully!\n";
-} catch (RuntimeException $e) {
-    echo "❌ Validation failed: " . $e->getMessage() . "\n";
-}
+$validator->validate('path/to/semantic-log.json', 'path/to/schemas');
 ```
 
-### Validation Features
+Validation checks:
 
-- **Hierarchical Structure Validation**: Validates deeply nested open/close/event structures
-- **Schema URL Resolution**: Supports both relative (`./schemas/`) and absolute URLs
-- **Comprehensive Error Reporting**: Detailed violation messages with JSON Schema links
-- **AI-Human Bridge Support**: Validates the `schemaUrl` field approach for AI understanding
+- nested log structure
+- schema URL resolution
+- context payloads against their schemas
+- detailed validation errors when something does not match
 
-### Sample Validation Output
+## Semantic Tree Visualizer
 
-```
-✅ open (http_request) validates against ./schemas/http_request.json
-✅ open.open.open (database_query) validates against ./schemas/database_query.json
-✅ events[0] (cache_operation) validates against ./schemas/cache_operation.json
-✅ events[1] (performance_metrics) validates against ./schemas/performance_metrics.json
-✅ All contexts validate successfully!
-```
-
-## Semantic Tree Visualizer (stree)
-
-Visualize semantic log JSON files as a tree for easy analysis:
+`stree` renders semantic logs as a readable tree:
 
 ```bash
-# Basic tree view (default: 2 levels deep)
 vendor/bin/stree debug.json
-
-# Show 5 levels deep
-vendor/bin/stree --depth=5 detailed.json
-
-# Expand specific context types beyond depth limit
-vendor/bin/stree --expand=DatabaseQuery log.json
-
-# Show only operations slower than 10ms
+vendor/bin/stree --full debug.json
 vendor/bin/stree --threshold=10ms slow.json
-
-# Interactive HTML output
-vendor/bin/stree --format=html --full trace.json
-
-# Save HTML to file
-vendor/bin/stree --format=html trace.json > trace.html
+vendor/bin/stree --json debug.json
 ```
 
 ### Options
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--depth=N` | `-d` | Maximum tree depth (default: 2) |
-| `--expand=CTX` | `-e` | Expand specific context type beyond depth limit |
-| `--threshold=T` | `-t` | Time threshold filter (e.g., `10ms`, `0.5s`) |
-| `--lines=N` | `-l` | Max lines for multi-line data (default: 5, 0 = no limit) |
-| `--format=FORMAT` | | Output format: `text` (default) or `html` |
-| `--full` | `-f` | Show complete tree without depth limits |
+| `--threshold=T` | `-t` | Time threshold filter such as `10ms` or `0.5s` |
+| `--lines=N` | `-l` | Maximum lines for multi-line data (`0` means no limit) |
+| `--full` | `-f` | Show the full tree |
+| `--values` | `-V` | Let registered formatters show values instead of only keys |
+| `--json` | | Pretty-print raw JSON |
 | `--help` | `-h` | Display help |
+
+## Use Cases
+
+- trace nested application workflows
+- compare planned work vs actual result
+- keep audit-friendly structured records
+- inspect development logs without parsing free-form text
+- render semantic logs as trees during debugging
 
 ## Documentation
 
-**[Schema Portal](https://koriym.github.io/Koriym.SemanticLogger/)** - AI-native semantic schema portal with comprehensive documentation
-
+- [Schema Portal](https://koriym.github.io/Koriym.SemanticLogger/)
+- [CHANGELOG.md](CHANGELOG.md)

@@ -1,6 +1,6 @@
 # Semantic Logger Demo
 
-This demo showcases hierarchical semantic logging with comprehensive context examples and MCP server integration for AI-powered log analysis.
+This demo showcases hierarchical semantic logging with comprehensive context examples.
 
 ## Quick Start
 
@@ -18,30 +18,6 @@ This generates a `semantic-log.json` file with hierarchical logging examples inc
 - File processing
 - Cache operations
 - Error scenarios
-
-## MCP Server Analysis
-
-After generating logs, use Claude Code with MCP server for AI-powered analysis:
-
-1. **Generate demo logs**:
-   ```bash
-   composer demo
-   ```
-
-2. **Start Claude Code**:
-   ```bash
-   claude
-   ```
-
-3. **Analyze logs with AI**:
-   ```
-   /profile list
-   ```
-
-The MCP server provides these commands for log analysis:
-- `/profile` - Analyze the most recent semantic log
-- `/profile list` - List all available semantic logs
-- `/profile <filename>` - Analyze specific log file
 
 ## Demo Structure
 
@@ -87,13 +63,6 @@ The generated `semantic-log.json` follows the Universal Semantic Logger Schema w
 - Creates parent-child relationships for performance attribution
 - Enables complete request flow tracing
 
-### AI Analysis Benefits
-With this hierarchical structure, AI can:
-- **Trace causality**: "Why did the request take 680ms?" → "Auth took 520ms"
-- **Identify bottlenecks**: "What's the slowest operation?" → "External API call"
-- **Optimize performance**: "If I fix the database query, what improves?"
-- **Debug errors**: "Which operation caused the failure?"
-
 ## Schema Validation
 
 All contexts are validated against their schemas. The framework provides structure while applications define semantic meaning through their own context types and schemas.
@@ -106,4 +75,4 @@ See how semantic logging integrates with:
 - **Error Tracking**: Exception flow with hierarchical context
 - **Business Intelligence**: Domain-specific operational insights
 
-Run `composer demo` and then use Claude Code's `/profile` commands to experience AI-powered semantic log analysis!
+Run `composer demo` and inspect the output with `vendor/bin/stree` or the validator to explore the semantic structure.

@@ -58,7 +58,7 @@ Koriym\SemanticLogger\Profiler\
 
 ### Phase 3: 動作検証
 1. BEAR.Resourceでのテスト実行
-2. MCP serverとの連携確認
+2. 周辺ツールとの連携確認
 3. ドキュメント更新
 
 ## 設計原則
