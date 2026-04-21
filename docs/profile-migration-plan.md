@@ -79,4 +79,4 @@ Koriym\SemanticLogger\Profiler\
 
 - `bin/php-dev.ini` - プロファイリング設定
 - `src/DevLogger.php` - ログ出力機能
-- `docs/schemas/profile.json` - Profile用スキーマ定義
+- `docs/schemas/semantic-log.json` - `close.profile` 配下のOperationProfileスキーマ定義
