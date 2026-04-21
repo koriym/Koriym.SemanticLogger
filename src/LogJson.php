@@ -53,4 +53,149 @@ final class LogJson implements JsonSerializable
 
         return $result;
     }
+
+    /** @return array<string, mixed> */
+    public function toTreeArray(): array
+    {
+        $closeByOpenId = [];
+        $this->indexCloses($this->close, $closeByOpenId);
+        $eventsByOpenId = $this->groupEventsByOpenId($this->events);
+        $openIds = [];
+        $this->collectOpenIds($this->open, $openIds);
+
+        $result = [
+            '$schema' => $this->schemaUrl,
+            'open' => array_map(
+                fn (OpenCloseEntry $entry): array => $this->buildTreeOpenEntry($entry, $closeByOpenId, $eventsByOpenId),
+                $this->open,
+            ),
+        ];
+
+        $topLevelEvents = $this->topLevelTreeEvents($openIds);
+        if ($topLevelEvents !== []) {
+            $result['events'] = array_map(static fn (EventEntry $event): array => $event->toArray(), $topLevelEvents);
+        }
+
+        if (! empty($this->links)) {
+            $result['links'] = $this->links;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param array<string, EventEntry>       $closeByOpenId
+     * @param array<string, list<EventEntry>> $eventsByOpenId
+     *
+     * @return array<string, mixed>
+     */
+    private function buildTreeOpenEntry(OpenCloseEntry $entry, array $closeByOpenId, array $eventsByOpenId): array
+    {
+        $result = $entry->toArray();
+
+        $events = $eventsByOpenId[$entry->id] ?? [];
+        if ($events !== []) {
+            $result['events'] = array_map(static fn (EventEntry $event): array => $event->toArray(), $events);
+        }
+
+        if (isset($closeByOpenId[$entry->id])) {
+            $result['close'] = $this->singleCloseToArray($closeByOpenId[$entry->id]);
+        }
+
+        if ($entry->open === []) {
+            unset($result['open']);
+
+            return $result;
+        }
+
+        $result['open'] = array_map(
+            fn (OpenCloseEntry $child): array => $this->buildTreeOpenEntry($child, $closeByOpenId, $eventsByOpenId),
+            $entry->open,
+        );
+
+        return $result;
+    }
+
+    /**
+     * @param list<EventEntry>          $closes
+     * @param array<string, EventEntry> $closeByOpenId
+     */
+    private function indexCloses(array $closes, array &$closeByOpenId): void
+    {
+        foreach ($closes as $close) {
+            $openId = $close->openId;
+            if ($openId !== null) {
+                $closeByOpenId[$openId] = $close;
+            }
+
+            if ($close->close !== []) {
+                $this->indexCloses($close->close, $closeByOpenId);
+            }
+        }
+    }
+
+    /**
+     * @param list<EventEntry> $events
+     *
+     * @return array<string, list<EventEntry>>
+     */
+    private function groupEventsByOpenId(array $events): array
+    {
+        $eventsByOpenId = [];
+        foreach ($events as $event) {
+            $eventsByOpenId[$event->openId ?? ''][] = $event;
+        }
+
+        return $eventsByOpenId;
+    }
+
+    /**
+     * @param list<OpenCloseEntry> $entries
+     * @param array<string, true>  $openIds
+     */
+    private function collectOpenIds(array $entries, array &$openIds): void
+    {
+        foreach ($entries as $entry) {
+            $openIds[$entry->id] = true;
+
+            if ($entry->open !== []) {
+                $this->collectOpenIds($entry->open, $openIds);
+            }
+        }
+    }
+
+    /**
+     * @param array<string, true> $openIds
+     *
+     * @return list<EventEntry>
+     */
+    private function topLevelTreeEvents(array $openIds): array
+    {
+        $topLevelEvents = [];
+        foreach ($this->events as $event) {
+            $openId = $event->openId;
+            if ($openId === null || ! isset($openIds[$openId])) {
+                $topLevelEvents[] = $event;
+            }
+        }
+
+        return $topLevelEvents;
+    }
+
+    /** @return array<string, mixed> */
+    private function singleCloseToArray(EventEntry $close): array
+    {
+        $result = [
+            'id' => $close->id,
+            'type' => $close->type,
+            'schemaUrl' => $close->schemaUrl,
+            'context' => $close->context,
+        ];
+
+        if ($close->profile !== null) {
+            $result['profile'] = $close->profile->jsonSerialize();
+        }
+
+        return $result;
+    }
 }

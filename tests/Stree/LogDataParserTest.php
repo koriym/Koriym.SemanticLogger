@@ -85,6 +85,59 @@ final class LogDataParserTest extends TestCase
         $this->assertSame(0.010, $child->executionTime);
     }
 
+    public function testParseTreeShapedLogData(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'parent_1',
+                    'type' => 'parent_operation',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                    'events' => [
+                        [
+                            'id' => 'event_1',
+                            'type' => 'infra_event',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['duration' => 0.002],
+                        ],
+                    ],
+                    'open' => [
+                        [
+                            'id' => 'child_1',
+                            'type' => 'child_operation',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['responseTime' => 0.010],
+                            'close' => [
+                                'id' => 'child_close_1',
+                                'type' => 'child_close',
+                                'schemaUrl' => 'test.json',
+                                'context' => ['status' => 'done'],
+                            ],
+                        ],
+                    ],
+                    'close' => [
+                        'id' => 'parent_close_1',
+                        'type' => 'parent_close',
+                        'schemaUrl' => 'test.json',
+                        'context' => ['status' => 'done'],
+                    ],
+                ],
+            ],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertSame('parent_1', $tree->id);
+        $this->assertSame('parent_close', $tree->closeType);
+        $this->assertCount(2, $tree->children);
+        $this->assertTrue($tree->children[0]->isEvent);
+        $this->assertSame('infra_event', $tree->children[0]->type);
+        $this->assertSame('child_1', $tree->children[1]->id);
+        $this->assertSame('child_close', $tree->children[1]->closeType);
+    }
+
     public function testParseSiblingChildren(): void
     {
         $logData = [
