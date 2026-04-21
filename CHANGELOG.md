@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-22
+
+### Added
+- `LogJson::toTreeArray()` emits a single nested tree for development logs, so each `open` carries its own `events`, nested `open`, and matching `close`.
+- `Stree/LogDataParser` accepts both the legacy split `open`/`close` JSON and the new tree-shaped development log format.
+
+### Changed
+- **BREAKING — DevLogger output shape.** `DevLogger` now writes tree-shaped logs via `toTreeArray()` instead of separate top-level `open` and `close` trees. The emitted JSON now follows the execution nesting model directly.
+
+### Fixed
+- Tree conversion now preserves orphaned events whose `openId` does not match any `open` by keeping them at the top-level `events` bucket instead of dropping them.
+
 ## [0.5.0] - 2026-04-21
 
 ### Fixed
@@ -117,4 +129,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AbstractContext base class and SemanticLogger implementation
 - JSON Schema validation support
 - Comprehensive test suite with full coverage
-
