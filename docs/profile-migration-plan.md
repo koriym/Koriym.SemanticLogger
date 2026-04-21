@@ -58,7 +58,7 @@ Koriym\SemanticLogger\Profiler\
 
 ### Phase 3: 動作検証
 1. BEAR.Resourceでのテスト実行
-2. MCP serverとの連携確認
+2. 周辺ツールとの連携確認
 3. ドキュメント更新
 
 ## 設計原則
@@ -79,4 +79,4 @@ Koriym\SemanticLogger\Profiler\
 
 - `bin/php-dev.ini` - プロファイリング設定
 - `src/DevLogger.php` - ログ出力機能
-- `docs/schemas/profile.json` - Profile用スキーマ定義
+- `docs/schemas/semantic-log.json` - `close.profile` 配下のOperationProfileスキーマ定義
