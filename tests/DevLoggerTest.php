@@ -177,7 +177,7 @@ final class DevLoggerTest extends TestCase
         $this->assertNotEquals($jsonFiles[0], $jsonFiles[1]);
     }
 
-    /** @return array{open: list<array<mixed, mixed>>} */
+    /** @return array{open: list<array<string, mixed>>} */
     private function readLogData(string $file): array
     {
         $content = file_get_contents($file);
@@ -192,16 +192,16 @@ final class DevLoggerTest extends TestCase
         $validatedOpenEntries = [];
         foreach ($openEntries as $openEntry) {
             $this->assertIsArray($openEntry);
-            $validatedOpenEntries[] = $openEntry;
+            $validatedOpenEntries[] = $this->normalizeEntry($openEntry);
         }
 
         return ['open' => $validatedOpenEntries];
     }
 
     /**
-     * @param array{open: list<array<mixed, mixed>>} $data
+     * @param array{open: list<array<string, mixed>>} $data
      *
-     * @return array<mixed, mixed>
+     * @return array<string, mixed>
      */
     private function firstOpenEntry(array $data): array
     {
@@ -211,9 +211,9 @@ final class DevLoggerTest extends TestCase
     }
 
     /**
-     * @param array<mixed, mixed> $entry
+     * @param array<string, mixed> $entry
      *
-     * @return array<mixed, mixed>
+     * @return array<string, mixed>
      */
     private function firstChildOpenEntry(array $entry): array
     {
@@ -224,7 +224,7 @@ final class DevLoggerTest extends TestCase
         $validatedChildren = [];
         foreach ($children as $child) {
             $this->assertIsArray($child);
-            $validatedChildren[] = $child;
+            $validatedChildren[] = $this->normalizeEntry($child);
         }
 
         $this->assertNotEmpty($validatedChildren);
@@ -233,9 +233,9 @@ final class DevLoggerTest extends TestCase
     }
 
     /**
-     * @param array<mixed, mixed> $entry
+     * @param array<string, mixed> $entry
      *
-     * @return array<mixed, mixed>
+     * @return array<string, mixed>
      */
     private function closeFromEntry(array $entry): array
     {
@@ -243,15 +243,10 @@ final class DevLoggerTest extends TestCase
         $close = $entry['close'];
         $this->assertIsArray($close);
 
-        $validatedClose = [];
-        foreach ($close as $key => $value) {
-            $validatedClose[$key] = $value;
-        }
-
-        return $validatedClose;
+        return $this->normalizeEntry($close);
     }
 
-    /** @param array<mixed, mixed> $entry */
+    /** @param array<string, mixed> $entry */
     private function messageFromEntry(array $entry): string
     {
         $this->assertArrayHasKey('context', $entry);
@@ -261,5 +256,21 @@ final class DevLoggerTest extends TestCase
         $this->assertIsString($context['message']);
 
         return $context['message'];
+    }
+
+    /**
+     * @param array<mixed, mixed> $entry
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeEntry(array $entry): array
+    {
+        $normalized = [];
+        foreach ($entry as $key => $value) {
+            $this->assertIsString($key);
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
     }
 }

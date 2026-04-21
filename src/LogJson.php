@@ -8,7 +8,6 @@ use JsonSerializable;
 use Override;
 
 use function array_map;
-use function is_array;
 
 final class LogJson implements JsonSerializable
 {
@@ -61,6 +60,8 @@ final class LogJson implements JsonSerializable
         $closeByOpenId = [];
         $this->indexCloses($this->close, $closeByOpenId);
         $eventsByOpenId = $this->groupEventsByOpenId($this->events);
+        $openIds = [];
+        $this->collectOpenIds($this->open, $openIds);
 
         $result = [
             '$schema' => $this->schemaUrl,
@@ -70,8 +71,9 @@ final class LogJson implements JsonSerializable
             ),
         ];
 
-        if (isset($eventsByOpenId['']) && $eventsByOpenId[''] !== []) {
-            $result['events'] = array_map(static fn (EventEntry $event): array => $event->toArray(), $eventsByOpenId['']);
+        $topLevelEvents = $this->topLevelTreeEvents($openIds);
+        if ($topLevelEvents !== []) {
+            $result['events'] = array_map(static fn (EventEntry $event): array => $event->toArray(), $topLevelEvents);
         }
 
         if (! empty($this->links)) {
@@ -100,7 +102,9 @@ final class LogJson implements JsonSerializable
             $result['close'] = $this->singleCloseToArray($closeByOpenId[$entry->id]);
         }
 
-        if (! isset($result['open']) || ! is_array($result['open'])) {
+        if ($entry->open === []) {
+            unset($result['open']);
+
             return $result;
         }
 
@@ -119,8 +123,9 @@ final class LogJson implements JsonSerializable
     private function indexCloses(array $closes, array &$closeByOpenId): void
     {
         foreach ($closes as $close) {
-            if ($close->openId !== null) {
-                $closeByOpenId[$close->openId] = $close;
+            $openId = $close->openId;
+            if ($openId !== null) {
+                $closeByOpenId[$openId] = $close;
             }
 
             if ($close->close !== []) {
@@ -142,6 +147,39 @@ final class LogJson implements JsonSerializable
         }
 
         return $eventsByOpenId;
+    }
+
+    /**
+     * @param list<OpenCloseEntry> $entries
+     * @param array<string, true>  $openIds
+     */
+    private function collectOpenIds(array $entries, array &$openIds): void
+    {
+        foreach ($entries as $entry) {
+            $openIds[$entry->id] = true;
+
+            if ($entry->open !== []) {
+                $this->collectOpenIds($entry->open, $openIds);
+            }
+        }
+    }
+
+    /**
+     * @param array<string, true> $openIds
+     *
+     * @return list<EventEntry>
+     */
+    private function topLevelTreeEvents(array $openIds): array
+    {
+        $topLevelEvents = [];
+        foreach ($this->events as $event) {
+            $openId = $event->openId;
+            if ($openId === null || ! isset($openIds[$openId])) {
+                $topLevelEvents[] = $event;
+            }
+        }
+
+        return $topLevelEvents;
     }
 
     /** @return array<string, mixed> */

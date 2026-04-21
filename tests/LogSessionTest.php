@@ -60,4 +60,120 @@ final class LogSessionTest extends TestCase
         $this->assertSame('end_1', $session->close[0]->id);
         $this->assertSame('end', $session->close[0]->type);
     }
+
+    public function testToTreeArrayPreservesOrphanEventsAtTopLevel(): void
+    {
+        $open = new OpenCloseEntry('start_1', 'start', 'https://example.com/start.json', ['start' => true]);
+        $events = [
+            new EventEntry('nested_1', 'nested', 'https://example.com/nested.json', ['event' => 'nested'], 'start_1'),
+            new EventEntry('orphan_1', 'orphan', 'https://example.com/orphan.json', ['event' => 'orphan'], 'missing_1'),
+            new EventEntry('top_1', 'top', 'https://example.com/top.json', ['event' => 'top']),
+        ];
+        $close = new EventEntry('end_1', 'end', 'https://example.com/end.json', ['end' => true], 'start_1');
+
+        $session = new LogJson(
+            'https://schema.example.com/complete.json',
+            [$open],
+            [$close],
+            $events,
+        );
+
+        $tree = $session->toTreeArray();
+        $topLevelEvents = $this->treeEvents($tree);
+        $openEntries = $this->treeOpenEntries($tree);
+        $rootEntry = $openEntries[0];
+        $nestedEvents = $this->entryEvents($rootEntry);
+
+        $this->assertCount(1, $openEntries);
+        $this->assertCount(2, $topLevelEvents);
+        $this->assertSame('orphan_1', $this->entryId($topLevelEvents[0]));
+        $this->assertSame('top_1', $this->entryId($topLevelEvents[1]));
+        $this->assertCount(1, $nestedEvents);
+        $this->assertSame('nested_1', $this->entryId($nestedEvents[0]));
+    }
+
+    /**
+     * @param array<string, mixed> $tree
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function treeOpenEntries(array $tree): array
+    {
+        $this->assertArrayHasKey('open', $tree);
+        $openEntries = $tree['open'];
+        $this->assertIsArray($openEntries);
+
+        $validatedOpenEntries = [];
+        foreach ($openEntries as $openEntry) {
+            $this->assertIsArray($openEntry);
+            $validatedOpenEntries[] = $this->normalizeEntry($openEntry);
+        }
+
+        return $validatedOpenEntries;
+    }
+
+    /**
+     * @param array<string, mixed> $tree
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function treeEvents(array $tree): array
+    {
+        $this->assertArrayHasKey('events', $tree);
+        $events = $tree['events'];
+        $this->assertIsArray($events);
+
+        $validatedEvents = [];
+        foreach ($events as $event) {
+            $this->assertIsArray($event);
+            $validatedEvents[] = $this->normalizeEntry($event);
+        }
+
+        return $validatedEvents;
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function entryEvents(array $entry): array
+    {
+        $this->assertArrayHasKey('events', $entry);
+        $events = $entry['events'];
+        $this->assertIsArray($events);
+
+        $validatedEvents = [];
+        foreach ($events as $event) {
+            $this->assertIsArray($event);
+            $validatedEvents[] = $this->normalizeEntry($event);
+        }
+
+        return $validatedEvents;
+    }
+
+    /** @param array<string, mixed> $entry */
+    private function entryId(array $entry): string
+    {
+        $this->assertArrayHasKey('id', $entry);
+        $this->assertIsString($entry['id']);
+
+        return $entry['id'];
+    }
+
+    /**
+     * @param array<mixed, mixed> $entry
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeEntry(array $entry): array
+    {
+        $normalized = [];
+        foreach ($entry as $key => $value) {
+            $this->assertIsString($key);
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
+    }
 }
