@@ -99,6 +99,14 @@ final class LogDataParser
 
         $node = new TreeNode($id, $type, $context, $executionTime, $parent);
 
+        if (array_key_exists('close', $openEntry) && is_array($openEntry['close'])) {
+            $this->attachNestedCloseToNode($node, $openEntry['close']);
+        }
+
+        if (array_key_exists('events', $openEntry) && is_array($openEntry['events'])) {
+            $this->attachNestedEventsToNode($node, $openEntry['events']);
+        }
+
         // Walk nested sibling children (list shape).
         if (array_key_exists('open', $openEntry) && is_array($openEntry['open'])) {
             /** @var list<array<string, mixed>> $children */
@@ -109,6 +117,41 @@ final class LogDataParser
         }
 
         return $node;
+    }
+
+    /** @param array<string, mixed> $closeEntry */
+    private function attachNestedCloseToNode(TreeNode $node, array $closeEntry): void
+    {
+        $type = self::stringifyScalar($closeEntry['type'] ?? null, 'unknown');
+        /** @var mixed $rawContext */
+        $rawContext = $closeEntry['context'] ?? [];
+        if (! is_array($rawContext)) {
+            $rawContext = [];
+        }
+
+        /** @var array<string, mixed> $context */
+        $context = $rawContext;
+        $node->setClose($type, $context);
+    }
+
+    /** @param list<array<string, mixed>> $events */
+    private function attachNestedEventsToNode(TreeNode $node, array $events): void
+    {
+        foreach ($events as $event) {
+            $eventId = self::stringifyScalar($event['id'] ?? null, 'unknown');
+            $eventType = self::stringifyScalar($event['type'] ?? null, 'unknown');
+            /** @var mixed $eventContext */
+            $eventContext = $event['context'] ?? [];
+            if (! is_array($eventContext)) {
+                $eventContext = [];
+            }
+
+            /** @var array<string, mixed> $eventContext */
+            $executionTime = $this->extractExecutionTime($eventContext);
+            $eventNode = new TreeNode($eventId, $eventType, $eventContext, $executionTime, $node);
+            $eventNode->isEvent = true;
+            $node->addChild($eventNode);
+        }
     }
 
     /** @param array<string, mixed>[] $events */

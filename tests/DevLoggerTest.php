@@ -86,7 +86,32 @@ final class DevLoggerTest extends TestCase
         $this->assertIsArray($data);
         $this->assertArrayHasKey('$schema', $data);
         $this->assertArrayHasKey('open', $data);
-        $this->assertArrayHasKey('close', $data);
+        $this->assertIsArray($data['open']);
+        $this->assertArrayHasKey('close', $data['open'][0]);
+    }
+
+    public function testLogFileNestsCloseUnderMatchingOpen(): void
+    {
+        $outer = $this->logger->open(new FakeContext('outer'));
+        $inner = $this->logger->open(new FakeContext('inner'));
+        $this->logger->close(new FakeContext('inner complete'), $inner);
+        $this->logger->close(new FakeContext('outer complete'), $outer);
+
+        $this->devLogger->log($this->logger);
+
+        $jsonFiles = glob($this->logDirectory . '/semantic-dev-*.json');
+        $this->assertIsArray($jsonFiles);
+        $this->assertNotEmpty($jsonFiles);
+
+        $content = file_get_contents($jsonFiles[0]);
+        $this->assertIsString($content);
+        $data = json_decode($content, true);
+
+        $this->assertIsArray($data);
+        $this->assertSame('outer', $data['open'][0]['context']['message']);
+        $this->assertSame('outer complete', $data['open'][0]['close']['context']['message']);
+        $this->assertSame('inner', $data['open'][0]['open'][0]['context']['message']);
+        $this->assertSame('inner complete', $data['open'][0]['open'][0]['close']['context']['message']);
     }
 
     public function testSilentFailureOnJsonEncodingError(): void
