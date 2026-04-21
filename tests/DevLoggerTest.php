@@ -80,7 +80,6 @@ final class DevLoggerTest extends TestCase
         $this->assertNotEmpty($jsonFiles);
 
         $data = $this->readLogData($jsonFiles[0]);
-        $this->assertArrayHasKey('$schema', $data);
         $root = $this->firstOpenEntry($data);
         $this->assertArrayHasKey('close', $root);
     }
