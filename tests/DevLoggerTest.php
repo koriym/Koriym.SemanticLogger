@@ -79,15 +79,10 @@ final class DevLoggerTest extends TestCase
         $this->assertIsArray($jsonFiles);
         $this->assertNotEmpty($jsonFiles);
 
-        $content = file_get_contents($jsonFiles[0]);
-        $this->assertIsString($content);
-        $data = json_decode($content, true);
-
-        $this->assertIsArray($data);
+        $data = $this->readLogData($jsonFiles[0]);
         $this->assertArrayHasKey('$schema', $data);
-        $this->assertArrayHasKey('open', $data);
-        $this->assertIsArray($data['open']);
-        $this->assertArrayHasKey('close', $data['open'][0]);
+        $root = $this->firstOpenEntry($data);
+        $this->assertArrayHasKey('close', $root);
     }
 
     public function testLogFileNestsCloseUnderMatchingOpen(): void
@@ -103,15 +98,14 @@ final class DevLoggerTest extends TestCase
         $this->assertIsArray($jsonFiles);
         $this->assertNotEmpty($jsonFiles);
 
-        $content = file_get_contents($jsonFiles[0]);
-        $this->assertIsString($content);
-        $data = json_decode($content, true);
+        $data = $this->readLogData($jsonFiles[0]);
+        $root = $this->firstOpenEntry($data);
+        $innerOpen = $this->firstChildOpenEntry($root);
 
-        $this->assertIsArray($data);
-        $this->assertSame('outer', $data['open'][0]['context']['message']);
-        $this->assertSame('outer complete', $data['open'][0]['close']['context']['message']);
-        $this->assertSame('inner', $data['open'][0]['open'][0]['context']['message']);
-        $this->assertSame('inner complete', $data['open'][0]['open'][0]['close']['context']['message']);
+        $this->assertSame('outer', $this->messageFromEntry($root));
+        $this->assertSame('outer complete', $this->messageFromEntry($this->closeFromEntry($root)));
+        $this->assertSame('inner', $this->messageFromEntry($innerOpen));
+        $this->assertSame('inner complete', $this->messageFromEntry($this->closeFromEntry($innerOpen)));
     }
 
     public function testSilentFailureOnJsonEncodingError(): void
@@ -182,5 +176,93 @@ final class DevLoggerTest extends TestCase
 
         // Verify files have different names
         $this->assertNotEquals($jsonFiles[0], $jsonFiles[1]);
+    }
+
+    /** @return array{'$schema'?: mixed, open: list<array<mixed, mixed>>} */
+    private function readLogData(string $file): array
+    {
+        $content = file_get_contents($file);
+        $this->assertIsString($content);
+        $data = json_decode($content, true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('open', $data);
+        $openEntries = $data['open'];
+        $this->assertIsArray($openEntries);
+
+        $validatedOpenEntries = [];
+        foreach ($openEntries as $openEntry) {
+            $this->assertIsArray($openEntry);
+            $validatedOpenEntries[] = $openEntry;
+        }
+
+        return [
+            '$schema' => $data['$schema'] ?? null,
+            'open' => $validatedOpenEntries,
+        ];
+    }
+
+    /**
+     * @param array{'$schema'?: mixed, open: list<array<mixed, mixed>>} $data
+     *
+     * @return array<mixed, mixed>
+     */
+    private function firstOpenEntry(array $data): array
+    {
+        $this->assertNotEmpty($data['open']);
+
+        return $data['open'][0];
+    }
+
+    /**
+     * @param array<mixed, mixed> $entry
+     *
+     * @return array<mixed, mixed>
+     */
+    private function firstChildOpenEntry(array $entry): array
+    {
+        $this->assertArrayHasKey('open', $entry);
+        $children = $entry['open'];
+        $this->assertIsArray($children);
+
+        $validatedChildren = [];
+        foreach ($children as $child) {
+            $this->assertIsArray($child);
+            $validatedChildren[] = $child;
+        }
+
+        $this->assertNotEmpty($validatedChildren);
+
+        return $validatedChildren[0];
+    }
+
+    /**
+     * @param array<mixed, mixed> $entry
+     *
+     * @return array<mixed, mixed>
+     */
+    private function closeFromEntry(array $entry): array
+    {
+        $this->assertArrayHasKey('close', $entry);
+        $close = $entry['close'];
+        $this->assertIsArray($close);
+
+        $validatedClose = [];
+        foreach ($close as $key => $value) {
+            $validatedClose[$key] = $value;
+        }
+
+        return $validatedClose;
+    }
+
+    /** @param array<mixed, mixed> $entry */
+    private function messageFromEntry(array $entry): string
+    {
+        $this->assertArrayHasKey('context', $entry);
+        $context = $entry['context'];
+        $this->assertIsArray($context);
+        $this->assertArrayHasKey('message', $context);
+        $this->assertIsString($context['message']);
+
+        return $context['message'];
     }
 }

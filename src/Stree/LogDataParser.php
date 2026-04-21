@@ -100,11 +100,15 @@ final class LogDataParser
         $node = new TreeNode($id, $type, $context, $executionTime, $parent);
 
         if (array_key_exists('close', $openEntry) && is_array($openEntry['close'])) {
-            $this->attachNestedCloseToNode($node, $openEntry['close']);
+            /** @var array<string, mixed> $closeEntry */
+            $closeEntry = $openEntry['close'];
+            $this->attachNestedCloseToNode($node, $closeEntry);
         }
 
         if (array_key_exists('events', $openEntry) && is_array($openEntry['events'])) {
-            $this->attachNestedEventsToNode($node, $openEntry['events']);
+            /** @var list<array<string, mixed>> $events */
+            $events = $openEntry['events'];
+            $this->attachNestedEventsToNode($node, $events);
         }
 
         // Walk nested sibling children (list shape).
