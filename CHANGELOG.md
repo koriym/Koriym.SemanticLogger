@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Tree conversion now preserves orphaned events whose `openId` does not match any `open` by keeping them at the top-level `events` bucket instead of dropping them.
 
+### Removed
+- **MCP server integration.** Removed the bundled MCP server implementation, CLI entrypoint, setup guides, and related configuration examples from this package. MCP integration now belongs outside the core logging library.
+
 ## [0.5.0] - 2026-04-21
 
 ### Fixed
