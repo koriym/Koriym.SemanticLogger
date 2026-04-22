@@ -41,13 +41,13 @@
       "title": "Profile Data Structure"
     },
     {
-      "anchor": "#/context/profile/xhprof",
+      "anchor": "#/context/profile/xhprofProfile",
       "rel": "describedby", 
       "href": "https://github.com/tideways/php-xhprof-extension#data-format",
       "title": "XHProf Data Format"
     },
     {
-      "anchor": "#/context/profile/xdebug",
+      "anchor": "#/context/profile/xdebugTrace",
       "rel": "describedby",
       "href": "https://xdebug.org/docs/trace#Output-Formats", 
       "title": "Xdebug Trace Output Formats"
@@ -103,39 +103,35 @@
           "type": "object",
           "description": "Profiling data collected at completion",
           "properties": {
-            "xhprof": {
-              "oneOf": [
-                {"type": "object", "maxProperties": 0},
-                {
-                  "type": "object",
-                  "properties": {
-                    "source": {
-                      "oneOf": [
-                        {"type": "string", "description": "File path to XHProf JSON data"},
-                        {"type": "object", "description": "Inline XHProf data"}
-                      ]
-                    }
+            "xhprofProfile": {
+              "type": "array",
+              "description": "Per-segment XHProf snapshot file references captured while this operation was active.",
+              "items": {
+                "type": "object",
+                "required": ["path"],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "File path to the XHProf JSON snapshot for this segment"
                   }
-                }
-              ]
+                },
+                "additionalProperties": false
+              }
             },
-            "xdebug": {
-              "oneOf": [
-                {"type": "object", "maxProperties": 0},
-                {
-                  "type": "object", 
-                  "properties": {
-                    "source": {
-                      "oneOf": [
-                        {"type": "string", "description": "File path to Xdebug trace file"},
-                        {"type": "string", "description": "Inline Xdebug trace data"}
-                      ]
-                    },
-                    "file_size": {"type": "integer"},
-                    "compressed": {"type": "boolean"}
+            "xdebugTrace": {
+              "type": "array",
+              "description": "Per-segment Xdebug trace file references captured while this operation was active.",
+              "items": {
+                "type": "object",
+                "required": ["path"],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "File path to the Xdebug trace file for this segment"
                   }
-                }
-              ]
+                },
+                "additionalProperties": false
+              }
             },
             "php": {
               "type": "object",

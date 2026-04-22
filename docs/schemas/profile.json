@@ -5,13 +5,13 @@
   "description": "Schema for profiling data collected during resource processing within the BEAR.Resource framework",
   "links": [
     {
-      "anchor": "#/xdebug/data",
+      "anchor": "#/properties/xdebugTrace",
       "rel": "describedby",
       "href": "https://xdebug.org/docs/trace#Output-Formats",
       "title": "Xdebug Trace Format"
     },
     {
-      "anchor": "#/xhprof/data",
+      "anchor": "#/properties/xhprofProfile",
       "rel": "describedby",
       "href": "https://github.com/tideways/php-xhprof-extension?tab=readme-ov-file#data-format",
       "title": "XHProf Profile Format"
@@ -24,77 +24,42 @@
     }
   ],
   "type": "object",
+  "required": ["wallTime"],
   "properties": {
-    "xhprof": {
-      "oneOf": [
-        {
-          "type": "array",
-          "maxItems": 0,
-          "description": "Empty array when XHProf is not available"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "data": {
-              "type": "object",
-              "description": "Raw XHProf profiling data with function call metrics. Captured using xhprof_enable() and xhprof_disable() functions. Provides statistical performance data (wall time, memory usage, call counts) with low overhead, enabling production-ready performance monitoring unlike more intrusive tracing methods.",
-              "additionalProperties": {
-                "type": "object",
-                "properties": {
-                  "wt": {
-                    "type": "integer",
-                    "description": "Wall time in microseconds"
-                  },
-                  "mu": {
-                    "type": "integer", 
-                    "description": "Memory usage in bytes"
-                  },
-                  "pmu": {
-                    "type": "integer",
-                    "description": "Peak memory usage in bytes"
-                  },
-                  "ct": {
-                    "type": "integer",
-                    "description": "Call count"
-                  }
-                }
-              }
-            },
-            "spec_url": {
-              "type": "string",
-              "format": "uri",
-              "description": "URL to XHProf data format specification"
-            }
-          },
-          "additionalProperties": false
-        }
-      ],
-      "description": "XHProf performance profiling data with specification URL"
+    "wallTime": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Wall time for this operation in seconds under the instrumentation mode that produced this profile"
     },
-    "xdebug": {
-      "oneOf": [
-        {
-          "type": "array",
-          "maxItems": 0,
-          "description": "Empty array when Xdebug trace is not available"
+    "xdebugTrace": {
+      "type": "array",
+      "description": "Per-segment Xdebug trace file references captured while this operation was active. Omitted when no Xdebug trace output was captured.",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path to the Xdebug trace file on disk for this segment"
+          }
         },
-        {
-          "type": "object",
-          "properties": {
-            "data": {
-              "type": "string",
-              "description": "Raw Xdebug trace file content in trace format 4. Captured using xdebug_start_trace() and xdebug_stop_trace() functions. Provides granular execution flow beyond PHP's standard debug_backtrace(), capturing function entry/exit with precise timestamps, memory usage, and call depth for comprehensive performance analysis and bottleneck identification."
-            },
-            "spec_url": {
-              "type": "string",
-              "format": "uri",
-              "description": "URL to Xdebug trace output formats specification"
-            }
-          },
-          "additionalProperties": false
-        }
-      ],
-      "description": "Xdebug execution trace data with specification URL. Provides detailed function-by-function execution flow that standard PHP profiling cannot capture, essential for identifying complex performance issues, recursive calls, and execution path bottlenecks."
+        "additionalProperties": false
+      }
+    },
+    "xhprofProfile": {
+      "type": "array",
+      "description": "Per-segment XHProf snapshot file references captured while this operation was active. Omitted when no XHProf output was captured.",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Path to the XHProf snapshot file on disk for this segment"
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "php": {
       "type": "object",

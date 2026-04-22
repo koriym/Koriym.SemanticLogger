@@ -102,11 +102,17 @@ final class DevSemanticLogger implements SemanticLoggerInterface
 
             $operations = [];
             foreach ($this->wallTimes as $id => $wallTime) {
-                $operations[$id] = new OperationProfile(
+                $profile = new OperationProfile(
                     wallTime: $wallTime,
-                    xdebug: $this->xdebugSegments[$id] ?? [],
-                    xhprof: $this->xhprofSegments[$id] ?? [],
+                    xdebugTrace: $this->xdebugSegments[$id] ?? [],
+                    xhprofProfile: $this->xhprofSegments[$id] ?? [],
                 );
+
+                if (! $profile->hasProfilerData()) {
+                    continue;
+                }
+
+                $operations[$id] = $profile;
             }
 
             $closeWithProfile = $this->attachProfilesToCloses($logJson->close, $operations);
@@ -143,7 +149,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
 
     /**
      * Walk the close tree and, at each node, attach the matching OperationProfile
-     * directly to that close entry so each being carries its own profile data.
+     * directly to that close entry when external profiler output was captured.
      *
      * @param list<EventEntry>                $closes
      * @param array<string, OperationProfile> $operations

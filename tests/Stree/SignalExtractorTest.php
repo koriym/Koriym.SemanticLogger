@@ -235,6 +235,16 @@ final class SignalExtractorTest extends TestCase
         $this->assertCount(2, $parts);
     }
 
+    public function testExtractCloseDiffPrefersExitOverRedundantFinal(): void
+    {
+        $open = ['input' => 'App\\Input\\HelloInput'];
+        $close = ['exit' => 'success', 'final' => 'App\\Final\\Hello'];
+
+        $result = $this->extractor->extractCloseDiff($open, $close);
+
+        $this->assertSame('exit=success', $result);
+    }
+
     public function testHasFailureIndicatorSuccessFalse(): void
     {
         $this->assertTrue($this->extractor->hasFailureIndicator(['success' => false]));
@@ -266,6 +276,21 @@ final class SignalExtractorTest extends TestCase
 
         $this->assertContains('info.host: localhost', $result);
         $this->assertContains('info.port: 3306', $result);
+    }
+
+    public function testExpandFullUsesBracketNotationForLists(): void
+    {
+        $context = [
+            'xdebugTrace' => [
+                ['path' => '/tmp/profile_a.xt'],
+                ['path' => '/tmp/profile_b.xt'],
+            ],
+        ];
+
+        $result = $this->extractor->expandFull($context);
+
+        $this->assertContains('xdebugTrace[0].path: /tmp/profile_a.xt', $result);
+        $this->assertContains('xdebugTrace[1].path: /tmp/profile_b.xt', $result);
     }
 
     public function testExpandFullExcludesTimingKeys(): void

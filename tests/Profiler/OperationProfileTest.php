@@ -7,6 +7,8 @@ namespace Koriym\SemanticLogger\Profiler;
 use PHPUnit\Framework\TestCase;
 
 use function file_put_contents;
+use function is_array;
+use function is_string;
 use function sys_get_temp_dir;
 use function tempnam;
 use function unlink;
@@ -18,8 +20,8 @@ final class OperationProfileTest extends TestCase
         $op = new OperationProfile(wallTime: 0.002);
 
         $this->assertSame(0.002, $op->wallTime);
-        $this->assertSame([], $op->xdebug);
-        $this->assertSame([], $op->xhprof);
+        $this->assertSame([], $op->xdebugTrace);
+        $this->assertSame([], $op->xhprofProfile);
     }
 
     public function testJsonSerializeWithEmptySegments(): void
@@ -28,27 +30,29 @@ final class OperationProfileTest extends TestCase
         $serialized = $op->jsonSerialize();
 
         $this->assertSame(0.001, $serialized['wallTime']);
-        $this->assertSame([], $serialized['xdebug']);
-        $this->assertSame([], $serialized['xhprof']);
+        $this->assertArrayNotHasKey('xdebugTrace', $serialized);
+        $this->assertArrayNotHasKey('xhprofProfile', $serialized);
+        $this->assertFalse($op->hasProfilerData());
     }
 
-    public function testJsonSerializeFiltersSegmentsWithoutSource(): void
+    public function testJsonSerializeFiltersSegmentsWithoutPath(): void
     {
         // Segments with null filePath (no-op instances from unavailable extensions)
-        // must not leak into the serialized output — the schema requires a source.
+        // must not leak into the serialized output — the schema requires a path.
         $emptyXdebug = new XdebugTrace();
         $emptyXhprof = new XHProfResult();
 
         $op = new OperationProfile(
             wallTime: 0.003,
-            xdebug: [$emptyXdebug],
-            xhprof: [$emptyXhprof],
+            xdebugTrace: [$emptyXdebug],
+            xhprofProfile: [$emptyXhprof],
         );
 
         $serialized = $op->jsonSerialize();
 
-        $this->assertSame([], $serialized['xdebug']);
-        $this->assertSame([], $serialized['xhprof']);
+        $this->assertArrayNotHasKey('xdebugTrace', $serialized);
+        $this->assertArrayNotHasKey('xhprofProfile', $serialized);
+        $this->assertFalse($op->hasProfilerData());
     }
 
     public function testJsonSerializeEmitsXdebugSegments(): void
@@ -59,13 +63,17 @@ final class OperationProfileTest extends TestCase
 
         try {
             $xdebug = new XdebugTrace($testContent, $tempFile);
-            $op = new OperationProfile(wallTime: 0.0, xdebug: [$xdebug]);
+            $op = new OperationProfile(wallTime: 0.0, xdebugTrace: [$xdebug]);
 
             $serialized = $op->jsonSerialize();
+            $xdebugTrace = $this->profilerSection($serialized, 'xdebugTrace');
 
-            $this->assertCount(1, $serialized['xdebug']);
-            $this->assertSame($tempFile, $serialized['xdebug'][0]['source']);
-            $this->assertSame(['source' => $tempFile], $serialized['xdebug'][0]);
+            $this->assertSame(0.0, $serialized['wallTime']);
+            $this->assertCount(1, $xdebugTrace);
+            $this->assertSame($tempFile, $xdebugTrace[0]['path']);
+            $this->assertSame(['path' => $tempFile], $xdebugTrace[0]);
+            $this->assertArrayNotHasKey('xhprofProfile', $serialized);
+            $this->assertTrue($op->hasProfilerData());
         } finally {
             unlink($tempFile);
         }
@@ -74,12 +82,16 @@ final class OperationProfileTest extends TestCase
     public function testJsonSerializeEmitsXhprofSegments(): void
     {
         $xhprof = new XHProfResult(['func' => ['wt' => 100]], '/tmp/xhprof-1.json');
-        $op = new OperationProfile(wallTime: 0.0, xhprof: [$xhprof]);
+        $op = new OperationProfile(wallTime: 0.0, xhprofProfile: [$xhprof]);
 
         $serialized = $op->jsonSerialize();
+        $xhprofSection = $this->profilerSection($serialized, 'xhprofProfile');
 
-        $this->assertCount(1, $serialized['xhprof']);
-        $this->assertSame('/tmp/xhprof-1.json', $serialized['xhprof'][0]['source']);
+        $this->assertSame(0.0, $serialized['wallTime']);
+        $this->assertCount(1, $xhprofSection);
+        $this->assertSame('/tmp/xhprof-1.json', $xhprofSection[0]['path']);
+        $this->assertArrayNotHasKey('xdebugTrace', $serialized);
+        $this->assertTrue($op->hasProfilerData());
     }
 
     public function testJsonSerializeEmitsMultipleSegmentsInOrder(): void
@@ -87,11 +99,38 @@ final class OperationProfileTest extends TestCase
         $x1 = new XHProfResult(['seg1' => ['wt' => 10]], '/tmp/xhprof-a.json');
         $x2 = new XHProfResult(['seg2' => ['wt' => 20]], '/tmp/xhprof-b.json');
 
-        $op = new OperationProfile(wallTime: 0.0, xhprof: [$x1, $x2]);
+        $op = new OperationProfile(wallTime: 0.0, xhprofProfile: [$x1, $x2]);
         $serialized = $op->jsonSerialize();
+        $xhprofSection = $this->profilerSection($serialized, 'xhprofProfile');
 
-        $this->assertCount(2, $serialized['xhprof']);
-        $this->assertSame('/tmp/xhprof-a.json', $serialized['xhprof'][0]['source']);
-        $this->assertSame('/tmp/xhprof-b.json', $serialized['xhprof'][1]['source']);
+        $this->assertSame(0.0, $serialized['wallTime']);
+        $this->assertCount(2, $xhprofSection);
+        $this->assertSame('/tmp/xhprof-a.json', $xhprofSection[0]['path']);
+        $this->assertSame('/tmp/xhprof-b.json', $xhprofSection[1]['path']);
+        $this->assertTrue($op->hasProfilerData());
+    }
+
+    /**
+     * @param array<string, mixed> $serialized
+     *
+     * @return list<array{path: string}>
+     */
+    private function profilerSection(array $serialized, string $key): array
+    {
+        $section = $serialized[$key] ?? null;
+        if (! is_array($section)) {
+            $this->fail("Expected '{$key}' section to be an array.");
+        }
+
+        $normalized = [];
+        foreach ($section as $entry) {
+            if (! is_array($entry) || ! is_string($entry['path'] ?? null)) {
+                $this->fail("Expected '{$key}' entries to contain a string path.");
+            }
+
+            $normalized[] = ['path' => $entry['path']];
+        }
+
+        return $normalized;
     }
 }

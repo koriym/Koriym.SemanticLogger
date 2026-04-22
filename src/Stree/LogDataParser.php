@@ -61,15 +61,23 @@ final class LogDataParser
         $type = self::stringifyScalar($closeEntry['type'] ?? null, 'unknown');
         /** @var mixed $context */
         $context = $closeEntry['context'] ?? [];
+        /** @var mixed $profile */
+        $profile = $closeEntry['profile'] ?? [];
         if (! is_array($context)) {
             $context = [];
+        }
+
+        if (! is_array($profile)) {
+            $profile = [];
         }
 
         $node = $openId !== null ? $this->findNodeById($rootNode, $openId) : null;
         if ($node !== null) {
             /** @var array<string, mixed> $closeCtx */
             $closeCtx = $context;
-            $node->setClose($type, $closeCtx);
+            /** @var array<string, mixed> $closeProfile */
+            $closeProfile = $profile;
+            $node->setClose($type, $closeCtx, $closeProfile);
         }
 
         if (array_key_exists('close', $closeEntry) && is_array($closeEntry['close'])) {
@@ -129,13 +137,21 @@ final class LogDataParser
         $type = self::stringifyScalar($closeEntry['type'] ?? null, 'unknown');
         /** @var mixed $rawContext */
         $rawContext = $closeEntry['context'] ?? [];
+        /** @var mixed $rawProfile */
+        $rawProfile = $closeEntry['profile'] ?? [];
         if (! is_array($rawContext)) {
             $rawContext = [];
         }
 
+        if (! is_array($rawProfile)) {
+            $rawProfile = [];
+        }
+
         /** @var array<string, mixed> $context */
         $context = $rawContext;
-        $node->setClose($type, $context);
+        /** @var array<string, mixed> $profile */
+        $profile = $rawProfile;
+        $node->setClose($type, $context, $profile);
     }
 
     /** @param list<array<string, mixed>> $events */

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Stree;
 
 use function implode;
+use function is_array;
+use function is_string;
 use function sprintf;
 use function strlen;
 use function substr;
@@ -16,6 +18,8 @@ final class TreeNode
 
     /** @var array<string, mixed> */
     public array $closeContext = [];
+    /** @var array<string, mixed> */
+    public array $closeProfile = [];
     public string|null $closeType = null;
 
     /** Whether this node was produced from the events section */
@@ -39,11 +43,15 @@ final class TreeNode
         $this->children[] = $child;
     }
 
-    /** @param array<string, mixed> $context */
-    public function setClose(string $type, array $context): void
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $profile
+     */
+    public function setClose(string $type, array $context, array $profile = []): void
     {
         $this->closeType = $type;
         $this->closeContext = $context;
+        $this->closeProfile = $profile;
     }
 
     public function getDisplayName(): string
@@ -61,20 +69,8 @@ final class TreeNode
         }
 
         $extractor = new SignalExtractor();
-        $displayType = $this->stripOpenSuffix($this->type);
         $timeDisplay = $this->formatExecutionTime();
-
-        // Build open-side line: <type> <signals>[ [timing]][ : <status>][ [event]].
-        // Close-side signals are emitted separately by getCloseLine() so the
-        // renderer can place them on a "⎿" continuation under the children.
-        $parts = [$displayType];
-
-        $signals = $extractor->extractSignals($this->context);
-        if ($signals !== '') {
-            $parts[] = $signals;
-        }
-
-        $line = implode(' ', $parts);
+        $line = $this->semanticDisplayLine($extractor) ?? $this->genericDisplayLine($extractor);
 
         if ($this->executionTime > 0.0) {
             $line .= ' [' . $timeDisplay . ']';
@@ -91,10 +87,23 @@ final class TreeNode
         return $line;
     }
 
+    private function genericDisplayLine(SignalExtractor $extractor): string
+    {
+        $displayType = $this->stripOpenSuffix($this->type);
+        $parts = [$displayType];
+
+        $signals = $extractor->extractSignals($this->context);
+        if ($signals !== '') {
+            $parts[] = $signals;
+        }
+
+        return implode(' ', $parts);
+    }
+
     /**
      * Return close-diff signals as a space-joined string, or empty when the
      * node has no close or no signals differ from open. The renderer decorates
-     * this with a "⎿" prefix and places it directly beneath the children.
+     * this with a close branch and places it directly beneath the children.
      */
     public function getCloseSignals(): string
     {
@@ -103,6 +112,57 @@ final class TreeNode
         }
 
         return (new SignalExtractor())->extractCloseDiff($this->context, $this->closeContext);
+    }
+
+    private function semanticDisplayLine(SignalExtractor $extractor): string|null
+    {
+        return match ($this->type) {
+            'becoming_open' => $this->formatBecomingDisplayLine($extractor),
+            'being_open' => $this->formatBeingDisplayLine($extractor, 'being', 'be'),
+            'being_final_open' => $this->formatBeingDisplayLine($extractor, 'being_final', 'final'),
+            default => null,
+        };
+    }
+
+    private function formatBecomingDisplayLine(SignalExtractor $extractor): string|null
+    {
+        $input = $this->context['input'] ?? null;
+        if (! is_string($input)) {
+            return null;
+        }
+
+        $shortInput = $extractor->formatValue($input) ?? $input;
+
+        return 'becoming ' . $shortInput;
+    }
+
+    private function formatBeingDisplayLine(SignalExtractor $extractor, string $label, string $targetKey): string|null
+    {
+        $target = $this->context[$targetKey] ?? null;
+        if (! is_string($target)) {
+            return null;
+        }
+
+        $parts = [
+            $label,
+            $extractor->formatValue($target) ?? $target,
+        ];
+
+        foreach (['input', 'inject'] as $key) {
+            $value = $this->context[$key] ?? null;
+            if (! is_array($value) || $value === []) {
+                continue;
+            }
+
+            $formatted = $extractor->formatValue($value);
+            if ($formatted === null) {
+                continue;
+            }
+
+            $parts[] = $key . '=' . $formatted;
+        }
+
+        return implode(' ', $parts);
     }
 
     private function stripOpenSuffix(string $type): string

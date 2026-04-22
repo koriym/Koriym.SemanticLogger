@@ -63,16 +63,36 @@
           "type": "object",
           "description": "Profiling data collected before error",
           "properties": {
-            "xhprof": {
+            "xhprofProfile": {
               "oneOf": [
                 {"type": "array", "maxItems": 0},
-                {"type": "object"}
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {
+                      "path": {"type": "string"}
+                    },
+                    "additionalProperties": false
+                  }
+                }
               ]
             },
-            "xdebug": {
+            "xdebugTrace": {
               "oneOf": [
                 {"type": "array", "maxItems": 0},
-                {"type": "object"}
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {
+                      "path": {"type": "string"}
+                    },
+                    "additionalProperties": false
+                  }
+                }
               ]
             },
             "php": {

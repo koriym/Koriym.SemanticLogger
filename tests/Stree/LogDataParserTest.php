@@ -723,6 +723,46 @@ final class LogDataParserTest extends TestCase
         $this->assertSame(['result' => 'ok'], $tree->closeContext);
     }
 
+    public function testCloseProfileIsAttachedToMatchingOpen(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'operation_1',
+                    'type' => 'process_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'process_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'ok'],
+                    'profile' => [
+                        'wallTime' => 0.123,
+                        'xdebugTrace' => [
+                            ['path' => '/tmp/profile.xt'],
+                        ],
+                    ],
+                    'openId' => 'operation_1',
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertSame([
+            'wallTime' => 0.123,
+            'xdebugTrace' => [
+                ['path' => '/tmp/profile.xt'],
+            ],
+        ], $tree->closeProfile);
+    }
+
     public function testNestedCloseIsMatchedToNestedOpen(): void
     {
         $logData = [

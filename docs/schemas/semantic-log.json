@@ -147,7 +147,7 @@
         },
         "profile": {
           "$ref": "#/definitions/operationProfile",
-          "description": "Profile data attributed to this specific operation (wall time plus per-segment Xdebug/XHProf captures). Present when DevSemanticLogger produced the log."
+          "description": "Observed profiling data attributed to this specific operation. Present only when an attached profiler captured external Xdebug or XHProf output for this close."
         },
         "close": {
           "type": "array",
@@ -174,22 +174,22 @@
     },
     "operationProfile": {
       "type": "object",
-      "description": "Profile data for a single operation (open/close pair).",
-      "required": ["wallTime", "xdebug", "xhprof"],
+      "description": "Observed profiling data for a single operation (open/close pair). The profile object is emitted only when external profiler output was captured.",
+      "required": ["wallTime"],
       "properties": {
         "wallTime": {
           "type": "number",
           "minimum": 0,
-          "description": "Wall time for this operation in seconds"
+          "description": "Wall time for this operation in seconds under the instrumentation mode that produced this profile"
         },
-        "xdebug": {
+        "xdebugTrace": {
           "type": "array",
-          "description": "Per-segment Xdebug trace references captured while this operation was active. Empty when Xdebug trace was not available.",
+          "description": "Per-segment Xdebug trace file references captured while this operation was active. Omitted when no Xdebug trace output was captured.",
           "items": {
             "type": "object",
-            "required": ["source"],
+            "required": ["path"],
             "properties": {
-              "source": {
+              "path": {
                 "type": "string",
                 "description": "Path to the Xdebug trace file on disk for this segment (a .gz suffix indicates a gzip-compressed trace)"
               }
@@ -197,14 +197,14 @@
             "additionalProperties": false
           }
         },
-        "xhprof": {
+        "xhprofProfile": {
           "type": "array",
-          "description": "Per-segment XHProf snapshot references captured while this operation was active. Empty when XHProf was not available.",
+          "description": "Per-segment XHProf snapshot file references captured while this operation was active. Omitted when no XHProf output was captured.",
           "items": {
             "type": "object",
-            "required": ["source"],
+            "required": ["path"],
             "properties": {
-              "source": {
+              "path": {
                 "type": "string",
                 "description": "Path to the XHProf snapshot file on disk for this segment"
               }

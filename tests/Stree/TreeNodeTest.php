@@ -31,6 +31,16 @@ final class TreeNodeTest extends TestCase
         $this->assertSame($child, $parent->children[0]);
     }
 
+    public function testSetCloseStoresProfile(): void
+    {
+        $node = new TreeNode('n1', 'some_open', []);
+        $node->setClose('some_close', ['result' => 'ok'], ['wallTime' => 0.123]);
+
+        $this->assertSame('some_close', $node->closeType);
+        $this->assertSame(['result' => 'ok'], $node->closeContext);
+        $this->assertSame(['wallTime' => 0.123], $node->closeProfile);
+    }
+
     public function testGetDisplayName(): void
     {
         $node = new TreeNode('test_1', 'test_type', []);
@@ -207,6 +217,32 @@ final class TreeNodeTest extends TestCase
         $this->assertStringContainsString('fromClass=HelloInput', $line);
     }
 
+    public function testSemanticBecomingDisplayShowsInputClassOnly(): void
+    {
+        $node = new TreeNode('n1', 'becoming_open', [
+            'input' => 'Be\\Skeleton\\Input\\HelloInput',
+            'prop' => ['name' => 'World'],
+        ]);
+
+        $line = $node->getDisplayLine();
+
+        $this->assertSame('becoming HelloInput', $line);
+    }
+
+    public function testSemanticBeingFinalDisplaySuppressesFromAndKeepsInputInjectKeys(): void
+    {
+        $node = new TreeNode('n1', 'being_final_open', [
+            'from' => 'Be\\Skeleton\\Input\\HelloInput',
+            'final' => 'Be\\Skeleton\\Final\\Hello',
+            'input' => ['name' => 'Be\\Skeleton\\Input\\HelloInput::name'],
+            'inject' => ['greeting' => 'Be\\Skeleton\\Reason\\Greeting'],
+        ]);
+
+        $line = $node->getDisplayLine();
+
+        $this->assertSame('being_final Hello input=[name] inject=[greeting]', $line);
+    }
+
     public function testOpenSuffixStrippedWhenClosedSet(): void
     {
         $node = new TreeNode('n1', 'metamorphosis_open', ['name' => 'test']);
@@ -326,7 +362,7 @@ final class TreeNodeTest extends TestCase
         $line = $node->getDisplayLine($config);
 
         $this->assertStringContainsString("\n", $line);
-        $this->assertStringContainsString('⎿ close=fake_close', $line);
+        $this->assertStringContainsString('└── close=fake_close', $line);
     }
 
     public function testFormatterReceivesShowValuesFlag(): void

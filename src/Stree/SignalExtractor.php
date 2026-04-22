@@ -109,6 +109,10 @@ final class SignalExtractor
                 continue;
             }
 
+            if ($key === 'final' && isset($closeContext['exit'])) {
+                continue;
+            }
+
             if (! $this->isMeaningfulScalar($value) && ! $this->isMeaningfulArray($value)) {
                 continue;
             }
@@ -191,7 +195,7 @@ final class SignalExtractor
                 continue;
             }
 
-            $qualifiedKey = $prefix !== '' ? $prefix . '.' . $key : $key;
+            $qualifiedKey = $this->qualifyKey($prefix, $key);
 
             if (is_array($value)) {
                 /** @var array<string, mixed> $value */
@@ -214,8 +218,21 @@ final class SignalExtractor
         return $lines;
     }
 
-    private function shouldExcludeKey(string $key): bool
+    private function qualifyKey(string $prefix, string|int $key): string
     {
+        if (is_numeric($key)) {
+            return $prefix === '' ? '[' . $key . ']' : $prefix . '[' . $key . ']';
+        }
+
+        return $prefix !== '' ? $prefix . '.' . $key : $key;
+    }
+
+    private function shouldExcludeKey(string|int $key): bool
+    {
+        if (! is_string($key)) {
+            return false;
+        }
+
         foreach (self::EXCLUDE_KEYS as $excluded) {
             if ($key === $excluded) {
                 return true;

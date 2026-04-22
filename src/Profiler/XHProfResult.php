@@ -125,7 +125,7 @@ final class XHProfResult implements JsonSerializable
         }
 
         return [
-            'source' => $this->filePath, // file path or inline data
+            'path' => $this->filePath,
         ];
     }
 }

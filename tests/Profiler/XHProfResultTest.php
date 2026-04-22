@@ -115,7 +115,7 @@ class XHProfResultTest extends TestCase
         $serialized = $result->jsonSerialize();
 
         $this->assertNotEmpty($serialized);
-        $this->assertSame($filePath, $serialized['source']);
+        $this->assertSame($filePath, $serialized['path']);
     }
 
     public function testStartStopLifecycleWhenXhprofNotAvailable(): void

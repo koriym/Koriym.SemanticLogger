@@ -7,8 +7,9 @@ namespace Koriym\SemanticLogger\Stree;
 use function count;
 use function explode;
 use function implode;
-use function strpos;
-use function substr;
+use function in_array;
+use function array_key_exists;
+use function is_array;
 
 final class TreeRenderer
 {
@@ -17,7 +18,6 @@ final class TreeRenderer
     private const TREE_LAST = '└';
     private const TREE_HORIZONTAL = '─';
     private const TREE_SPACE = ' ';
-    private const CLOSE_MARK = '⎿';
 
     /** @param array<string, mixed> $logData */
     public function render(array $logData, RenderConfig $config): string
@@ -34,7 +34,7 @@ final class TreeRenderer
     /**
      * Render the root node flush-left (no synthetic "session" header) followed by
      * events/nested-opens as children, and finally the root's close signals on a
-     * "⎿" continuation line. Multi-line display (formatter-emitted open + its own
+     * tree-style close branch. Multi-line display (formatter-emitted open + its own
      * continuation) is split so both lines sit flush-left.
      */
     private function renderRoot(TreeNode $root, RenderConfig $config): string
@@ -57,7 +57,7 @@ final class TreeRenderer
         }
 
         $closeSignals = $root->getCloseSignals();
-        $hasCloseLine = $closeSignals !== '';
+        $hasCloseLine = ! $config->showFullTree && $closeSignals !== '';
 
         $totalChildren = count($root->children);
         for ($i = 0; $i < $totalChildren; $i++) {
@@ -66,8 +66,10 @@ final class TreeRenderer
             $this->renderNode($child, $lines, '', $isLastChild, $config);
         }
 
-        if ($hasCloseLine) {
-            $lines[] = self::CLOSE_MARK . ' ' . $closeSignals;
+        if ($config->showFullTree) {
+            $this->renderFullModeClose($root, $lines, '');
+        } elseif ($hasCloseLine) {
+            $lines[] = self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $closeSignals;
         }
 
         return implode("\n", $lines);
@@ -101,7 +103,7 @@ final class TreeRenderer
         }
 
         $closeSignals = $node->getCloseSignals();
-        $hasCloseLine = $closeSignals !== '';
+        $hasCloseLine = ! $config->showFullTree && $closeSignals !== '';
 
         $totalChildren = count($node->children);
         for ($i = 0; $i < $totalChildren; $i++) {
@@ -110,8 +112,10 @@ final class TreeRenderer
             $this->renderNode($child, $lines, $childPrefix, $isLastChild, $config);
         }
 
-        if ($hasCloseLine) {
-            $lines[] = $childPrefix . self::CLOSE_MARK . ' ' . $closeSignals;
+        if ($config->showFullTree) {
+            $this->renderFullModeClose($node, $lines, $childPrefix);
+        } elseif ($hasCloseLine) {
+            $lines[] = $childPrefix . self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $closeSignals;
         }
     }
 
@@ -122,74 +126,148 @@ final class TreeRenderer
      */
     private function renderFullModeLeaves(TreeNode $node, array &$lines, string $prefix): void
     {
-        $extractor = new SignalExtractor();
-        $openLeaves = $extractor->expandFull($node->context);
+        $openLeaves = $this->extractFullModeOpenLeaves($node);
 
-        // Close-only or close-changed keys as leaves with → prefix
-        $closeLeaves = [];
-        if ($node->closeType !== null) {
-            $closeLeaves = $this->expandCloseDiff($node->context, $node->closeContext);
-        }
-
-        $allLeaves = [];
-        foreach ($openLeaves as $leaf) {
-            $allLeaves[] = $leaf;
-        }
-
-        foreach ($closeLeaves as $leaf) {
-            $allLeaves[] = '→ ' . $leaf;
-        }
-
-        $hasChildren = count($node->children) > 0;
-        $totalLeaves = count($allLeaves);
+        $hasChildren = count($node->children) > 0 || $node->closeType !== null;
+        $totalLeaves = count($openLeaves);
         for ($i = 0; $i < $totalLeaves; $i++) {
             $isLastLeaf = ($i === $totalLeaves - 1) && ! $hasChildren;
             $symbol = $isLastLeaf ? self::TREE_LAST : self::TREE_BRANCH;
-            $lines[] = $prefix . $symbol . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $allLeaves[$i];
+            $lines[] = $prefix . $symbol . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $openLeaves[$i];
         }
     }
 
     /**
-     * Expand close context into diff leaves (close-only or changed keys).
+     * Render a semantic close branch in full mode, preserving the open/close tree
+     * shape instead of flattening close data into generic JSON leaves.
      *
-     * @param  array<string, mixed> $openContext
-     * @param  array<string, mixed> $closeContext
+     * @param string[] $lines
+     */
+    private function renderFullModeClose(TreeNode $node, array &$lines, string $prefix): void
+    {
+        if ($node->closeType === null) {
+            return;
+        }
+
+        $extractor = new SignalExtractor();
+        $closeLeaves = $this->extractFullModeCloseLeaves($node);
+        $profileLeaves = $extractor->expandFull($node->closeProfile);
+
+        $lines[] = $prefix . self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' close';
+        $closeChildPrefix = $prefix . self::TREE_SPACE . self::TREE_SPACE . self::TREE_SPACE . self::TREE_SPACE;
+
+        $closeItemCount = count($closeLeaves) + ($profileLeaves !== [] ? 1 : 0);
+        $leafIndex = 0;
+        foreach ($closeLeaves as $leaf) {
+            $leafIndex++;
+            $isLastLeaf = $leafIndex === $closeItemCount;
+            $symbol = $isLastLeaf ? self::TREE_LAST : self::TREE_BRANCH;
+            $lines[] = $closeChildPrefix . $symbol . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $leaf;
+        }
+
+        if ($profileLeaves === []) {
+            return;
+        }
+
+        $lines[] = $closeChildPrefix . self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' profile';
+        $profilePrefix = $closeChildPrefix . self::TREE_SPACE . self::TREE_SPACE . self::TREE_SPACE;
+        $profileLeafCount = count($profileLeaves);
+        for ($i = 0; $i < $profileLeafCount; $i++) {
+            $isLastLeaf = $i === $profileLeafCount - 1;
+            $symbol = $isLastLeaf ? self::TREE_LAST : self::TREE_BRANCH;
+            $lines[] = $profilePrefix . $symbol . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $profileLeaves[$i];
+        }
+    }
+
+    /**
+     * @return string[]
+     */
+    private function extractFullModeOpenLeaves(TreeNode $node): array
+    {
+        $extractor = new SignalExtractor();
+
+        return match ($node->type) {
+            'becoming_open' => $this->expandFlatPropertyLeaves($node->context['prop'] ?? []),
+            'being_open', 'being_final_open' => $this->expandAuxiliaryOpenLeaves($node->context),
+            default => $extractor->expandFull($node->context),
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $context
      *
      * @return string[]
      */
-    private function expandCloseDiff(array $openContext, array $closeContext): array
+    private function expandAuxiliaryOpenLeaves(array $context): array
     {
         $extractor = new SignalExtractor();
-        $openLeaves = $extractor->expandFull($openContext);
-        $closeLeaves = $extractor->expandFull($closeContext);
-
-        // Build open key→value map
-        $openMap = [];
-        foreach ($openLeaves as $leaf) {
-            $pos = strpos($leaf, ': ');
-            if ($pos !== false) {
-                $openMap[substr($leaf, 0, $pos)] = substr($leaf, $pos + 2);
-            }
+        if (! array_key_exists('inject', $context) || ! is_array($context['inject'])) {
+            return [];
         }
 
-        $diffs = [];
-        foreach ($closeLeaves as $leaf) {
-            $pos = strpos($leaf, ': ');
-            if ($pos === false) {
+        /** @var array<string, mixed> $inject */
+        $inject = $context['inject'];
+
+        return $extractor->expandFull($inject, 'inject');
+    }
+
+    /**
+     * @return string[]
+     */
+    private function extractFullModeCloseLeaves(TreeNode $node): array
+    {
+        $context = $node->closeContext;
+        $extractor = new SignalExtractor();
+
+        return match ($node->type) {
+            'becoming_open' => $this->expandSemanticCloseLeaves($context, ['final']),
+            'being_open', 'being_final_open' => $this->expandSemanticCloseLeaves($context, ['final', 'being']),
+            default => $extractor->expandFull($context),
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param string[]             $excludedKeys
+     *
+     * @return string[]
+     */
+    private function expandSemanticCloseLeaves(array $context, array $excludedKeys): array
+    {
+        $extractor = new SignalExtractor();
+        $lines = [];
+
+        /** @var mixed $value */
+        foreach ($context as $key => $value) {
+            if (in_array($key, $excludedKeys, true)) {
                 continue;
             }
 
-            $key = substr($leaf, 0, $pos);
-            $val = substr($leaf, $pos + 2);
+            if ($key === 'prop' && is_array($value)) {
+                $lines = [...$lines, ...$this->expandFlatPropertyLeaves($value)];
 
-            if (! isset($openMap[$key])) {
-                $diffs[] = $leaf;
-            } elseif ($openMap[$key] !== $val) {
-                $diffs[] = $key . ': ' . $openMap[$key] . '→' . $val;
+                continue;
             }
+
+            $lines = [...$lines, ...$extractor->expandFull([$key => $value])];
         }
 
-        return $diffs;
+        return $lines;
+    }
+
+    /**
+     * @param mixed $props
+     *
+     * @return string[]
+     */
+    private function expandFlatPropertyLeaves(mixed $props): array
+    {
+        if (! is_array($props)) {
+            return [];
+        }
+
+        /** @var array<string, mixed> $props */
+        return (new SignalExtractor())->expandFull($props);
     }
 
     /**

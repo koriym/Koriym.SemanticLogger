@@ -10,53 +10,68 @@ use Override;
 final class OperationProfile implements JsonSerializable
 {
     /**
-     * @param list<XdebugTrace>  $xdebug Per-segment Xdebug traces captured while this operation was active.
-     * @param list<XHProfResult> $xhprof Per-segment XHProf snapshots captured while this operation was active.
+     * @param list<XdebugTrace>  $xdebugTrace    Per-segment Xdebug traces captured while this operation was active.
+     * @param list<XHProfResult> $xhprofProfile Per-segment XHProf snapshots captured while this operation was active.
      */
     public function __construct(
         public readonly float $wallTime,
-        public readonly array $xdebug = [],
-        public readonly array $xhprof = [],
+        public readonly array $xdebugTrace = [],
+        public readonly array $xhprofProfile = [],
     ) {
     }
 
-    /** @return array{wallTime: float, xdebug: list<array<string, mixed>>, xhprof: list<array<string, mixed>>} */
+    /** @return array<string, mixed> */
     #[Override]
     public function jsonSerialize(): array
     {
-        return [
+        $serialized = [
             'wallTime' => $this->wallTime,
-            'xdebug' => $this->serializeXdebugSegments(),
-            'xhprof' => $this->serializeXhprofSegments(),
         ];
+
+        $xdebugTrace = $this->serializeXdebugTraceSegments();
+        if ($xdebugTrace !== []) {
+            $serialized['xdebugTrace'] = $xdebugTrace;
+        }
+
+        $xhprofProfile = $this->serializeXhprofProfileSegments();
+        if ($xhprofProfile !== []) {
+            $serialized['xhprofProfile'] = $xhprofProfile;
+        }
+
+        return $serialized;
     }
 
-    /** @return list<array{source: string}> */
-    private function serializeXdebugSegments(): array
+    public function hasProfilerData(): bool
+    {
+        return $this->serializeXdebugTraceSegments() !== [] || $this->serializeXhprofProfileSegments() !== [];
+    }
+
+    /** @return list<array{path: string}> */
+    private function serializeXdebugTraceSegments(): array
     {
         $result = [];
-        foreach ($this->xdebug as $segment) {
+        foreach ($this->xdebugTrace as $segment) {
             $filePath = $segment->getFilePath();
             if ($filePath === null) {
                 continue;
             }
 
-            $result[] = ['source' => $filePath];
+            $result[] = ['path' => $filePath];
         }
 
         return $result;
     }
 
-    /** @return list<array{source: string}> */
-    private function serializeXhprofSegments(): array
+    /** @return list<array{path: string}> */
+    private function serializeXhprofProfileSegments(): array
     {
         $result = [];
-        foreach ($this->xhprof as $segment) {
+        foreach ($this->xhprofProfile as $segment) {
             if ($segment->filePath === null) {
                 continue;
             }
 
-            $result[] = ['source' => $segment->filePath];
+            $result[] = ['path' => $segment->filePath];
         }
 
         return $result;

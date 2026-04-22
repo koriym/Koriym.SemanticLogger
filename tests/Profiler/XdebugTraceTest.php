@@ -90,8 +90,8 @@ class XdebugTraceTest extends TestCase
         $serialized = $trace->jsonSerialize();
 
         $this->assertNotEmpty($serialized);
-        $this->assertArrayHasKey('source', $serialized);
-        $this->assertSame($filePath, $serialized['source']);
+        $this->assertArrayHasKey('path', $serialized);
+        $this->assertSame($filePath, $serialized['path']);
     }
 
     public function testStartWithoutXdebugExtension(): void

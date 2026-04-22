@@ -21,6 +21,6 @@ final class FakeFormatter implements NodeFormatterInterface
             return $open;
         }
 
-        return $open . "\n⎿ close=" . $node->closeType;
+        return $open . "\n└── close=" . $node->closeType;
     }
 }

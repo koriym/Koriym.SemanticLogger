@@ -347,9 +347,128 @@ final class TreeRendererTest extends TestCase
 
         $this->assertStringContainsString('operation: validate', $result);
         $this->assertStringContainsString('input: data', $result);
-        // Close-only key shows with → prefix
-        $this->assertStringContainsString('→', $result);
+        $this->assertStringContainsString('└── close', $result);
         $this->assertStringContainsString('result: ok', $result);
+    }
+
+    public function testFullModeShowsProfileUnderCloseBranch(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'op_1',
+                    'type' => 'becoming_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [
+                        'input' => 'Be\\Skeleton\\Input\\HelloInput',
+                        'prop' => ['name' => 'World'],
+                    ],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'becoming_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [
+                        'exit' => 'success',
+                        'final' => 'Be\\Skeleton\\Final\\Hello',
+                    ],
+                    'profile' => [
+                        'wallTime' => 0.012,
+                        'xdebugTrace' => [
+                            ['path' => '/tmp/profile_a.xt'],
+                            ['path' => '/tmp/profile_b.xt'],
+                        ],
+                    ],
+                    'openId' => 'op_1',
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer();
+        $config = new RenderConfig(true, 0.0, 5);
+
+        $result = $renderer->render($logData, $config);
+
+        $this->assertStringContainsString('becoming HelloInput', $result);
+        $this->assertStringContainsString('name: World', $result);
+        $this->assertStringContainsString('└── close', $result);
+        $this->assertStringContainsString('exit: success', $result);
+        $this->assertStringNotContainsString('final: Be\\Skeleton\\Final\\Hello', $result);
+        $this->assertStringContainsString('profile', $result);
+        $this->assertStringContainsString('wallTime: 0.012', $result);
+        $this->assertStringContainsString('xdebugTrace[0].path: /tmp/profile_a.xt', $result);
+        $this->assertStringContainsString('xdebugTrace[1].path: /tmp/profile_b.xt', $result);
+    }
+
+    public function testFullModeSemanticTreeSuppressesInputSourcesAndFlattensProps(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'becoming_1',
+                    'type' => 'becoming_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [
+                        'input' => 'Be\\Skeleton\\Input\\HelloInput',
+                        'prop' => ['name' => 'World'],
+                    ],
+                    'open' => [
+                        [
+                            'id' => 'being_final_1',
+                            'type' => 'being_final_open',
+                            'schemaUrl' => 'test.json',
+                            'context' => [
+                                'from' => 'Be\\Skeleton\\Input\\HelloInput',
+                                'final' => 'Be\\Skeleton\\Final\\Hello',
+                                'input' => ['name' => 'Be\\Skeleton\\Input\\HelloInput::name'],
+                                'inject' => ['greeting' => 'Be\\Skeleton\\Reason\\Greeting'],
+                            ],
+                            'close' => [
+                                'id' => 'being_final_close_1',
+                                'type' => 'being_final_close',
+                                'schemaUrl' => 'test.json',
+                                'context' => [
+                                    'final' => 'Be\\Skeleton\\Final\\Hello',
+                                    'prop' => ['greeting' => 'Hello World'],
+                                ],
+                                'openId' => 'being_final_1',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'becoming_close_1',
+                    'type' => 'becoming_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [
+                        'exit' => 'success',
+                        'final' => 'Be\\Skeleton\\Final\\Hello',
+                    ],
+                    'openId' => 'becoming_1',
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer();
+        $config = new RenderConfig(true, 0.0, 5);
+
+        $result = $renderer->render($logData, $config);
+
+        $this->assertStringContainsString('becoming HelloInput', $result);
+        $this->assertStringContainsString('name: World', $result);
+        $this->assertStringContainsString('being_final Hello input=[name] inject=[greeting]', $result);
+        $this->assertStringContainsString('inject.greeting: Be\\Skeleton\\Reason\\Greeting', $result);
+        $this->assertStringContainsString('greeting: Hello World', $result);
+        $this->assertStringContainsString('exit: success', $result);
+        $this->assertStringNotContainsString('from: Be\\Skeleton\\Input\\HelloInput', $result);
+        $this->assertStringNotContainsString('input.name: Be\\Skeleton\\Input\\HelloInput::name', $result);
+        $this->assertStringNotContainsString('final: Be\\Skeleton\\Final\\Hello', $result);
     }
 
     public function testGenericUnknownTypeRenders(): void
@@ -425,7 +544,42 @@ final class TreeRendererTest extends TestCase
         // Root line is the formatter's open line, flush-left.
         $this->assertSame('fake open=fake_open', $lines[0]);
         // Continuation line sits directly under the root, also flush-left (no tree prefix for root children).
-        $this->assertSame('⎿ close=fake_close', $lines[1]);
+        $this->assertSame('└── close=fake_close', $lines[1]);
+    }
+
+    public function testCompactClosePrefersExitOverFinal(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'becoming_1',
+                    'type' => 'becoming',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['input' => 'App\\Input\\HelloInput'],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'becoming_close_1',
+                    'type' => 'becoming_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => [
+                        'exit' => 'success',
+                        'final' => 'App\\Final\\Hello',
+                    ],
+                    'openId' => 'becoming_1',
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer();
+        $config = new RenderConfig(false, 0.0, 5);
+
+        $result = $renderer->render($logData, $config);
+
+        $this->assertStringContainsString('└── exit=success', $result);
+        $this->assertStringNotContainsString('final=Hello', $result);
     }
 
     public function testRegisteredFormatterMultilineContinuationIndentsUnderChildPrefix(): void
@@ -478,6 +632,6 @@ final class TreeRendererTest extends TestCase
 
         // Child node rendered under a tree prefix; continuation indents to child-content column.
         $this->assertStringContainsString('└── fake open=fake_open', $lines[1]);
-        $this->assertStringContainsString('    ⎿ close=fake_close', $lines[2]);
+        $this->assertStringContainsString('    └── close=fake_close', $lines[2]);
     }
 }
