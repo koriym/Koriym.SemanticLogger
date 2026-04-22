@@ -21,6 +21,8 @@ use function xdebug_get_tracefile_name;
 use function xdebug_start_trace;
 use function xdebug_stop_trace;
 
+use const PHP_OS_FAMILY;
+
 final class XdebugTrace implements JsonSerializable
 {
     private string|null $traceId = null;

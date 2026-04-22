@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use function array_key_exists;
 use function count;
 use function explode;
 use function implode;
 use function in_array;
-use function array_key_exists;
 use function is_array;
 
 final class TreeRenderer
@@ -179,9 +179,7 @@ final class TreeRenderer
         }
     }
 
-    /**
-     * @return string[]
-     */
+    /** @return string[] */
     private function extractFullModeOpenLeaves(TreeNode $node): array
     {
         $extractor = new SignalExtractor();
@@ -211,9 +209,7 @@ final class TreeRenderer
         return $extractor->expandFull($inject, 'inject');
     }
 
-    /**
-     * @return string[]
-     */
+    /** @return string[] */
     private function extractFullModeCloseLeaves(TreeNode $node): array
     {
         $context = $node->closeContext;
@@ -255,11 +251,7 @@ final class TreeRenderer
         return $lines;
     }
 
-    /**
-     * @param mixed $props
-     *
-     * @return string[]
-     */
+    /** @return string[] */
     private function expandFlatPropertyLeaves(mixed $props): array
     {
         if (! is_array($props)) {

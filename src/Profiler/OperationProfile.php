@@ -10,8 +10,10 @@ use Override;
 final class OperationProfile implements JsonSerializable
 {
     /**
-     * @param list<XdebugTrace>  $xdebugTrace    Per-segment Xdebug traces captured while this operation was active.
-     * @param list<XHProfResult> $xhprofProfile Per-segment XHProf snapshots captured while this operation was active.
+     * Per-segment profiler artifacts captured while this operation was active.
+     *
+     * @param list<XdebugTrace>  $xdebugTrace
+     * @param list<XHProfResult> $xhprofProfile
      */
     public function __construct(
         public readonly float $wallTime,

@@ -18,6 +18,7 @@ final class TreeNode
 
     /** @var array<string, mixed> */
     public array $closeContext = [];
+
     /** @var array<string, mixed> */
     public array $closeProfile = [];
     public string|null $closeType = null;
