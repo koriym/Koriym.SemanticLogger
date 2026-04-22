@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.0] - 2026-04-22
+## [0.7.0] - 2026-04-22
+
+### Changed
+- **BREAKING — profiling payload contract.** `profile` is now omitted when no profiler output was captured. When present, external profiler references are exposed as `xdebugTrace` / `xhprofProfile` arrays of `{path}` entries instead of the previous `xdebug` / `xhprof` payload shape.
+- `stree` compact and `--full` rendering now favor semantic tree output over raw JSON expansion: compact views emphasize operation targets and close results, while full views expand input props, injections, close payloads, and profile data with less wiring noise.
+
+### Fixed
+- `DevSemanticLogger` now skips Xdebug trace capture cleanly when Xdebug is unavailable or `trace` mode is not enabled, avoiding noisy runtime notices.
+- Xdebug trace capture now falls back to a writable temp directory on macOS when the configured output directory would prevent trace startup.
+
+## [0.6.0] - 2026-04-21
 
 ### Added
 - `LogJson::toTreeArray()` emits a single nested tree for development logs, so each `open` carries its own `events`, nested `open`, and matching `close`.
