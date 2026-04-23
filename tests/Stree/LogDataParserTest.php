@@ -860,6 +860,7 @@ final class LogDataParserTest extends TestCase
         $this->assertNull($tree->closeType);
         $this->assertSame([], $tree->closeContext);
         $this->assertCount(1, $tree->children);
+        $this->assertSame('close_1', $tree->children[0]->id);
         $this->assertSame('process_close', $tree->children[0]->type);
         $this->assertTrue($tree->children[0]->isOrphanClose);
         $this->assertSame(['result' => 'ok'], $tree->children[0]->context);
@@ -898,6 +899,7 @@ final class LogDataParserTest extends TestCase
 
         $this->assertTrue($tree->isSynthetic);
         $this->assertCount(3, $tree->children);
+        $this->assertSame('close_1', $tree->children[2]->id);
         $this->assertSame('process_close', $tree->children[2]->type);
         $this->assertTrue($tree->children[2]->isOrphanClose);
     }
