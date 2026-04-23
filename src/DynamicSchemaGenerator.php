@@ -70,11 +70,7 @@ final class DynamicSchemaGenerator
             ],
             'additionalProperties' => false,
             'definitions' => [
-                'schemaUrl' => [
-                    'type' => 'string',
-                    'format' => 'uri',
-                    'description' => 'URL to the semantic log schema',
-                ],
+                'schemaUrl' => $this->generateSchemaUrlDefinition(),
                 'operationId' => [
                     'type' => 'string',
                     'pattern' => '^[a-z_]+_[0-9]+$',
@@ -253,5 +249,26 @@ final class DynamicSchemaGenerator
         }
 
         return './schemas/' . basename($filePath);
+    }
+
+    /** @return array<string, mixed> */
+    private function generateSchemaUrlDefinition(): array
+    {
+        return [
+            'oneOf' => [
+                [
+                    'type' => 'string',
+                    'format' => 'uri',
+                    'description' => 'Absolute URI to context schema',
+                ],
+                [
+                    'type' => 'string',
+                    'pattern' => '^\\./schemas/[a-zA-Z0-9_-]+\\.json$',
+                    'description' => 'Relative path to local schema file',
+                ],
+            ],
+            'description' => 'Context schema reference for AI-human understanding alignment. While humans naturally understand what this context represents, AI needs explicit schema guidance to achieve the same level of comprehension about data structure, constraints, and business meaning. Supports both absolute URLs and relative file paths.',
+            '$comment' => 'Bridge: Humans intuitively understand context meaning; AI uses this schema reference to gain equivalent understanding.',
+        ];
     }
 }

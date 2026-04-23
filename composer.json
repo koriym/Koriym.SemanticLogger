@@ -46,6 +46,11 @@
         "phpstan": "phpstan analyse -c phpstan.neon --memory-limit=512M",
         "psalm": "psalm --show-info=false",
         "phpmd": "phpmd analyze src --format=text --ruleset=./phpmd.xml",
+        "validate-demo": [
+            "php bin/validate-semantic-log.php demo/simple-demo.json demo/schemas",
+            "php bin/validate-semantic-log.php demo/complex-demo.json demo/schemas",
+            "php bin/validate-semantic-log.php demo/semantic-log-demo.json demo/schemas"
+        ],
         "baseline": "phpstan analyse -c phpstan.neon --generate-baseline --allow-empty-baseline && psalm --set-baseline=psalm-baseline.xml",
         "crc": "composer-require-checker check ./composer.json",
         "metrics": "phpmetrics --report-html=build/metrics --exclude=Exception src",
@@ -92,6 +97,7 @@
         "cs": "Check the coding style",
         "cs-fix": "Fix the coding style",
         "phpmd": "Analyze PHP code for potential issues",
+        "validate-demo": "Validate bundled demo semantic logs against their referenced context schemas",
         "clean": "Remove temporary files",
         "psalm": "Analyze code for type safety using Psalm",
         "phpstan": "Analyze code for errors using PHPStan",

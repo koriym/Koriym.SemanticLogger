@@ -28,6 +28,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'test_1',
                 ],
             ],
             'events' => [],
@@ -67,6 +68,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'parent_1',
                 ],
             ],
             'events' => [],
@@ -218,6 +220,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -260,6 +263,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -386,6 +390,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -423,6 +428,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -461,6 +467,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -501,6 +508,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -539,6 +547,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [],
@@ -561,6 +570,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'unknown',
                 ],
             ],
             'events' => [],
@@ -590,6 +600,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -626,6 +637,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'test_1',
                 ],
             ],
             'events' => [],
@@ -654,6 +666,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             // No events section
@@ -683,6 +696,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => 'not_an_array', // Invalid events section
@@ -886,5 +900,37 @@ final class LogDataParserTest extends TestCase
         $this->assertCount(3, $tree->children);
         $this->assertSame('process_close', $tree->children[2]->type);
         $this->assertTrue($tree->children[2]->isOrphanClose);
+    }
+
+    public function testCloseWithoutOpenIdRemainsDiagnosticNodeInSingleRootLog(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'operation_1',
+                    'type' => 'process_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'process_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'ok'],
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertNull($tree->closeType);
+        $this->assertCount(1, $tree->children);
+        $this->assertSame('process_close', $tree->children[0]->type);
+        $this->assertTrue($tree->children[0]->isOrphanClose);
+        $this->assertSame(['result' => 'ok'], $tree->children[0]->context);
     }
 }

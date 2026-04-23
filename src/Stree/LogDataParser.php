@@ -113,16 +113,7 @@ final class LogDataParser
 
     private function resolveCloseTarget(TreeNode $rootNode, string|null $openId): TreeNode|null
     {
-        $node = $openId !== null ? $this->findNodeById($rootNode, $openId) : null;
-        if ($node !== null) {
-            return $node;
-        }
-
-        if ($openId === null && ! $rootNode->isSynthetic) {
-            return $rootNode;
-        }
-
-        return null;
+        return $openId !== null ? $this->findNodeById($rootNode, $openId) : null;
     }
 
     /** @param array{openId: string|null, type: string, context: array<string, mixed>, profile: array<string, mixed>} $payload */

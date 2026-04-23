@@ -50,3 +50,7 @@ jobs:
 
       - name: Run test suite
         run: ./vendor/bin/phpunit
+
+      - name: Validate bundled demo logs
+        if: matrix.php-version == '8.5'
+        run: composer validate-demo

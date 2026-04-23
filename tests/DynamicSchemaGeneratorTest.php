@@ -6,8 +6,11 @@ namespace Koriym\SemanticLogger;
 
 use PHPUnit\Framework\TestCase;
 
+use function dirname;
+use function file_get_contents;
 use function file_put_contents;
 use function is_string;
+use function json_decode;
 use function mkdir;
 use function rmdir;
 use function sort;
@@ -66,6 +69,22 @@ final class DynamicSchemaGeneratorTest extends TestCase
             '#/definitions/openEntry',
             $this->expectArray($openProperty['items'] ?? null)['$ref'],
         );
+    }
+
+    public function testGenerateCombinedSchemaReusesPublicSchemaUrlRule(): void
+    {
+        $generator = new DynamicSchemaGenerator($this->schemaDirectory);
+        $schema = $generator->generateCombinedSchema();
+        $generatedDefinitions = $this->expectArray($schema['definitions'] ?? null);
+        $generatedSchemaUrl = $this->expectArray($generatedDefinitions['schemaUrl'] ?? null);
+
+        $staticSchemaJson = file_get_contents(dirname(__DIR__) . '/docs/schemas/semantic-log.json');
+        self::assertNotFalse($staticSchemaJson);
+        $staticSchema = json_decode($staticSchemaJson, true);
+        $staticDefinitions = $this->expectArray($staticSchema['definitions'] ?? null);
+        $staticSchemaUrl = $this->expectArray($staticDefinitions['schemaUrl'] ?? null);
+
+        $this->assertSame($staticSchemaUrl, $generatedSchemaUrl);
     }
 
     private function assertOpenEntryDefinition(mixed $definition): void

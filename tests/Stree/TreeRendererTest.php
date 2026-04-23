@@ -145,6 +145,37 @@ final class TreeRendererTest extends TestCase
         $this->assertStringContainsString('└── some_close result=ok [orphan close]', $result);
     }
 
+    public function testTopLevelCloseWithoutOpenIdRemainsDiagnosticChildInSingleRootLog(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'op_1',
+                    'type' => 'some_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'some_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'ok'],
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer();
+        $config = new RenderConfig(false, 0.0, 5);
+
+        $result = $renderer->render($logData, $config);
+
+        $this->assertStringContainsString('some_open : unclosed', $result);
+        $this->assertStringContainsString('└── some_close result=ok [orphan close]', $result);
+    }
+
     public function testNestedRendering(): void
     {
         $logData = [
