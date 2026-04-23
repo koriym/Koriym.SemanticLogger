@@ -457,7 +457,10 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame('https://example.com/db/schema/users.sql', $logJson->links[0]['href']);
 
         $logArray = $logJson->toArray();
-        $this->assertArrayHasKey('links', $logArray);
+        if (! isset($logArray['links'])) {
+            self::fail('Serialized log should contain relation links.');
+        }
+
         /** @var list<array{rel: string, href: string, title?: string, type?: string}> $links */
         $links = $logArray['links'];
         $this->assertCount(3, $links);
@@ -525,7 +528,10 @@ final class SemanticLoggerTest extends TestCase
         $root = $this->serializedOpenEntries($logArray)[0];
         $events = $this->serializedEntryEvents($root);
         $this->assertArrayNotHasKey('events', $logArray);
-        $this->assertArrayHasKey('links', $logArray);
+        if (! isset($logArray['links'])) {
+            self::fail('Serialized log should contain relation links.');
+        }
+
         $this->assertCount(1, $events);
         $this->assertSame('processing step', $this->serializedEntryContext($events[0])['message']);
 

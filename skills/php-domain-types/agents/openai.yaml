@@ -1,0 +1,4 @@
+interface:
+  display_name: "PHP Domain Types"
+  short_description: "Introduce and normalize PHP domain type aliases"
+  default_prompt: "Use $php-domain-types to introduce or reorganize shared domain type aliases in this PHP project."
