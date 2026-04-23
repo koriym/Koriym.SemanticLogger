@@ -38,6 +38,7 @@ final class TreeRenderer
     /** Render top-level sibling nodes flush-left (no synthetic "session" header). */
     private function renderForest(TreeNode $root, RenderConfig $config): string
     {
+        /** @var list<string> $lines */
         $lines = [];
         $totalChildren = count($root->children);
         for ($i = 0; $i < $totalChildren; $i++) {
@@ -56,15 +57,14 @@ final class TreeRenderer
      */
     private function renderTopLevelNode(TreeNode $root, RenderConfig $config): string
     {
+        /** @var list<string> $lines */
         $lines = [];
         $this->renderTopLevelNodeInto($root, $lines, $config);
 
         return implode("\n", $lines);
     }
 
-    /**
-     * @param string[] $lines
-     */
+    /** @param array<string> $lines */
     private function renderTopLevelNodeInto(TreeNode $root, array &$lines, RenderConfig $config): void
     {
         if ($config->timeThreshold > 0 && $root->executionTime < $config->timeThreshold) {

@@ -39,9 +39,7 @@ final class DynamicSchemaGenerator
             'type' => 'object',
             'required' => ['$schema', 'open'],
             'properties' => [
-                '$schema' => [
-                    '$ref' => '#/definitions/schemaUrl',
-                ],
+                '$schema' => ['$ref' => '#/definitions/schemaUrl'],
                 'open' => [
                     'type' => 'array',
                     'minItems' => 1,
@@ -143,9 +141,7 @@ final class DynamicSchemaGenerator
                     'type' => 'array',
                     'items' => ['$ref' => '#/definitions/eventEntry'],
                 ],
-                'close' => [
-                    '$ref' => '#/definitions/closeEntry',
-                ],
+                'close' => ['$ref' => '#/definitions/closeEntry'],
                 'open' => [
                     'type' => 'array',
                     'items' => ['$ref' => '#/definitions/openEntry'],

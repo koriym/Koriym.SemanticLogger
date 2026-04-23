@@ -31,6 +31,7 @@ final class TreeNode
 
     /** Status: 'failed' | 'unclosed' | '' */
     public string $status = '';
+    public bool $isSynthetic = false;
 
     /** @param array<string, mixed> $context */
     public function __construct(
@@ -39,8 +40,21 @@ final class TreeNode
         public readonly array $context,
         public readonly float $executionTime = 0.0,
         public readonly TreeNode|null $parent = null,
-        public readonly bool $isSynthetic = false,
     ) {
+    }
+
+    /** @param array<string, mixed> $context */
+    public static function synthetic(
+        string $id,
+        string $type,
+        array $context,
+        float $executionTime = 0.0,
+        TreeNode|null $parent = null,
+    ): self {
+        $node = new self($id, $type, $context, $executionTime, $parent);
+        $node->isSynthetic = true;
+
+        return $node;
     }
 
     public function addChild(TreeNode $child): void

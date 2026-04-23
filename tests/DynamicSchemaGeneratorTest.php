@@ -7,13 +7,13 @@ namespace Koriym\SemanticLogger;
 use PHPUnit\Framework\TestCase;
 
 use function file_put_contents;
-use function is_array;
+use function is_string;
 use function mkdir;
 use function rmdir;
-use function sprintf;
+use function sort;
 use function sys_get_temp_dir;
-use function unlink;
 use function uniqid;
+use function unlink;
 
 final class DynamicSchemaGeneratorTest extends TestCase
 {
@@ -168,5 +168,4 @@ final class DynamicSchemaGeneratorTest extends TestCase
 
         return $value;
     }
-
 }

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\Exception\RuntimeException;
+
 use function array_combine;
+use function array_key_exists;
 use function array_keys;
 use function array_map;
 use function array_values;
-use function array_key_exists;
 use function count;
 use function is_array;
 use function is_numeric;
@@ -20,13 +22,13 @@ final class LogDataParser
     public function parseLogData(array $logData): TreeNode
     {
         if (! array_key_exists('open', $logData) || ! is_array($logData['open'])) {
-            throw new \RuntimeException('Invalid log data: missing open section');
+            throw new RuntimeException('Invalid log data: missing open section');
         }
 
         /** @var list<array<string, mixed>> $openList */
         $openList = $logData['open'];
         if ($openList === []) {
-            throw new \RuntimeException('Invalid log data: open section is empty');
+            throw new RuntimeException('Invalid log data: open section is empty');
         }
 
         $rootNode = count($openList) === 1
@@ -55,7 +57,7 @@ final class LogDataParser
     /** @param list<array<string, mixed>> $openList */
     private function createForestRoot(array $openList): TreeNode
     {
-        $forestRoot = new TreeNode('__forest__', '__forest__', [], 0.0, null, true);
+        $forestRoot = TreeNode::synthetic('__forest__', '__forest__', []);
         foreach ($openList as $openEntry) {
             $forestRoot->addChild($this->parseOpenEntry($openEntry, $forestRoot));
         }
@@ -63,17 +65,36 @@ final class LogDataParser
         return $forestRoot;
     }
 
-    /** @param array<string, mixed> $closeEntry */
+    /**
+     * @param array<string, mixed> $closeEntry
+     *
+     * @SuppressWarnings("PHPMD.NPathComplexity")
+     */
     private function attachSingleClose(TreeNode $rootNode, array $closeEntry): void
+    {
+        $this->applyClosePayload($rootNode, $this->extractClosePayload($closeEntry));
+        $this->attachNestedCloseEntries($rootNode, $closeEntry);
+    }
+
+    /**
+     * @param array<string, mixed> $closeEntry
+     *
+     * @return array{
+     *     openId: string|null,
+     *     type: string,
+     *     context: array<string, mixed>,
+     *     profile: array<string, mixed>
+     * }
+     */
+    private function extractClosePayload(array $closeEntry): array
     {
         /** @var mixed $rawOpenId */
         $rawOpenId = $closeEntry['openId'] ?? null;
-        $openId = is_scalar($rawOpenId) ? (string) $rawOpenId : null;
-        $type = self::stringifyScalar($closeEntry['type'] ?? null, 'unknown');
         /** @var mixed $context */
         $context = $closeEntry['context'] ?? [];
         /** @var mixed $profile */
         $profile = $closeEntry['profile'] ?? [];
+
         if (! is_array($context)) {
             $context = [];
         }
@@ -82,27 +103,54 @@ final class LogDataParser
             $profile = [];
         }
 
+        return [
+            'openId' => is_scalar($rawOpenId) ? (string) $rawOpenId : null,
+            'type' => self::stringifyScalar($closeEntry['type'] ?? null, 'unknown'),
+            'context' => $this->normalizeMap($context),
+            'profile' => $this->normalizeMap($profile),
+        ];
+    }
+
+    private function resolveCloseTarget(TreeNode $rootNode, string|null $openId): TreeNode|null
+    {
         $node = $openId !== null ? $this->findNodeById($rootNode, $openId) : null;
-        if ($node === null && $openId === null && ! $rootNode->isSynthetic) {
-            $node = $rootNode;
-        }
-
         if ($node !== null) {
-            /** @var array<string, mixed> $closeCtx */
-            $closeCtx = $context;
-            /** @var array<string, mixed> $closeProfile */
-            $closeProfile = $profile;
-            $node->setClose($type, $closeCtx, $closeProfile);
-        } else {
-            $rootNode->addChild($this->createOrphanCloseNode($type, $context, $profile, $rootNode));
+            return $node;
         }
 
-        if (array_key_exists('close', $closeEntry) && is_array($closeEntry['close'])) {
-            /** @var list<array<string, mixed>> $nested */
-            $nested = $closeEntry['close'];
-            foreach ($nested as $child) {
-                $this->attachSingleClose($rootNode, $child);
-            }
+        if ($openId === null && ! $rootNode->isSynthetic) {
+            return $rootNode;
+        }
+
+        return null;
+    }
+
+    /** @param array{openId: string|null, type: string, context: array<string, mixed>, profile: array<string, mixed>} $payload */
+    private function applyClosePayload(TreeNode $rootNode, array $payload): void
+    {
+        $node = $this->resolveCloseTarget($rootNode, $payload['openId']);
+        if ($node !== null) {
+            $node->setClose($payload['type'], $payload['context'], $payload['profile']);
+
+            return;
+        }
+
+        $rootNode->addChild(
+            $this->createOrphanCloseNode($payload['type'], $payload['context'], $payload['profile'], $rootNode),
+        );
+    }
+
+    /** @param array<string, mixed> $closeEntry */
+    private function attachNestedCloseEntries(TreeNode $rootNode, array $closeEntry): void
+    {
+        if (! array_key_exists('close', $closeEntry) || ! is_array($closeEntry['close'])) {
+            return;
+        }
+
+        /** @var list<array<string, mixed>> $nested */
+        $nested = $closeEntry['close'];
+        foreach ($nested as $child) {
+            $this->attachSingleClose($rootNode, $child);
         }
     }
 
@@ -308,8 +356,7 @@ final class LogDataParser
         }
 
         $keys = array_map(static fn (int|string $key): string => (string) $key, array_keys($values));
-        $normalized = array_combine($keys, array_values($values));
 
-        return $normalized;
+        return array_combine($keys, array_values($values));
     }
 }

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\Exception\RuntimeException;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 
 use function json_encode;
 

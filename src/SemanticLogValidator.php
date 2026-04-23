@@ -66,8 +66,9 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Extract and validate all contexts from log data
      *
-     * @param array<mixed>         $data
-     * @param list<string>        $violations
+     * @param array<mixed> $data
+     * @param list<string> $violations
+     *
      * @param-out list<string>    $violations
      */
     private function validateContexts(array $data, string $schemaDir, array &$violations): void
@@ -116,7 +117,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
      * Validate a single context against its schema
      *
      * @param array<string, mixed> $contextData
-     * @param list<string>        $violations
+     * @param list<string>         $violations
+     *
      * @param-out list<string>    $violations
      */
     private function validateContext(array $contextData, string $schemaDir, string $path, array &$violations): void
@@ -129,7 +131,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
     /**
      * @param array<string, mixed> $contextData
-     * @param list<string>        $violations
+     * @param list<string>         $violations
+     *
      * @param-out list<string>    $violations
      */
     private function validateSingleContext(array $contextData, string $schemaUrl, string $schemaDir, string $path, array &$violations): void
@@ -173,7 +176,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param list<string>     $violations
+     * @param list<string> $violations
+     *
      * @param-out list<string> $violations
      */
     private function loadSchema(string $schemaFile, string $path, array &$violations): object|null
@@ -197,8 +201,9 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param array<mixed>         $context
-     * @param list<string>        $violations
+     * @param array<mixed> $context
+     * @param list<string> $violations
+     *
      * @param-out list<string>    $violations
      */
     private function performValidation(array $context, object $schema, string $type, string $schemaUrl, string $path, array &$violations): void
@@ -225,7 +230,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param list<string>     $violations
+     * @param list<string> $violations
+     *
      * @param-out list<string> $violations
      */
     private function addValidationErrors(Validator $validator, string $type, string $path, array &$violations): void
@@ -243,7 +249,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
     /**
      * @param array<string, mixed> $entry
-     * @param list<string>        $violations
+     * @param list<string>         $violations
+     *
      * @param-out list<string>    $violations
      */
     private function validateOpenEntry(array $entry, string $schemaDir, string $path, array &$violations): void
@@ -285,7 +292,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
     /**
      * @param array<string, mixed> $entry
-     * @param list<string>        $violations
+     * @param list<string>         $violations
+     *
      * @param-out list<string>    $violations
      */
     private function validateEventEntry(array $entry, string $schemaDir, string $path, array &$violations): void
@@ -295,7 +303,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
     /**
      * @param array<string, mixed> $entry
-     * @param list<string>        $violations
+     * @param list<string>         $violations
+     *
      * @param-out list<string>    $violations
      */
     private function validateCloseEntry(array $entry, string $schemaDir, string $path, array &$violations): void

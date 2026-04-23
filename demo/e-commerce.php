@@ -505,9 +505,9 @@ class ComplexWebRequestSimulation
         // Start Xdebug trace manually
         echo "=== Debug: Starting Xdebug trace ===\n";
         if ($this->isXdebugTraceEnabled()) {
-            $traceFile = __DIR__ . '/xdebug_trace.xt';
-            xdebug_start_trace($traceFile);
-            echo "Xdebug trace started: {$traceFile}.xt\n";
+            $traceFile = __DIR__ . '/xdebug_trace';
+            $startedTraceFile = xdebug_start_trace($traceFile);
+            echo 'Xdebug trace started: ' . (is_string($startedTraceFile) ? $startedTraceFile : $traceFile . '.xt') . "\n";
         } elseif (function_exists('xdebug_start_trace')) {
             echo "Xdebug trace mode is not enabled; skipping trace capture.\n";
         }
@@ -560,9 +560,9 @@ class ComplexWebRequestSimulation
             return false;
         }
 
-        $modes = ini_get('xdebug.mode');
+        $modes = getenv('XDEBUG_MODE');
         if ($modes === false || $modes === '') {
-            $modes = getenv('XDEBUG_MODE');
+            $modes = ini_get('xdebug.mode');
         }
 
         if (! is_string($modes) || $modes === '') {
