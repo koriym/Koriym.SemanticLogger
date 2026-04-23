@@ -72,10 +72,6 @@ final class LogDataParser
     /**
      * @param array<string, mixed> $closeEntry
      *
-     * PHPMD still reports NPathComplexity=512 on this delegator after the
-     * close parsing logic was split out, so the suppression remains until the
-     * analyzer catches up with the refactor.
-     *
      * @SuppressWarnings("PHPMD.NPathComplexity")
      */
     private function attachSingleClose(TreeNode $rootNode, array $closeEntry): void

@@ -80,7 +80,7 @@ final class DynamicSchemaGeneratorTest extends TestCase
 
         $staticSchemaJson = file_get_contents(dirname(__DIR__) . '/docs/schemas/semantic-log.json');
         self::assertNotFalse($staticSchemaJson);
-        $staticSchema = json_decode($staticSchemaJson, true);
+        $staticSchema = $this->expectArray(json_decode($staticSchemaJson, true));
         $staticDefinitions = $this->expectArray($staticSchema['definitions'] ?? null);
         $staticSchemaUrl = $this->expectArray($staticDefinitions['schemaUrl'] ?? null);
 
