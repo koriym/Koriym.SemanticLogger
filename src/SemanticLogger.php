@@ -16,23 +16,32 @@ use function assert;
 use function is_array;
 use function is_string;
 
+/**
+ * @psalm-import-type ContextData from Types
+ * @psalm-import-type EventEntryList from Types
+ * @psalm-import-type LogSessionArray from Types
+ * @psalm-import-type OpenChildrenByParent from Types
+ * @psalm-import-type OpenCloseEntryList from Types
+ * @psalm-import-type SchemaLinks from Types
+ * @psalm-import-type TypeCounts from Types
+ */
 final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 {
     private const SEMANTIC_LOG_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json';
 
-    /** @var list<EventEntry> */
+    /** @var EventEntryList */
     private array $events = [];
 
     /** @var SplStack<OpenCloseEntry> */
     private SplStack $openStack;
 
-    /** @var list<EventEntry> Close entries in chronological close order. */
+    /** @var EventEntryList Close entries in chronological close order. */
     private array $closeLog = [];
 
-    /** @var list<OpenCloseEntry> Completed opens in chronological close order; each carries the parentId captured at open time. */
+    /** @var OpenCloseEntryList Completed opens in chronological close order; each carries the parentId captured at open time. */
     private array $completedOperations = [];
 
-    /** @var array<string, int> */
+    /** @var TypeCounts */
     private array $typeCounts = [];
 
     public function __construct()
@@ -132,13 +141,13 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         return $this->createLogJson()->toArray();
     }
 
-    /** @return array<string, mixed> */
+    /** @return LogSessionArray */
     public function toArray(): array
     {
         return $this->createLogJson()->toArray();
     }
 
-    /** @param list<array{rel: string, href: string, title?: string, type?: string}> $links */
+    /** @param SchemaLinks $links */
     #[Override]
     public function flush(array $links = []): LogJson
     {
@@ -206,7 +215,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
      * under their parent and appear in chronological close order (which equals
      * open order for correctly-nested LIFO sessions).
      *
-     * @return list<OpenCloseEntry>
+     * @return OpenCloseEntryList
      */
     private function buildNestedOpen(): array
     {
@@ -216,9 +225,9 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     }
 
     /**
-     * @param array<string, list<OpenCloseEntry>> $childrenByParent
+     * @param OpenChildrenByParent $childrenByParent
      *
-     * @return list<OpenCloseEntry>
+     * @return OpenCloseEntryList
      */
     private function buildOpenChildren(string|null $parentId, array $childrenByParent): array
     {
@@ -248,7 +257,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
      * Closes are still tracked by openId internally even though the public JSON
      * serializer nests matched closes directly under their open node.
      *
-     * @return list<EventEntry>
+     * @return EventEntryList
      */
     private function buildNestedClose(): array
     {
@@ -264,10 +273,10 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     }
 
     /**
-     * @param array<string, list<OpenCloseEntry>> $childrenByParent
-     * @param array<string, EventEntry>           $closeByOpenId
+     * @param OpenChildrenByParent $childrenByParent
+     * @param array<string, EventEntry> $closeByOpenId
      *
-     * @return list<EventEntry>
+     * @return EventEntryList
      */
     private function buildCloseChildren(string|null $parentId, array $childrenByParent, array $closeByOpenId): array
     {
@@ -297,7 +306,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         return $result;
     }
 
-    /** @return array<string, list<OpenCloseEntry>> */
+    /** @return OpenChildrenByParent */
     private function groupByParent(): array
     {
         $childrenByParent = [];
@@ -317,7 +326,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
      * to satisfy `{}` schemas) retain control. Falls back to `(array)` cast for
      * legacy contexts that rely on public-property introspection.
      *
-     * @return array<string, mixed>
+     * @return ContextData
      */
     private function contextToArray(AbstractContext $context): array
     {
@@ -325,12 +334,12 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             /** @var mixed $serialized */
             $serialized = $context->jsonSerialize();
             if (is_array($serialized)) {
-                /** @var array<string, mixed> $serialized */
+                /** @var ContextData $serialized */
                 return $serialized;
             }
         }
 
-        /** @var array<string, mixed> $mixedArray */
+        /** @var ContextData $mixedArray */
         $mixedArray = (array) $context;
 
         return $mixedArray;

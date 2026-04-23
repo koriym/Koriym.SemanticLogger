@@ -9,13 +9,25 @@ use Override;
 
 use function array_map;
 
-final class LogJson implements JsonSerializable
+/**
+ * @psalm-import-type CloseByOpenIdMap from Types
+ * @psalm-import-type EventEntryList from Types
+ * @psalm-import-type EventsByOpenIdMap from Types
+ * @psalm-import-type LogSessionArray from Types
+ * @psalm-import-type OpenCloseEntryList from Types
+ * @psalm-import-type OperationIdSet from Types
+ * @psalm-import-type PublicCloseEntry from Types
+ * @psalm-import-type PublicEventEntry from Types
+ * @psalm-import-type PublicOpenEntry from Types
+ * @psalm-import-type SchemaLinks from Types
+ */
+final class phpLogJson implements JsonSerializable
 {
     /**
-     * @param list<OpenCloseEntry>                                                  $open   Top-level opens (one or more) in chronological order.
-     * @param list<EventEntry>                                                      $close  Internal close entries; matched closes are nested during public serialization.
-     * @param list<EventEntry>                                                      $events
-     * @param list<array{rel: string, href: string, title?: string, type?: string}> $links
+     * @param OpenCloseEntryList $open Top-level opens (one or more) in chronological order.
+     * @param EventEntryList     $close Internal close entries; matched closes are nested during public serialization.
+     * @param EventEntryList     $events
+     * @param SchemaLinks        $links
      */
     public function __construct(
         public readonly string $schemaUrl,
@@ -26,14 +38,14 @@ final class LogJson implements JsonSerializable
     ) {
     }
 
-    /** @return array<string, mixed> Public tree JSON representation */
+    /** @return LogSessionArray Public tree JSON representation */
     #[Override]
     public function jsonSerialize(): array
     {
         return $this->toArray();
     }
 
-    /** @return array<string, mixed> */
+    /** @return LogSessionArray */
     public function toArray(): array
     {
         $closeByOpenId = [];
@@ -73,17 +85,17 @@ final class LogJson implements JsonSerializable
         return $result;
     }
 
-    /** @return array<string, mixed> */
+    /** @return LogSessionArray */
     public function toTreeArray(): array
     {
         return $this->toArray();
     }
 
     /**
-     * @param array<string, EventEntry>       $closeByOpenId
-     * @param array<string, list<EventEntry>> $eventsByOpenId
+     * @param CloseByOpenIdMap $closeByOpenId
+     * @param EventsByOpenIdMap $eventsByOpenId
      *
-     * @return array<string, mixed>
+     * @return PublicOpenEntry
      */
     private function buildTreeOpenEntry(OpenCloseEntry $entry, array $closeByOpenId, array $eventsByOpenId): array
     {
@@ -116,10 +128,10 @@ final class LogJson implements JsonSerializable
     }
 
     /**
-     * @param list<EventEntry>          $closes
-     * @param array<string, true>       $openIds
+     * @param EventEntryList  $closes
+     * @param array<string, true> $openIds
      * @param array<string, EventEntry> $closeByOpenId
-     * @param list<EventEntry>          $orphanCloses
+     * @param list<EventEntry> $orphanCloses
      */
     private function partitionCloses(array $closes, array $openIds, array &$closeByOpenId, array &$orphanCloses): void
     {
@@ -143,9 +155,9 @@ final class LogJson implements JsonSerializable
     }
 
     /**
-     * @param list<EventEntry> $events
+     * @param EventEntryList $events
      *
-     * @return array<string, list<EventEntry>>
+     * @return EventsByOpenIdMap
      */
     private function groupEventsByOpenId(array $events): array
     {
@@ -158,8 +170,8 @@ final class LogJson implements JsonSerializable
     }
 
     /**
-     * @param list<OpenCloseEntry> $entries
-     * @param array<string, true>  $openIds
+     * @param OpenCloseEntryList $entries
+     * @param array<string, true> $openIds
      */
     private function collectOpenIds(array $entries, array &$openIds): void
     {
@@ -175,7 +187,7 @@ final class LogJson implements JsonSerializable
     /**
      * @param array<string, true> $openIds
      *
-     * @return list<EventEntry>
+     * @return EventEntryList
      */
     private function topLevelTreeEvents(array $openIds): array
     {
@@ -190,7 +202,7 @@ final class LogJson implements JsonSerializable
         return $topLevelEvents;
     }
 
-    /** @return array<string, mixed> */
+    /** @return PublicCloseEntry */
     private function closeToArray(EventEntry $close, bool $includeOpenId): array
     {
         $result = [
@@ -211,7 +223,7 @@ final class LogJson implements JsonSerializable
         return $result;
     }
 
-    /** @return array<string, mixed> */
+    /** @return PublicEventEntry */
     private function eventToArray(EventEntry $event, bool $includeOpenId): array
     {
         $result = [

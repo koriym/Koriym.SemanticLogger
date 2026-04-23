@@ -5,17 +5,20 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger;
 
 /**
- * Semantic Logger Domain Types
+ * Type definitions for SemanticLogger
  *
- * This file contains all type definitions for the semantic logger system.
- * These types ensure type safety while maintaining flexibility for dynamic log data.
+ * @phpcs:disable SlevomatCodingStandard.Commenting.DocCommentSpacing
+ * @psalm-suppress UnusedClass
  *
- * Core data types:
- *
+ * Core scalar and map types
  * @psalm-type ContextData = array<string, mixed>
+ * @psalm-type JsonMap = array<string, mixed>
  * @psalm-type SchemaUrl = string
  * @psalm-type LogType = string
+ * @psalm-type OperationId = string
  * @psalm-type RelationType = string
+ *
+ * Link types
  * @psalm-type SchemaLink = array{
  *     rel: RelationType,
  *     href: SchemaUrl,
@@ -23,27 +26,80 @@ namespace Koriym\SemanticLogger;
  *     type?: string
  * }
  * @psalm-type SchemaLinks = list<SchemaLink>
+ *
+ * Profiling types
+ * @psalm-type ProfileArtifact = array{path: string}
+ * @psalm-type OperationProfileData = array{
+ *     wallTime: float,
+ *     xdebugTrace?: list<ProfileArtifact>,
+ *     xhprofProfile?: list<ProfileArtifact>
+ * }
+ * @psalm-type WallTimesByOperationId = array<OperationId, float>
+ * @psalm-type XdebugSegmentsByOperationId = array<OperationId, list<Profiler\XdebugTrace>>
+ * @psalm-type XhprofSegmentsByOperationId = array<OperationId, list<Profiler\XHProfResult>>
+ * @psalm-type OperationProfilesById = array<OperationId, Profiler\OperationProfile>
+ *
+ * Runtime collection types
+ * @psalm-type EventEntryList = list<EventEntry>
+ * @psalm-type OpenCloseEntryList = list<OpenCloseEntry>
+ * @psalm-type OpenChildrenByParent = array<string, list<OpenCloseEntry>>
+ * @psalm-type CloseByOpenIdMap = array<string, EventEntry>
+ * @psalm-type EventsByOpenIdMap = array<string, list<EventEntry>>
+ * @psalm-type OperationIdSet = array<OperationId, true>
+ * @psalm-type TypeCounts = array<LogType, int>
+ * @psalm-type SchemaTypeMap = array<LogType, string>
+ *
+ * Serialized log entry types
  * @psalm-type EventEntryArray = array{
  *     type: LogType,
- *     '$schema': SchemaUrl,
- *     context: ContextData
+ *     id: OperationId,
+ *     schemaUrl: SchemaUrl,
+ *     context: ContextData,
+ *     openId?: OperationId,
+ *     close?: list<JsonMap>,
+ *     profile?: OperationProfileData
  * }
  * @psalm-type OpenCloseEntryArray = array{
  *     type: LogType,
- *     '$schema': SchemaUrl,
+ *     id: OperationId,
+ *     schemaUrl: SchemaUrl,
  *     context: ContextData,
- *     open?: array<string, mixed>
+ *     open?: list<JsonMap>
  * }
- * @psalm-type CloseEntryArray = EventEntryArray
+ * @psalm-type PublicEventEntry = array{
+ *     type: LogType,
+ *     id: OperationId,
+ *     schemaUrl: SchemaUrl,
+ *     context: ContextData,
+ *     openId?: OperationId
+ * }
+ * @psalm-type PublicCloseEntry = array{
+ *     type: LogType,
+ *     id: OperationId,
+ *     schemaUrl: SchemaUrl,
+ *     context: ContextData,
+ *     openId?: OperationId,
+ *     profile?: OperationProfileData
+ * }
+ * @psalm-type PublicOpenEntry = array{
+ *     type: LogType,
+ *     id: OperationId,
+ *     schemaUrl: SchemaUrl,
+ *     context: ContextData,
+ *     events?: list<PublicEventEntry>,
+ *     close?: PublicCloseEntry,
+ *     open?: list<JsonMap>
+ * }
+ * @psalm-type CloseEntryArray = PublicCloseEntry
  * @psalm-type LogSessionArray = array{
  *     '$schema': SchemaUrl,
- *     open: OpenCloseEntryArray,
- *     events?: list<EventEntryArray>,
- *     close?: CloseEntryArray,
+ *     open: list<PublicOpenEntry>,
+ *     events?: list<PublicEventEntry>,
+ *     close?: array<array-key, PublicCloseEntry>,
  *     links?: SchemaLinks
  * }
- * @psalm-type EventEntryList = list<EventEntry>
- * @psalm-type OpenCloseEntryStack = list<OpenCloseEntry>
+ *
+ * MCP types
  * @psalm-type McpJsonRpcError = array{
  *     code: int,
  *     message: string
@@ -102,14 +158,19 @@ namespace Koriym\SemanticLogger;
  * }
  * @psalm-type McpToolCallParams = array{
  *     name: string,
- *     arguments?: array<string, mixed>
+ *     arguments?: JsonMap
  * }
  * @psalm-type McpSemanticAnalyzeArgs = array{
  *     script?: string,
  *     xdebug_mode?: string
  * }
- * @psalm-type McpLogData = array<string, mixed>
+ * @psalm-type McpLogData = JsonMap
+ * @phpcs:enable
  */
 final class Types
 {
+    /** @codeCoverageIgnore */
+    private function __construct()
+    {
+    }
 }

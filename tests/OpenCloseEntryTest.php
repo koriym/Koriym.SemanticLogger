@@ -70,9 +70,11 @@ final class OpenCloseEntryTest extends TestCase
         $this->assertSame('parent_entry_1', $entry->open[0]->parentId);
 
         $array = $entry->toArray();
-        $this->assertArrayHasKey('open', $array);
+        if (! isset($array['open'])) {
+            self::fail('Serialized parent entry should contain open children.');
+        }
+
         $openArray = $array['open'];
-        $this->assertIsArray($openArray);
         $this->assertCount(2, $openArray);
     }
 
@@ -97,11 +99,17 @@ final class OpenCloseEntryTest extends TestCase
 
         // Test array serialization - level3 should not have nested open
         $array = $level1->toArray();
-        $this->assertArrayHasKey('open', $array);
+        if (! isset($array['open'])) {
+            self::fail('Level1 entry should contain serialized children.');
+        }
+
         /** @var list<array<string, mixed>> $level2List */
         $level2List = $array['open'];
         $level2Array = $level2List[0];
-        $this->assertArrayHasKey('open', $level2Array);
+        if (! isset($level2Array['open'])) {
+            self::fail('Level2 entry should contain serialized children.');
+        }
+
         /** @var list<array<string, mixed>> $level3List */
         $level3List = $level2Array['open'];
         $level3Array = $level3List[0];
