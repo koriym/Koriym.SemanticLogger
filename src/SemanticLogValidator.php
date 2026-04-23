@@ -66,7 +66,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Extract and validate all contexts from log data
      *
-     * @param array<mixed> $data
+     * @param array<mixed>         $data
      * @param list<string>        $violations
      * @param-out list<string>    $violations
      */
@@ -80,7 +80,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
                     continue;
                 }
 
-                /** @var array<mixed> $open */
+                /** @var array<string, mixed> $open */
                 $this->validateOpenEntry($open, $schemaDir, "open[{$index}]", $violations);
             }
         }
@@ -93,7 +93,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
                     continue;
                 }
 
-                /** @var array<mixed> $close */
+                /** @var array<string, mixed> $close */
                 $this->validateCloseEntry($close, $schemaDir, "close[{$index}]", $violations);
             }
         }
@@ -106,7 +106,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
                     continue;
                 }
 
-                /** @var array<mixed> $event */
+                /** @var array<string, mixed> $event */
                 $this->validateEventEntry($event, $schemaDir, "events[{$index}]", $violations);
             }
         }
@@ -115,7 +115,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Validate a single context against its schema
      *
-     * @param array<mixed> $contextData
+     * @param array<string, mixed> $contextData
      * @param list<string>        $violations
      * @param-out list<string>    $violations
      */
@@ -128,7 +128,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param array<mixed> $contextData
+     * @param array<string, mixed> $contextData
      * @param list<string>        $violations
      * @param-out list<string>    $violations
      */
@@ -158,7 +158,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $this->performValidation($context, $schema, $type, $schemaUrl, $path, $violations);
     }
 
-    /** @param array<mixed> $contextData */
+    /** @param array<string, mixed> $contextData */
     private function extractSchemaUrl(array $contextData): string|null
     {
         if (isset($contextData['$schema']) && is_string($contextData['$schema'])) {
@@ -197,7 +197,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param array<mixed> $context
+     * @param array<mixed>         $context
      * @param list<string>        $violations
      * @param-out list<string>    $violations
      */
@@ -242,7 +242,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param array<mixed> $entry
+     * @param array<string, mixed> $entry
      * @param list<string>        $violations
      * @param-out list<string>    $violations
      */
@@ -258,13 +258,13 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
                     continue;
                 }
 
-                /** @var array<mixed> $event */
+                /** @var array<string, mixed> $event */
                 $this->validateEventEntry($event, $schemaDir, "{$path}.events[{$index}]", $violations);
             }
         }
 
         if (isset($entry['close']) && is_array($entry['close'])) {
-            /** @var array<mixed> $close */
+            /** @var array<string, mixed> $close */
             $close = $entry['close'];
             $this->validateCloseEntry($close, $schemaDir, "{$path}.close", $violations);
         }
@@ -277,14 +277,14 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
                     continue;
                 }
 
-                /** @var array<mixed> $child */
+                /** @var array<string, mixed> $child */
                 $this->validateOpenEntry($child, $schemaDir, "{$path}.open[{$index}]", $violations);
             }
         }
     }
 
     /**
-     * @param array<mixed> $entry
+     * @param array<string, mixed> $entry
      * @param list<string>        $violations
      * @param-out list<string>    $violations
      */
@@ -294,26 +294,13 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param array<mixed> $entry
+     * @param array<string, mixed> $entry
      * @param list<string>        $violations
      * @param-out list<string>    $violations
      */
     private function validateCloseEntry(array $entry, string $schemaDir, string $path, array &$violations): void
     {
         $this->validateContext($entry, $schemaDir, $path, $violations);
-
-        if (isset($entry['close']) && is_array($entry['close'])) {
-            /** @var array<int, mixed> $children */
-            $children = $entry['close'];
-            foreach ($children as $index => $child) {
-                if (! is_array($child)) {
-                    continue;
-                }
-
-                /** @var array<mixed> $child */
-                $this->validateCloseEntry($child, $schemaDir, "{$path}.close[{$index}]", $violations);
-            }
-        }
     }
 
     /**

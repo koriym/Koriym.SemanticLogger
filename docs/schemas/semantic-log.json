@@ -178,11 +178,6 @@
         "profile": {
           "$ref": "#/definitions/operationProfile",
           "description": "Observed profiling data attributed to this specific operation. Present only when an attached profiler captured external Xdebug or XHProf output for this close."
-        },
-        "close": {
-          "type": "array",
-          "description": "Nested orphan close entries preserved for diagnostic purposes.",
-          "items": { "$ref": "#/definitions/closeEntry" }
         }
       },
       "additionalProperties": true

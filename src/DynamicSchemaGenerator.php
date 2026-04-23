@@ -180,10 +180,6 @@ final class DynamicSchemaGenerator
                 'openId' => ['$ref' => '#/definitions/openIdReference'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
                 'profile' => ['type' => 'object', 'additionalProperties' => true],
-                'close' => [
-                    'type' => 'array',
-                    'items' => ['$ref' => '#/definitions/closeEntry'],
-                ],
             ],
             'additionalProperties' => true,
         ];

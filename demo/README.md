@@ -49,6 +49,7 @@ Each context type has a corresponding JSON schema for validation:
 The generated `semantic-log.json` follows the Universal Semantic Logger Schema with:
 
 ### Hierarchical Structure
+Abbreviated example:
 ```json
 {
   "open": [
@@ -59,10 +60,10 @@ The generated `semantic-log.json` follows the Universal Semantic Logger Schema w
         {
           "id": "auth_1",
           "type": "auth",
-          "close": {"id": "auth_complete_1", "type": "auth_complete"}
+          "...": "..."
         }
       ],
-      "close": {"id": "http_response_1", "type": "http_response"}
+      "close": {"id": "http_response_1", "type": "http_response", "...": "..."}
     }
   ]
 }

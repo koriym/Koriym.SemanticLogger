@@ -71,7 +71,7 @@ We decided to implement `stree` (semantic tree), a command-line tool that render
 ### Data Flow
 
 1. **Input**: SemanticLogger JSON file
-2. **Parse**: Extract tree-shaped `open` nodes plus any top-level orphan/root-scope `events`
+2. **Parse**: Extract tree-shaped `open` nodes plus any top-level orphan/root-scope `events` and orphan `close` diagnostics
 3. **Transform**: Build a tree (or forest) structure for rendering
 4. **Filter**: Apply depth, expansion, and time threshold rules
 5. **Render**: Generate ASCII tree with context-specific formatting
