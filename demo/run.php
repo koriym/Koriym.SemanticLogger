@@ -23,7 +23,7 @@ if ($hasXhprof && $hasXdebug) {
 } elseif ($hasXhprof) {
     echo "✓ XHProf available for function-level profiling.\n";
 } else {
-    echo "✓ Xdebug available for trace profiling.\n";
+    echo "✓ Xdebug extension available (trace capture depends on xdebug.mode).\n";
 }
 
 echo "\n";

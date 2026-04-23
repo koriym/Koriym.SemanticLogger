@@ -29,8 +29,10 @@ final class LogSessionTest extends TestCase
 
         // Test array serialization
         $array = $session->toArray();
+        $openEntry = $this->treeOpenEntries($array)[0];
         $this->assertArrayNotHasKey('events', $array);
-        $this->assertArrayHasKey('close', $array);
+        $this->assertArrayNotHasKey('close', $array);
+        $this->assertSame('close_1', $this->entryClose($openEntry)['id']);
     }
 
     public function testLogSessionWithCompleteData(): void
@@ -59,6 +61,10 @@ final class LogSessionTest extends TestCase
         $this->assertSame('event2', $session->events[1]->type);
         $this->assertSame('end_1', $session->close[0]->id);
         $this->assertSame('end', $session->close[0]->type);
+
+        $array = $session->toArray();
+        $this->assertCount(2, $this->treeEvents($array));
+        $this->assertSame('end_1', $this->entryClose($this->treeOpenEntries($array)[0])['id']);
     }
 
     public function testToTreeArrayPreservesOrphanEventsAtTopLevel(): void
@@ -90,6 +96,57 @@ final class LogSessionTest extends TestCase
         $this->assertSame('top_1', $this->entryId($topLevelEvents[1]));
         $this->assertCount(1, $nestedEvents);
         $this->assertSame('nested_1', $this->entryId($nestedEvents[0]));
+    }
+
+    public function testToTreeArrayPreservesOrphanClosesAtTopLevel(): void
+    {
+        $open = new OpenCloseEntry('start_1', 'start', 'https://example.com/start.json', ['start' => true]);
+        $closes = [
+            new EventEntry('end_1', 'end', 'https://example.com/end.json', ['end' => true], 'start_1'),
+            new EventEntry('orphan_close_1', 'orphan_close', 'https://example.com/orphan-close.json', ['end' => false], 'missing_1'),
+        ];
+
+        $session = new LogJson(
+            'https://schema.example.com/complete.json',
+            [$open],
+            $closes,
+            [],
+        );
+
+        $tree = $session->toTreeArray();
+        $openEntries = $this->treeOpenEntries($tree);
+        $orphanCloses = $this->treeCloses($tree);
+
+        $this->assertSame('end_1', $this->entryClose($openEntries[0])['id']);
+        $this->assertArrayHasKey('close', $tree);
+        $this->assertCount(1, $orphanCloses);
+        $this->assertSame('orphan_close_1', $orphanCloses[0]['id']);
+        $this->assertSame('missing_1', $orphanCloses[0]['openId']);
+    }
+
+    public function testPartitionClosesKeepsFirstMatchAndSendsDuplicatesToOrphans(): void
+    {
+        $open = new OpenCloseEntry('start_1', 'start', 'https://example.com/start.json', ['start' => true]);
+        $closes = [
+            new EventEntry('end_1', 'end', 'https://example.com/end.json', ['end' => true], 'start_1'),
+            new EventEntry('end_duplicate_1', 'end', 'https://example.com/end.json', ['end' => false], 'start_1'),
+        ];
+
+        $session = new LogJson(
+            'https://schema.example.com/complete.json',
+            [$open],
+            $closes,
+            [],
+        );
+
+        $tree = $session->toArray();
+        $openEntries = $this->treeOpenEntries($tree);
+        $orphanCloses = $this->treeCloses($tree);
+
+        $this->assertSame('end_1', $this->entryClose($openEntries[0])['id']);
+        $this->assertCount(1, $orphanCloses);
+        $this->assertSame('end_duplicate_1', $orphanCloses[0]['id']);
+        $this->assertSame('start_1', $orphanCloses[0]['openId']);
     }
 
     /**
@@ -152,6 +209,40 @@ final class LogSessionTest extends TestCase
         return $validatedEvents;
     }
 
+    /**
+     * @param array<string, mixed> $entry
+     *
+     * @return array<string, mixed>
+     */
+    private function entryClose(array $entry): array
+    {
+        $this->assertArrayHasKey('close', $entry);
+        $close = $entry['close'];
+        $this->assertIsArray($close);
+
+        return $this->normalizeEntry($close);
+    }
+
+    /**
+     * @param array<string, mixed> $tree
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function treeCloses(array $tree): array
+    {
+        $this->assertArrayHasKey('close', $tree);
+        $closes = $tree['close'];
+        $this->assertIsArray($closes);
+
+        $validatedCloses = [];
+        foreach ($closes as $close) {
+            $this->assertIsArray($close);
+            $validatedCloses[] = $this->normalizeEntry($close);
+        }
+
+        return $validatedCloses;
+    }
+
     /** @param array<string, mixed> $entry */
     private function entryId(array $entry): string
     {
@@ -162,7 +253,7 @@ final class LogSessionTest extends TestCase
     }
 
     /**
-     * @param array<mixed, mixed> $entry
+     * @param array<mixed> $entry
      *
      * @return array<string, mixed>
      */

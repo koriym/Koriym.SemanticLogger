@@ -10,6 +10,7 @@ use LogicException;
 use PHPUnit\Framework\TestCase;
 
 use function assert;
+use function is_array;
 use function is_string;
 use function json_decode;
 use function json_encode;
@@ -62,7 +63,7 @@ final class SemanticLoggerTest extends TestCase
 
         $logJson = $this->logger->flush();
 
-        $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json', $logJson->schemaUrl);
+        $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json', $logJson->schemaUrl);
 
         // Open - check ID
         $this->assertCount(1, $logJson->open);
@@ -86,6 +87,17 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame('process_complete', $logJson->close[0]->type);
         $this->assertSame('https://example.com/schemas/process_complete.json', $logJson->close[0]->schemaUrl);
         $this->assertSame('completed successfully', $logJson->close[0]->context['result']);
+
+        $serialized = $logJson->toArray();
+        $root = $this->serializedOpenEntries($serialized)[0];
+        $events = $this->serializedEntryEvents($root);
+        $close = $this->serializedEntryClose($root);
+
+        $this->assertArrayNotHasKey('events', $serialized);
+        $this->assertArrayNotHasKey('close', $serialized);
+        $this->assertCount(1, $events);
+        $this->assertSame('example_event_1', $events[0]['id']);
+        $this->assertSame('process_complete_1', $close['id']);
     }
 
     public function testSequentialSiblingsAreRecordedAsSiblings(): void
@@ -328,20 +340,25 @@ final class SemanticLoggerTest extends TestCase
         $logJson = $this->logger->flush();
 
         // Verify structure instead of exact JSON string (more robust)
-        $this->assertStringContainsString('schemas/combined.json', $logJson->schemaUrl);
+        $this->assertStringContainsString('schemas/semantic-log.json', $logJson->schemaUrl);
+
+        $serialized = $logJson->toArray();
+        $root = $this->serializedOpenEntries($serialized)[0];
+        $close = $this->serializedEntryClose($root);
 
         // Verify open structure
-        $this->assertSame('example_event_1', $logJson->open[0]->id);
-        $this->assertSame('example_event', $logJson->open[0]->type);
-        $this->assertSame('test message', $logJson->open[0]->context['message']);
-        $this->assertSame(123, $logJson->open[0]->context['value']);
+        $this->assertSame('example_event_1', $root['id']);
+        $this->assertSame('example_event', $root['type']);
+        $this->assertSame('test message', $this->serializedEntryContext($root)['message']);
+        $this->assertSame(123, $this->serializedEntryContext($root)['value']);
 
-        // Verify close structure
-        $this->assertSame('example_event_2', $logJson->close[0]->id);
-        $this->assertSame('example_event', $logJson->close[0]->type);
-        $this->assertSame('test complete', $logJson->close[0]->context['message']);
-        $this->assertSame(456, $logJson->close[0]->context['value']);
-        $this->assertSame('example_event_1', $logJson->close[0]->openId);
+        // Verify close structure is nested under the root open
+        $this->assertSame('example_event_2', $close['id']);
+        $this->assertSame('example_event', $close['type']);
+        $this->assertSame('test complete', $this->serializedEntryContext($close)['message']);
+        $this->assertSame(456, $this->serializedEntryContext($close)['value']);
+        $this->assertArrayNotHasKey('openId', $close);
+        $this->assertArrayNotHasKey('close', $serialized);
 
         // Verify JSON serialization quality
         $actualJson = json_encode($logJson, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
@@ -363,31 +380,37 @@ final class SemanticLoggerTest extends TestCase
         $logJson = $logger->flush();
 
         // Verify nested structure (more robust than exact JSON comparison)
-        $this->assertStringContainsString('schemas/combined.json', $logJson->schemaUrl);
+        $this->assertStringContainsString('schemas/semantic-log.json', $logJson->schemaUrl);
+
+        $serialized = $logJson->toArray();
+        $outer = $this->serializedOpenEntries($serialized)[0];
+        $inner = $this->serializedChildOpens($outer)[0];
+        $outerClose = $this->serializedEntryClose($outer);
+        $innerClose = $this->serializedEntryClose($inner);
 
         // Verify outer open
-        $this->assertSame('example_event_1', $logJson->open[0]->id);
-        $this->assertSame('outer task', $logJson->open[0]->context['message']);
-        $this->assertSame(100, $logJson->open[0]->context['value']);
+        $this->assertSame('example_event_1', $outer['id']);
+        $this->assertSame('outer task', $this->serializedEntryContext($outer)['message']);
+        $this->assertSame(100, $this->serializedEntryContext($outer)['value']);
 
         // Verify inner open (nested)
-        $this->assertCount(1, $logJson->open[0]->open);
-        $this->assertSame('example_event_2', $logJson->open[0]->open[0]->id);
-        $this->assertSame('inner task', $logJson->open[0]->open[0]->context['message']);
-        $this->assertSame(200, $logJson->open[0]->open[0]->context['value']);
+        $this->assertCount(1, $this->serializedChildOpens($outer));
+        $this->assertSame('example_event_2', $inner['id']);
+        $this->assertSame('inner task', $this->serializedEntryContext($inner)['message']);
+        $this->assertSame(200, $this->serializedEntryContext($inner)['value']);
 
         // Verify outer close
-        $this->assertSame('example_event_4', $logJson->close[0]->id);
-        $this->assertSame('outer done', $logJson->close[0]->context['message']);
-        $this->assertSame(400, $logJson->close[0]->context['value']);
-        $this->assertSame('example_event_1', $logJson->close[0]->openId);
+        $this->assertSame('example_event_4', $outerClose['id']);
+        $this->assertSame('outer done', $this->serializedEntryContext($outerClose)['message']);
+        $this->assertSame(400, $this->serializedEntryContext($outerClose)['value']);
+        $this->assertArrayNotHasKey('openId', $outerClose);
 
-        // Verify inner close (nested)
-        $this->assertCount(1, $logJson->close[0]->close);
-        $this->assertSame('example_event_3', $logJson->close[0]->close[0]->id);
-        $this->assertSame('inner done', $logJson->close[0]->close[0]->context['message']);
-        $this->assertSame(300, $logJson->close[0]->close[0]->context['value']);
-        $this->assertSame('example_event_2', $logJson->close[0]->close[0]->openId);
+        // Verify inner close (nested under the inner open)
+        $this->assertSame('example_event_3', $innerClose['id']);
+        $this->assertSame('inner done', $this->serializedEntryContext($innerClose)['message']);
+        $this->assertSame(300, $this->serializedEntryContext($innerClose)['value']);
+        $this->assertArrayNotHasKey('openId', $innerClose);
+        $this->assertArrayNotHasKey('close', $serialized);
 
         // Verify JSON serialization quality
         $actualJson = json_encode($logJson, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
@@ -499,8 +522,12 @@ final class SemanticLoggerTest extends TestCase
         $this->assertCount(2, $logJson->links);
 
         $logArray = $logJson->toArray();
-        $this->assertArrayHasKey('events', $logArray);
+        $root = $this->serializedOpenEntries($logArray)[0];
+        $events = $this->serializedEntryEvents($root);
+        $this->assertArrayNotHasKey('events', $logArray);
         $this->assertArrayHasKey('links', $logArray);
+        $this->assertCount(1, $events);
+        $this->assertSame('processing step', $this->serializedEntryContext($events[0])['message']);
 
         // Verify trace relation
         /** @var list<array{rel: string, href: string, title?: string, type?: string}> $links */
@@ -633,5 +660,126 @@ final class SemanticLoggerTest extends TestCase
         $level4 = $level3->close[0];
         $this->assertSame('close 4', $level4->context['message']);
         $this->assertSame([], $level4->close);
+    }
+
+    /**
+     * @param array<string, mixed> $serialized
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function serializedOpenEntries(array $serialized): array
+    {
+        $open = $serialized['open'] ?? null;
+        if (! is_array($open)) {
+            $this->fail('Expected serialized log to contain open entries.');
+        }
+
+        $entries = [];
+        foreach ($open as $entry) {
+            if (! is_array($entry)) {
+                $this->fail('Expected serialized open entries to be arrays.');
+            }
+
+            $entries[] = $this->normalizeSerializedEntry($entry);
+        }
+
+        return $entries;
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function serializedChildOpens(array $entry): array
+    {
+        $open = $entry['open'] ?? null;
+        if (! is_array($open)) {
+            $this->fail('Expected serialized entry to contain child opens.');
+        }
+
+        $children = [];
+        foreach ($open as $child) {
+            if (! is_array($child)) {
+                $this->fail('Expected serialized child opens to be arrays.');
+            }
+
+            $children[] = $this->normalizeSerializedEntry($child);
+        }
+
+        return $children;
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function serializedEntryEvents(array $entry): array
+    {
+        $events = $entry['events'] ?? null;
+        if (! is_array($events)) {
+            $this->fail('Expected serialized entry to contain events.');
+        }
+
+        $normalizedEvents = [];
+        foreach ($events as $event) {
+            if (! is_array($event)) {
+                $this->fail('Expected serialized events to be arrays.');
+            }
+
+            $normalizedEvents[] = $this->normalizeSerializedEntry($event);
+        }
+
+        return $normalizedEvents;
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     *
+     * @return array<string, mixed>
+     */
+    private function serializedEntryClose(array $entry): array
+    {
+        $close = $entry['close'] ?? null;
+        if (! is_array($close)) {
+            $this->fail('Expected serialized entry to contain a close.');
+        }
+
+        return $this->normalizeSerializedEntry($close);
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     *
+     * @return array<string, mixed>
+     */
+    private function serializedEntryContext(array $entry): array
+    {
+        $context = $entry['context'] ?? null;
+        if (! is_array($context)) {
+            $this->fail('Expected serialized entry to contain a context.');
+        }
+
+        return $this->normalizeSerializedEntry($context);
+    }
+
+    /**
+     * @param array<mixed> $entry
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeSerializedEntry(array $entry): array
+    {
+        $normalized = [];
+        foreach ($entry as $key => $value) {
+            if (! is_string($key)) {
+                $this->fail('Expected serialized entry keys to be strings.');
+            }
+
+            $normalized[$key] = $value;
+        }
+
+        return $normalized;
     }
 }

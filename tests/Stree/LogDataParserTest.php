@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\Exception\RuntimeException;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 
 use function json_encode;
 
@@ -28,6 +28,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'test_1',
                 ],
             ],
             'events' => [],
@@ -67,6 +68,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'parent_1',
                 ],
             ],
             'events' => [],
@@ -183,13 +185,10 @@ final class LogDataParserTest extends TestCase
         $this->assertSame('second', $tree->children[1]->type);
     }
 
-    public function testMultipleRootsThrowForStreeRendering(): void
+    public function testMultipleRootsAreWrappedInSyntheticForestRoot(): void
     {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('single root open entry');
-
         $parser = new LogDataParser();
-        $parser->parseLogData([
+        $tree = $parser->parseLogData([
             'open' => [
                 ['id' => 'a_1', 'type' => 'a', 'schemaUrl' => 'a.json', 'context' => []],
                 ['id' => 'b_1', 'type' => 'b', 'schemaUrl' => 'b.json', 'context' => []],
@@ -197,6 +196,11 @@ final class LogDataParserTest extends TestCase
             'close' => [],
             'events' => [],
         ]);
+
+        $this->assertTrue($tree->isSynthetic);
+        $this->assertCount(2, $tree->children);
+        $this->assertSame('a', $tree->children[0]->type);
+        $this->assertSame('b', $tree->children[1]->type);
     }
 
     public function testParseEventsData(): void
@@ -216,6 +220,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -258,6 +263,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -322,6 +328,7 @@ final class LogDataParserTest extends TestCase
                         'type' => 'close',
                         'schemaUrl' => 'test.json',
                         'context' => [],
+                        'openId' => 'test_1',
                     ],
                 ],
                 'events' => [],
@@ -384,6 +391,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -400,8 +408,11 @@ final class LogDataParserTest extends TestCase
         $parser = new LogDataParser();
         $tree = $parser->parseLogData($logData);
 
-        $this->assertCount(1, $tree->children);
-        $this->assertSame('orphan', $tree->children[0]->type);
+        $this->assertTrue($tree->isSynthetic);
+        $this->assertCount(2, $tree->children);
+        $this->assertSame('test_operation', $tree->children[0]->type);
+        $this->assertSame('orphan', $tree->children[1]->type);
+        $this->assertTrue($tree->children[1]->isEvent);
     }
 
     public function testEventWithInvalidOpenId(): void
@@ -421,6 +432,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -437,9 +449,11 @@ final class LogDataParserTest extends TestCase
         $parser = new LogDataParser();
         $tree = $parser->parseLogData($logData);
 
-        // Should attach to root when parent not found
-        $this->assertCount(1, $tree->children);
-        $this->assertSame('orphan', $tree->children[0]->type);
+        $this->assertTrue($tree->isSynthetic);
+        $this->assertCount(2, $tree->children);
+        $this->assertSame('test_operation', $tree->children[0]->type);
+        $this->assertSame('orphan', $tree->children[1]->type);
+        $this->assertTrue($tree->children[1]->isEvent);
     }
 
     public function testInvalidEventData(): void
@@ -459,6 +473,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -476,10 +491,10 @@ final class LogDataParserTest extends TestCase
         $parser = new LogDataParser();
         $tree = $parser->parseLogData($logData);
 
-        // Both events are processed, invalid_event_string becomes 'unknown' type event
+        $this->assertTrue($tree->isSynthetic);
         $this->assertCount(2, $tree->children);
-        $this->assertSame('unknown', $tree->children[0]->type);
-        $this->assertSame('valid', $tree->children[1]->type);
+        $this->assertSame('test_operation', $tree->children[0]->type);
+        $this->assertSame('unknown', $tree->children[1]->type);
     }
 
     public function testEventWithNonArrayContext(): void
@@ -499,6 +514,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -537,6 +553,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [],
@@ -559,6 +576,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'unknown',
                 ],
             ],
             'events' => [],
@@ -588,6 +606,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => [
@@ -624,6 +643,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'test_1',
                 ],
             ],
             'events' => [],
@@ -652,6 +672,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             // No events section
@@ -681,6 +702,7 @@ final class LogDataParserTest extends TestCase
                     'type' => 'close',
                     'schemaUrl' => 'test.json',
                     'context' => [],
+                    'openId' => 'operation_1',
                 ],
             ],
             'events' => 'not_an_array', // Invalid events section
@@ -815,7 +837,7 @@ final class LogDataParserTest extends TestCase
         $this->assertSame(['inner' => true], $inner->closeContext);
     }
 
-    public function testCloseWithUnknownOpenIdIsIgnored(): void
+    public function testCloseWithUnknownOpenIdIsAttachedAsDiagnosticNode(): void
     {
         $logData = [
             'open' => [
@@ -843,5 +865,122 @@ final class LogDataParserTest extends TestCase
 
         $this->assertNull($tree->closeType);
         $this->assertSame([], $tree->closeContext);
+        $this->assertTrue($tree->isSynthetic);
+        $this->assertCount(2, $tree->children);
+        $this->assertSame('process_open', $tree->children[0]->type);
+        $this->assertSame('close_1', $tree->children[1]->id);
+        $this->assertSame('process_close', $tree->children[1]->type);
+        $this->assertTrue($tree->children[1]->isOrphanClose);
+        $this->assertSame(['result' => 'ok'], $tree->children[1]->context);
+    }
+
+    public function testCloseWithoutOpenIdIsAttachedAsDiagnosticNode(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'operation_1',
+                    'type' => 'process_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+                [
+                    'id' => 'operation_2',
+                    'type' => 'other_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'process_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'ok'],
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertTrue($tree->isSynthetic);
+        $this->assertCount(3, $tree->children);
+        $this->assertSame('close_1', $tree->children[2]->id);
+        $this->assertSame('process_close', $tree->children[2]->type);
+        $this->assertTrue($tree->children[2]->isOrphanClose);
+    }
+
+    public function testCloseWithoutOpenIdRemainsDiagnosticNodeInSingleRootLog(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'operation_1',
+                    'type' => 'process_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'process_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'ok'],
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertTrue($tree->isSynthetic);
+        $this->assertCount(2, $tree->children);
+        $this->assertSame('process_open', $tree->children[0]->type);
+        $this->assertNull($tree->children[0]->closeType);
+        $this->assertSame('process_close', $tree->children[1]->type);
+        $this->assertTrue($tree->children[1]->isOrphanClose);
+        $this->assertSame(['result' => 'ok'], $tree->children[1]->context);
+    }
+
+    public function testMissingOrphanCloseIdsReceiveUniqueFallbackIds(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'operation_1',
+                    'type' => 'process_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                [
+                    'type' => 'process_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'first'],
+                ],
+                [
+                    'type' => 'process_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'second'],
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertTrue($tree->isSynthetic);
+        $this->assertCount(3, $tree->children);
+        $this->assertSame('process_open', $tree->children[0]->type);
+        $this->assertSame('orphan_close_1', $tree->children[1]->id);
+        $this->assertSame('orphan_close_2', $tree->children[2]->id);
+        $this->assertTrue($tree->children[1]->isOrphanClose);
+        $this->assertTrue($tree->children[2]->isOrphanClose);
     }
 }

@@ -7,14 +7,19 @@ namespace Koriym\SemanticLogger;
 use Throwable;
 
 use function basename;
+use function explode;
 use function file_put_contents;
 use function function_exists;
 use function get_class;
+use function getenv;
+use function ini_get;
+use function is_string;
 use function json_encode;
 use function memory_get_peak_usage;
 use function memory_get_usage;
 use function microtime;
 use function number_format;
+use function trim;
 use function uniqid;
 use function usleep;
 use function xdebug_start_trace;
@@ -499,17 +504,19 @@ class ComplexWebRequestSimulation
     {
         // Start Xdebug trace manually
         echo "=== Debug: Starting Xdebug trace ===\n";
-        if (function_exists('xdebug_start_trace')) {
-            $traceFile = '/Users/akihito/git/Koriym.SemanticLogger/demo/xdebug_trace.xt';
-            xdebug_start_trace($traceFile);
-            echo "Xdebug trace started: {$traceFile}.xt\n";
+        if ($this->isXdebugTraceEnabled()) {
+            $traceFile = __DIR__ . '/xdebug_trace';
+            $startedTraceFile = xdebug_start_trace($traceFile);
+            echo 'Xdebug trace started: ' . (is_string($startedTraceFile) ? $startedTraceFile : $traceFile . '.xt') . "\n";
+        } elseif (function_exists('xdebug_start_trace')) {
+            echo "Xdebug trace mode is not enabled; skipping trace capture.\n";
         }
 
         // Only run the main e-commerce scenario - no mixed HTTP requests
         $this->simulateECommerceOrderProcessing();
 
         // Stop Xdebug trace
-        if (function_exists('xdebug_stop_trace')) {
+        if ($this->isXdebugTraceEnabled()) {
             xdebug_stop_trace();
             echo "Xdebug trace stopped\n";
         }
@@ -545,6 +552,30 @@ class ComplexWebRequestSimulation
         echo "  php bin/stree demo/semantic-log-demo.json\n";
         echo "  php bin/stree --full demo/semantic-log-demo.json\n";
         echo "  php bin/stree --threshold=50ms --full demo/semantic-log-demo.json\n";
+    }
+
+    private function isXdebugTraceEnabled(): bool
+    {
+        if (! function_exists('xdebug_start_trace')) {
+            return false;
+        }
+
+        $modes = getenv('XDEBUG_MODE');
+        if ($modes === false || $modes === '') {
+            $modes = ini_get('xdebug.mode');
+        }
+
+        if (! is_string($modes) || $modes === '') {
+            return false;
+        }
+
+        foreach (explode(',', $modes) as $mode) {
+            if (trim($mode) === 'trace') {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 

@@ -8,6 +8,7 @@ use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
 use PHPUnit\Framework\TestCase;
 
 use function explode;
+use function str_starts_with;
 use function trim;
 
 final class TreeRendererTest extends TestCase
@@ -77,6 +78,106 @@ final class TreeRendererTest extends TestCase
         // First line is the root node itself, flush-left (no tree prefix, no "session" header)
         $this->assertStringStartsWith('some_op', $lines[0]);
         $this->assertStringContainsString('[10.0ms]', $lines[0]);
+    }
+
+    public function testMultipleRootsRenderAsFlushLeftSiblings(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'a_1',
+                    'type' => 'first_op',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+                [
+                    'id' => 'b_1',
+                    'type' => 'second_op',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer();
+        $config = new RenderConfig(false, 0.0, 5);
+
+        $result = $renderer->render($logData, $config);
+        $lines = explode("\n", trim($result));
+
+        $this->assertSame('first_op : unclosed', $lines[0]);
+        $this->assertSame('second_op : unclosed', $lines[1]);
+        $this->assertFalse(str_starts_with($lines[0], '├'));
+        $this->assertFalse(str_starts_with($lines[1], '└'));
+    }
+
+    public function testOrphanCloseRendersAsTopLevelDiagnosticInSingleRootLog(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'op_1',
+                    'type' => 'some_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'some_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'ok'],
+                    'openId' => 'missing_1',
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer();
+        $config = new RenderConfig(false, 0.0, 5);
+
+        $result = $renderer->render($logData, $config);
+        $lines = explode("\n", trim($result));
+
+        $this->assertSame('some_open : unclosed', $lines[0]);
+        $this->assertSame('some_close result=ok [orphan close]', $lines[1]);
+        $this->assertFalse(str_starts_with($lines[1], '└'));
+    }
+
+    public function testTopLevelCloseWithoutOpenIdRemainsTopLevelDiagnosticInSingleRootLog(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'op_1',
+                    'type' => 'some_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'some_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'ok'],
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer();
+        $config = new RenderConfig(false, 0.0, 5);
+
+        $result = $renderer->render($logData, $config);
+        $lines = explode("\n", trim($result));
+
+        $this->assertSame('some_open : unclosed', $lines[0]);
+        $this->assertSame('some_close result=ok [orphan close]', $lines[1]);
+        $this->assertFalse(str_starts_with($lines[1], '└'));
     }
 
     public function testNestedRendering(): void

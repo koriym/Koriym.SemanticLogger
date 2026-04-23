@@ -106,28 +106,12 @@ final class SignalExtractor
 
         /** @var mixed $value */
         foreach ($closeContext as $key => $value) {
-            if ($this->shouldExcludeKey($key)) {
+            $diff = $this->extractCloseKeyDiff($key, $value, $openContext, $closeContext);
+            if ($diff === null) {
                 continue;
             }
 
-            if ($key === 'final' && isset($closeContext['exit'])) {
-                continue;
-            }
-
-            if (! $this->isMeaningfulScalar($value) && ! $this->isMeaningfulArray($value)) {
-                continue;
-            }
-
-            $formatted = $this->formatValue($value);
-            if ($formatted === null) {
-                continue;
-            }
-
-            $diff = $this->diffForCloseKey($key, $formatted, $openContext);
-            if ($diff !== null) {
-                $diffs[] = $diff;
-            }
-
+            $diffs[] = $diff;
             if (count($diffs) >= 2) {
                 break;
             }
@@ -138,6 +122,38 @@ final class SignalExtractor
         }
 
         return implode(' ', $diffs);
+    }
+
+    /**
+     * Extract a displayable diff fragment for one close-context entry.
+     *
+     * @param array<string, mixed> $openContext
+     * @param array<string, mixed> $closeContext
+     */
+    private function extractCloseKeyDiff(
+        string|int $key,
+        mixed $value,
+        array $openContext,
+        array $closeContext,
+    ): string|null {
+        if ($this->shouldExcludeKey($key)) {
+            return null;
+        }
+
+        if ($key === 'final' && isset($closeContext['exit'])) {
+            return null;
+        }
+
+        if (! $this->isMeaningfulScalar($value) && ! $this->isMeaningfulArray($value)) {
+            return null;
+        }
+
+        $formatted = $this->formatValue($value);
+        if ($formatted === null) {
+            return null;
+        }
+
+        return $this->diffForCloseKey((string) $key, $formatted, $openContext);
     }
 
     /** @param array<string, mixed> $openContext */

@@ -14,15 +14,15 @@ koriym/semantic-logger provides structured logging that captures both data struc
 
 ### Three-Phase Logging Pattern
 - **Open**: Intent - what we plan to do (hierarchical operations with unique IDs)
-- **Event**: Occurrences - what happened during execution (linked via openId)
-- **Close**: Result - what actually occurred (linked via openId to corresponding open)
+- **Event**: Occurrences - what happened during execution (nested under the active open when serialized)
+- **Close**: Result - what actually occurred (nested under the corresponding open in public JSON)
 
 ## Key Features
 
 - Type-safe context objects with const TYPE and SCHEMA_URL properties
 - Hierarchical logging with SplStack-based operation tracking
 - JSON Schema validation for structured output
-- OpenId correlation for linking events to operations
+- Tree-oriented JSON output for direct structural correlation
 - RFC 8288 compliant link relations
 - Immutable value objects (LogJson, LogEntry, OpenEntry)
 - One-time flush pattern with state reset
@@ -74,4 +74,4 @@ $logJson = $logger->flush($relations);
 - **AI & Human Understanding**: Equal context for both AI systems and developers
 - **Type Safety**: Static analysis ensures correct usage patterns
 - **Schema Validation**: JSON Schema validation for structured output
-- **Correlation**: OpenId linking enables request tracing and debugging
+- **Correlation**: Tree structure makes request tracing and debugging explicit

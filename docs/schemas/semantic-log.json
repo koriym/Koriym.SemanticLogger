@@ -17,27 +17,28 @@
     }
   ],
   "type": "object",
-  "required": ["$schema", "open", "close"],
+  "required": ["$schema", "open"],
   "properties": {
     "$schema": {
       "$ref": "#/definitions/schemaUrl"
     },
     "open": {
       "type": "array",
-      "description": "Top-level open operations in chronological order. Each entry may carry its own nested children.",
+      "minItems": 1,
+      "description": "Top-level root operations in chronological order. Each entry may carry nested child opens, nested events, and its matching close.",
       "items": { "$ref": "#/definitions/openEntry" }
     },
     "close": {
       "type": "array",
-      "description": "Top-level close operations, parallel in shape to `open`.",
+      "description": "Top-level orphan close entries that could not be nested under a matching open entry.",
       "items": { "$ref": "#/definitions/closeEntry" }
     },
     "events": {
       "type": "array",
-      "description": "Events that occurred within specific operations - each event's openId indicates the hierarchical scope/position where the event happened. Events are positioned within the operation hierarchy through openId references, enabling precise attribution and scope analysis for performance tracking and debugging",
+      "description": "Top-level root-scope or orphan events that could not be nested under a matching open entry.",
       "items": {
         "type": "object",
-        "required": ["id", "type", "schemaUrl", "openId"],
+        "required": ["id", "type", "schemaUrl", "context"],
         "properties": {
           "id": {
             "$ref": "#/definitions/operationId"
@@ -106,8 +107,8 @@
   "definitions": {
     "openEntry": {
       "type": "object",
-      "description": "Application-defined open context with optional sibling children.",
-      "required": ["id", "type", "schemaUrl"],
+      "description": "Application-defined open context with optional nested child opens, nested events, and its matching close.",
+      "required": ["id", "type", "schemaUrl", "context"],
       "properties": {
         "id": { "$ref": "#/definitions/operationId" },
         "type": {
@@ -120,6 +121,15 @@
           "description": "Application-specific context data conforming to the referenced schema",
           "additionalProperties": true
         },
+        "events": {
+          "type": "array",
+          "description": "Events that occurred while this operation was active.",
+          "items": { "$ref": "#/definitions/eventEntry" }
+        },
+        "close": {
+          "$ref": "#/definitions/closeEntry",
+          "description": "The matching close entry for this open operation. Omitted when the operation is unclosed."
+        },
         "open": {
           "type": "array",
           "description": "Nested child operations in chronological order.",
@@ -128,10 +138,30 @@
       },
       "additionalProperties": true
     },
+    "eventEntry": {
+      "type": "object",
+      "description": "Application-defined event context. Nested events omit openId because scope is implied by structural placement; top-level orphan/root events may still carry openId for diagnostics.",
+      "required": ["id", "type", "schemaUrl", "context"],
+      "properties": {
+        "id": { "$ref": "#/definitions/operationId" },
+        "type": {
+          "type": "string",
+          "description": "Application-defined event type"
+        },
+        "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
+        "openId": { "$ref": "#/definitions/openIdReference" },
+        "context": {
+          "type": "object",
+          "description": "Application-specific event data conforming to the referenced schema",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
     "closeEntry": {
       "type": "object",
-      "description": "Application-defined close context; mirrors an openEntry and carries child closes in parallel.",
-      "required": ["id", "type", "schemaUrl", "openId"],
+      "description": "Application-defined close context. Nested matched closes omit openId because the matching open is implied by structural placement; orphan closes may still carry openId for diagnostics.",
+      "required": ["id", "type", "schemaUrl", "context"],
       "properties": {
         "id": { "$ref": "#/definitions/operationId" },
         "type": {
@@ -148,11 +178,6 @@
         "profile": {
           "$ref": "#/definitions/operationProfile",
           "description": "Observed profiling data attributed to this specific operation. Present only when an attached profiler captured external Xdebug or XHProf output for this close."
-        },
-        "close": {
-          "type": "array",
-          "description": "Nested child closes in the order their opens closed.",
-          "items": { "$ref": "#/definitions/closeEntry" }
         }
       },
       "additionalProperties": true

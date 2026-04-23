@@ -13,7 +13,7 @@ final class LogJson implements JsonSerializable
 {
     /**
      * @param list<OpenCloseEntry>                                                  $open   Top-level opens (one or more) in chronological order.
-     * @param list<EventEntry>                                                      $close  Top-level closes (parallel to $open).
+     * @param list<EventEntry>                                                      $close  Internal close entries; matched closes are nested during public serialization.
      * @param list<EventEntry>                                                      $events
      * @param list<array{rel: string, href: string, title?: string, type?: string}> $links
      */
@@ -26,7 +26,7 @@ final class LogJson implements JsonSerializable
     ) {
     }
 
-    /** @return array<string, mixed> */
+    /** @return array<string, mixed> Public tree JSON representation */
     #[Override]
     public function jsonSerialize(): array
     {
@@ -36,32 +36,12 @@ final class LogJson implements JsonSerializable
     /** @return array<string, mixed> */
     public function toArray(): array
     {
-        $result = [
-            '$schema' => $this->schemaUrl,
-            'open' => array_map(static fn (OpenCloseEntry $e) => $e->toArray(), $this->open),
-        ];
-
-        if (! empty($this->events)) {
-            $result['events'] = array_map(static fn (EventEntry $event) => $event->toArray(), $this->events);
-        }
-
-        $result['close'] = array_map(static fn (EventEntry $e) => $e->toArray(), $this->close);
-
-        if (! empty($this->links)) {
-            $result['links'] = $this->links;
-        }
-
-        return $result;
-    }
-
-    /** @return array<string, mixed> */
-    public function toTreeArray(): array
-    {
         $closeByOpenId = [];
-        $this->indexCloses($this->close, $closeByOpenId);
-        $eventsByOpenId = $this->groupEventsByOpenId($this->events);
         $openIds = [];
         $this->collectOpenIds($this->open, $openIds);
+        $orphanCloses = [];
+        $this->partitionCloses($this->close, $openIds, $closeByOpenId, $orphanCloses);
+        $eventsByOpenId = $this->groupEventsByOpenId($this->events);
 
         $result = [
             '$schema' => $this->schemaUrl,
@@ -73,7 +53,17 @@ final class LogJson implements JsonSerializable
 
         $topLevelEvents = $this->topLevelTreeEvents($openIds);
         if ($topLevelEvents !== []) {
-            $result['events'] = array_map(static fn (EventEntry $event): array => $event->toArray(), $topLevelEvents);
+            $result['events'] = array_map(
+                fn (EventEntry $event): array => $this->eventToArray($event, true),
+                $topLevelEvents,
+            );
+        }
+
+        if ($orphanCloses !== []) {
+            $result['close'] = array_map(
+                fn (EventEntry $close): array => $this->closeToArray($close, true),
+                $orphanCloses,
+            );
         }
 
         if (! empty($this->links)) {
@@ -81,6 +71,12 @@ final class LogJson implements JsonSerializable
         }
 
         return $result;
+    }
+
+    /** @return array<string, mixed> */
+    public function toTreeArray(): array
+    {
+        return $this->toArray();
     }
 
     /**
@@ -95,11 +91,14 @@ final class LogJson implements JsonSerializable
 
         $events = $eventsByOpenId[$entry->id] ?? [];
         if ($events !== []) {
-            $result['events'] = array_map(static fn (EventEntry $event): array => $event->toArray(), $events);
+            $result['events'] = array_map(
+                fn (EventEntry $event): array => $this->eventToArray($event, false),
+                $events,
+            );
         }
 
         if (isset($closeByOpenId[$entry->id])) {
-            $result['close'] = $this->singleCloseToArray($closeByOpenId[$entry->id]);
+            $result['close'] = $this->closeToArray($closeByOpenId[$entry->id], false);
         }
 
         if ($entry->open === []) {
@@ -118,18 +117,27 @@ final class LogJson implements JsonSerializable
 
     /**
      * @param list<EventEntry>          $closes
+     * @param array<string, true>       $openIds
      * @param array<string, EventEntry> $closeByOpenId
+     * @param list<EventEntry>          $orphanCloses
      */
-    private function indexCloses(array $closes, array &$closeByOpenId): void
+    private function partitionCloses(array $closes, array $openIds, array &$closeByOpenId, array &$orphanCloses): void
     {
         foreach ($closes as $close) {
             $openId = $close->openId;
-            if ($openId !== null) {
+            // The first matching close owns the operation; later duplicates remain
+            // visible as orphan diagnostics instead of silently replacing it.
+            $isMatchedClose = $openId !== null && isset($openIds[$openId]) && ! isset($closeByOpenId[$openId]);
+            if ($isMatchedClose) {
                 $closeByOpenId[$openId] = $close;
             }
 
+            if (! $isMatchedClose) {
+                $orphanCloses[] = $close;
+            }
+
             if ($close->close !== []) {
-                $this->indexCloses($close->close, $closeByOpenId);
+                $this->partitionCloses($close->close, $openIds, $closeByOpenId, $orphanCloses);
             }
         }
     }
@@ -183,7 +191,7 @@ final class LogJson implements JsonSerializable
     }
 
     /** @return array<string, mixed> */
-    private function singleCloseToArray(EventEntry $close): array
+    private function closeToArray(EventEntry $close, bool $includeOpenId): array
     {
         $result = [
             'id' => $close->id,
@@ -192,8 +200,29 @@ final class LogJson implements JsonSerializable
             'context' => $close->context,
         ];
 
+        if ($includeOpenId && $close->openId !== null) {
+            $result['openId'] = $close->openId;
+        }
+
         if ($close->profile !== null) {
             $result['profile'] = $close->profile->jsonSerialize();
+        }
+
+        return $result;
+    }
+
+    /** @return array<string, mixed> */
+    private function eventToArray(EventEntry $event, bool $includeOpenId): array
+    {
+        $result = [
+            'id' => $event->id,
+            'type' => $event->type,
+            'schemaUrl' => $event->schemaUrl,
+            'context' => $event->context,
+        ];
+
+        if ($includeOpenId && $event->openId !== null) {
+            $result['openId'] = $event->openId;
         }
 
         return $result;

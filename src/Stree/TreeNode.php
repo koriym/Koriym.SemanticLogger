@@ -26,8 +26,12 @@ final class TreeNode
     /** Whether this node was produced from the events section */
     public bool $isEvent = false;
 
+    /** Whether this node was produced from a top-level or unmatched close entry */
+    public bool $isOrphanClose = false;
+
     /** Status: 'failed' | 'unclosed' | '' */
     public string $status = '';
+    public bool $isSynthetic = false;
 
     /** @param array<string, mixed> $context */
     public function __construct(
@@ -37,6 +41,20 @@ final class TreeNode
         public readonly float $executionTime = 0.0,
         public readonly TreeNode|null $parent = null,
     ) {
+    }
+
+    /** @param array<string, mixed> $context */
+    public static function synthetic(
+        string $id,
+        string $type,
+        array $context,
+        float $executionTime = 0.0,
+        TreeNode|null $parent = null,
+    ): self {
+        $node = new self($id, $type, $context, $executionTime, $parent);
+        $node->isSynthetic = true;
+
+        return $node;
     }
 
     public function addChild(TreeNode $child): void
@@ -83,6 +101,8 @@ final class TreeNode
 
         if ($this->isEvent) {
             $line .= ' [event]';
+        } elseif ($this->isOrphanClose) {
+            $line .= ' [orphan close]';
         }
 
         return $line;

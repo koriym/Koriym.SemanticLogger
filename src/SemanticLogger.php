@@ -18,7 +18,7 @@ use function is_string;
 
 final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 {
-    private const SEMANTIC_LOG_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json';
+    private const SEMANTIC_LOG_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json';
 
     /** @var list<EventEntry> */
     private array $events = [];
@@ -243,10 +243,10 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     }
 
     /**
-     * Build the close tree that mirrors the open tree's shape but carries close contexts.
+     * Build the internal close tree used for profile attachment and tree serialization.
      *
-     * Each close is paired to its open via openId; child-close ordering follows
-     * the open tree exactly so the two trees stay structurally parallel.
+     * Closes are still tracked by openId internally even though the public JSON
+     * serializer nests matched closes directly under their open node.
      *
      * @return list<EventEntry>
      */

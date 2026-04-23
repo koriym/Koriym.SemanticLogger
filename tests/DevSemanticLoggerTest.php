@@ -70,7 +70,7 @@ final class DevSemanticLoggerTest extends TestCase
         $close = $this->firstSerializedClose($array);
 
         $this->assertArrayNotHasKey('profile', $array, 'top-level profile must not exist');
-        $this->assertArrayHasKey('close', $array);
+        $this->assertArrayHasKey('open', $array);
         $this->assertArrayNotHasKey('profile', $close);
     }
 
@@ -312,13 +312,74 @@ final class DevSemanticLoggerTest extends TestCase
      */
     private function firstSerializedClose(array $serializedLog): array
     {
-        $close = $serializedLog['close'] ?? null;
-        if (! is_array($close) || ! isset($close[0]) || ! is_array($close[0])) {
-            $this->fail('Expected serialized log to contain a close entry.');
+        $openEntries = $serializedLog['open'] ?? null;
+        if (is_array($openEntries)) {
+            foreach ($openEntries as $entry) {
+                if (! is_array($entry)) {
+                    continue;
+                }
+
+                $close = $this->findFirstNestedClose($entry);
+                if ($close !== null) {
+                    return $close;
+                }
+            }
         }
 
+        $closeEntries = $serializedLog['close'] ?? null;
+        if (is_array($closeEntries)) {
+            foreach ($closeEntries as $entry) {
+                if (! is_array($entry)) {
+                    continue;
+                }
+
+                return $this->normalizeSerializedEntry($entry);
+            }
+        }
+
+        $this->fail('Expected serialized log to contain a close entry.');
+    }
+
+    /**
+     * @param array<mixed> $entry
+     *
+     * @return array<string, mixed>|null
+     */
+    private function findFirstNestedClose(array $entry): array|null
+    {
+        $close = $entry['close'] ?? null;
+        if (is_array($close)) {
+            return $this->normalizeSerializedEntry($close);
+        }
+
+        $children = $entry['open'] ?? null;
+        if (! is_array($children)) {
+            return null;
+        }
+
+        foreach ($children as $child) {
+            if (! is_array($child)) {
+                continue;
+            }
+
+            $childClose = $this->findFirstNestedClose($child);
+            if ($childClose !== null) {
+                return $childClose;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<mixed> $entry
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeSerializedEntry(array $entry): array
+    {
         $normalized = [];
-        foreach ($close[0] as $key => $value) {
+        foreach ($entry as $key => $value) {
             if (! is_string($key)) {
                 $this->fail('Expected serialized close keys to be strings.');
             }
