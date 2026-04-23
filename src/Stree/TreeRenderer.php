@@ -107,10 +107,39 @@ final class TreeRenderer
         bool $isLast,
         RenderConfig $config,
     ): void {
-        if ($config->timeThreshold > 0 && $node->executionTime < $config->timeThreshold) {
+        if ($this->shouldSkipNode($node, $config)) {
             return;
         }
 
+        $childPrefix = $this->renderNodeHeader($node, $lines, $prefix, $isLast, $config);
+
+        if ($config->showFullTree) {
+            $this->renderFullModeLeaves($node, $lines, $childPrefix);
+        }
+
+        $closeSignals = $node->getCloseSignals();
+        $hasCloseLine = ! $config->showFullTree && $closeSignals !== '';
+        $this->renderNodeChildren($node, $lines, $childPrefix, $hasCloseLine, $config);
+        $this->renderNodeClose($node, $lines, $childPrefix, $config, $closeSignals, $hasCloseLine);
+    }
+
+    private function shouldSkipNode(TreeNode $node, RenderConfig $config): bool
+    {
+        return $config->timeThreshold > 0 && $node->executionTime < $config->timeThreshold;
+    }
+
+    /**
+     * @param string[] $lines
+     *
+     * @return string Child prefix for descendant lines.
+     */
+    private function renderNodeHeader(
+        TreeNode $node,
+        array &$lines,
+        string $prefix,
+        bool $isLast,
+        RenderConfig $config,
+    ): string {
         $symbol = $isLast ? self::TREE_LAST : self::TREE_BRANCH;
         $displayLine = $node->getDisplayLine($config);
         $childPrefix = $prefix . ($isLast ? self::TREE_SPACE : self::TREE_VERTICAL) . self::TREE_SPACE . self::TREE_SPACE . self::TREE_SPACE;
@@ -122,25 +151,45 @@ final class TreeRenderer
             $lines[] = $childPrefix . $parts[1];
         }
 
-        if ($config->showFullTree) {
-            $this->renderFullModeLeaves($node, $lines, $childPrefix);
-        }
+        return $childPrefix;
+    }
 
-        $closeSignals = $node->getCloseSignals();
-        $hasCloseLine = ! $config->showFullTree && $closeSignals !== '';
-
+    /** @param string[] $lines */
+    private function renderNodeChildren(
+        TreeNode $node,
+        array &$lines,
+        string $childPrefix,
+        bool $hasCloseLine,
+        RenderConfig $config,
+    ): void {
         $totalChildren = count($node->children);
         for ($i = 0; $i < $totalChildren; $i++) {
             $child = $node->children[$i];
             $isLastChild = ($i === $totalChildren - 1) && ! $config->showFullTree && ! $hasCloseLine;
             $this->renderNode($child, $lines, $childPrefix, $isLastChild, $config);
         }
+    }
 
+    /** @param string[] $lines */
+    private function renderNodeClose(
+        TreeNode $node,
+        array &$lines,
+        string $childPrefix,
+        RenderConfig $config,
+        string $closeSignals,
+        bool $hasCloseLine,
+    ): void {
         if ($config->showFullTree) {
             $this->renderFullModeClose($node, $lines, $childPrefix);
-        } elseif ($hasCloseLine) {
-            $lines[] = $childPrefix . self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $closeSignals;
+
+            return;
         }
+
+        if (! $hasCloseLine) {
+            return;
+        }
+
+        $lines[] = $childPrefix . self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $closeSignals;
     }
 
     /**
