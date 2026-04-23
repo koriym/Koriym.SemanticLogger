@@ -87,9 +87,36 @@
                                                         "fileSize": 245760,
                                                         "processingTime": 0.095,
                                                         "success": true
+                                                    },
+                                                    "close": {
+                                                        "id": "file_processing_complete_1",
+                                                        "type": "file_processing_complete",
+                                                        "schemaUrl": "./schemas/file_processing.json",
+                                                        "context": {
+                                                            "operation": "pdf_generation",
+                                                            "filename": "invoice_12345.pdf",
+                                                            "mimeType": "application/pdf",
+                                                            "fileSize": 245760,
+                                                            "processingTime": 0.095,
+                                                            "success": true,
+                                                            "outputPath": "/tmp/invoice_12345.pdf"
+                                                        }
                                                     }
                                                 }
-                                            ]
+                                            ],
+                                            "close": {
+                                                "id": "external_api_response_1",
+                                                "type": "external_api_response",
+                                                "schemaUrl": "./schemas/external_api_request.json",
+                                                "context": {
+                                                    "service": "PaymentGateway",
+                                                    "endpoint": "https://api.stripe.com/v1/charges",
+                                                    "method": "POST",
+                                                    "statusCode": 200,
+                                                    "responseTime": 0.180,
+                                                    "errorCode": 0
+                                                }
+                                            }
                                         }
                                     ],
                                     "events": [
@@ -129,7 +156,19 @@
                                                 "hasError": false
                                             }
                                         }
-                                    ]
+                                    ],
+                                    "close": {
+                                        "id": "database_connection_close_1",
+                                        "type": "database_connection_close",
+                                        "schemaUrl": "./schemas/database_connection.json",
+                                        "context": {
+                                            "driver": "mysql",
+                                            "host": "db-cluster.example.com",
+                                            "database": "ecommerce",
+                                            "connectionTime": 0.008,
+                                            "pooled": true
+                                        }
+                                    }
                                 }
                             ],
                             "events": [
@@ -147,7 +186,34 @@
                                         "cacheMisses": 0
                                     }
                                 }
-                            ]
+                            ],
+                            "close": {
+                                "id": "business_logic_complete_1",
+                                "type": "business_logic_complete",
+                                "schemaUrl": "./schemas/business_logic.json",
+                                "context": {
+                                    "operation": "order_validation",
+                                    "inputData": {
+                                        "customerId": 12345,
+                                        "items": [
+                                            "P001",
+                                            "P002"
+                                        ],
+                                        "total": 149.99
+                                    },
+                                    "outputData": {
+                                        "orderId": "ORD_12345",
+                                        "status": "confirmed"
+                                    },
+                                    "validationRules": {
+                                        "customer_exists": true,
+                                        "items_available": true,
+                                        "payment_valid": true,
+                                        "shipping_valid": true
+                                    },
+                                    "success": true
+                                }
+                            }
                         }
                     ],
                     "events": [
@@ -162,7 +228,18 @@
                                 "duration": 0.001
                             }
                         }
-                    ]
+                    ],
+                    "close": {
+                        "id": "authentication_response_1",
+                        "type": "authentication_response",
+                        "schemaUrl": "./schemas/authentication.json",
+                        "context": {
+                            "method": "JWT",
+                            "token": "user_12345",
+                            "success": true,
+                            "duration": 0.012
+                        }
+                    }
                 }
             ],
             "close": {
