@@ -125,6 +125,8 @@ final class LogJson implements JsonSerializable
     {
         foreach ($closes as $close) {
             $openId = $close->openId;
+            // The first matching close owns the operation; later duplicates remain
+            // visible as orphan diagnostics instead of silently replacing it.
             $isMatchedClose = $openId !== null && isset($openIds[$openId]) && ! isset($closeByOpenId[$openId]);
             if ($isMatchedClose) {
                 $closeByOpenId[$openId] = $close;

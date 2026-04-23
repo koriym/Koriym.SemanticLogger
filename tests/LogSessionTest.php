@@ -124,6 +124,31 @@ final class LogSessionTest extends TestCase
         $this->assertSame('missing_1', $orphanCloses[0]['openId']);
     }
 
+    public function testPartitionClosesKeepsFirstMatchAndSendsDuplicatesToOrphans(): void
+    {
+        $open = new OpenCloseEntry('start_1', 'start', 'https://example.com/start.json', ['start' => true]);
+        $closes = [
+            new EventEntry('end_1', 'end', 'https://example.com/end.json', ['end' => true], 'start_1'),
+            new EventEntry('end_duplicate_1', 'end', 'https://example.com/end.json', ['end' => false], 'start_1'),
+        ];
+
+        $session = new LogJson(
+            'https://schema.example.com/complete.json',
+            [$open],
+            $closes,
+            [],
+        );
+
+        $tree = $session->toArray();
+        $openEntries = $this->treeOpenEntries($tree);
+        $orphanCloses = $this->treeCloses($tree);
+
+        $this->assertSame('end_1', $this->entryClose($openEntries[0])['id']);
+        $this->assertCount(1, $orphanCloses);
+        $this->assertSame('end_duplicate_1', $orphanCloses[0]['id']);
+        $this->assertSame('start_1', $orphanCloses[0]['openId']);
+    }
+
     /**
      * @param array<string, mixed> $tree
      *

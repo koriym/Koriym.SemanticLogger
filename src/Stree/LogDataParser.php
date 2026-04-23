@@ -18,9 +18,13 @@ use function is_scalar;
 
 final class LogDataParser
 {
+    private int $orphanCloseSequence = 0;
+
     /** @param array<string, mixed> $logData */
     public function parseLogData(array $logData): TreeNode
     {
+        $this->orphanCloseSequence = 0;
+
         if (! array_key_exists('open', $logData) || ! is_array($logData['open'])) {
             throw new RuntimeException('Invalid log data: missing open section');
         }
@@ -80,6 +84,7 @@ final class LogDataParser
      * @param array<string, mixed> $closeEntry
      *
      * @return array{
+     *     id: string|null,
      *     openId: string|null,
      *     type: string,
      *     context: array<string, mixed>,
@@ -104,6 +109,7 @@ final class LogDataParser
         }
 
         return [
+            'id' => is_scalar($closeEntry['id'] ?? null) ? (string) $closeEntry['id'] : null,
             'openId' => is_scalar($rawOpenId) ? (string) $rawOpenId : null,
             'type' => self::stringifyScalar($closeEntry['type'] ?? null, 'unknown'),
             'context' => $this->normalizeMap($context),
@@ -116,7 +122,7 @@ final class LogDataParser
         return $openId !== null ? $this->findNodeById($rootNode, $openId) : null;
     }
 
-    /** @param array{openId: string|null, type: string, context: array<string, mixed>, profile: array<string, mixed>} $payload */
+    /** @param array{id: string|null, openId: string|null, type: string, context: array<string, mixed>, profile: array<string, mixed>} $payload */
     private function applyClosePayload(TreeNode $rootNode, array $payload): void
     {
         $node = $this->resolveCloseTarget($rootNode, $payload['openId']);
@@ -127,7 +133,13 @@ final class LogDataParser
         }
 
         $rootNode->addChild(
-            $this->createOrphanCloseNode($payload['type'], $payload['context'], $payload['profile'], $rootNode),
+            $this->createOrphanCloseNode(
+                $payload['id'],
+                $payload['type'],
+                $payload['context'],
+                $payload['profile'],
+                $rootNode,
+            ),
         );
     }
 
@@ -234,11 +246,16 @@ final class LogDataParser
      * @param array<mixed> $context
      * @param array<mixed> $profile
      */
-    private function createOrphanCloseNode(string $type, array $context, array $profile, TreeNode $parent): TreeNode
-    {
+    private function createOrphanCloseNode(
+        string|null $id,
+        string $type,
+        array $context,
+        array $profile,
+        TreeNode $parent,
+    ): TreeNode {
         $normalizedContext = $this->normalizeMap($context);
         $node = new TreeNode(
-            'orphan_close',
+            $this->orphanCloseId($id),
             $type,
             $normalizedContext,
             $this->extractExecutionTime($normalizedContext),
@@ -248,6 +265,17 @@ final class LogDataParser
         $node->closeProfile = $this->normalizeMap($profile);
 
         return $node;
+    }
+
+    private function orphanCloseId(string|null $id): string
+    {
+        if ($id !== null && $id !== '') {
+            return $id;
+        }
+
+        $this->orphanCloseSequence++;
+
+        return 'orphan_close_' . (string) $this->orphanCloseSequence;
     }
 
     /** @param array<string, mixed>[] $events */

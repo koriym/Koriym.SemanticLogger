@@ -933,4 +933,40 @@ final class LogDataParserTest extends TestCase
         $this->assertTrue($tree->children[0]->isOrphanClose);
         $this->assertSame(['result' => 'ok'], $tree->children[0]->context);
     }
+
+    public function testMissingOrphanCloseIdsReceiveUniqueFallbackIds(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'operation_1',
+                    'type' => 'process_open',
+                    'schemaUrl' => 'test.json',
+                    'context' => [],
+                ],
+            ],
+            'close' => [
+                [
+                    'type' => 'process_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'first'],
+                ],
+                [
+                    'type' => 'process_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['result' => 'second'],
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData($logData);
+
+        $this->assertCount(2, $tree->children);
+        $this->assertSame('orphan_close_1', $tree->children[0]->id);
+        $this->assertSame('orphan_close_2', $tree->children[1]->id);
+        $this->assertTrue($tree->children[0]->isOrphanClose);
+        $this->assertTrue($tree->children[1]->isOrphanClose);
+    }
 }
