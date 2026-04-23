@@ -38,6 +38,7 @@ final class LogDataParser
         $rootNode = count($openList) === 1
             ? $this->parseOpenEntry($openList[0])
             : $this->createForestRoot($openList);
+        $rootNode = $this->wrapSingleRootWithForestRootWhenDiagnosticsExist($rootNode, $logData);
 
         // Merge close entries into their matching open nodes by openId.
         if (array_key_exists('close', $logData) && is_array($logData['close'])) {
@@ -67,6 +68,80 @@ final class LogDataParser
         }
 
         return $forestRoot;
+    }
+
+    /** @param array<string, mixed> $logData */
+    private function wrapSingleRootWithForestRootWhenDiagnosticsExist(TreeNode $rootNode, array $logData): TreeNode
+    {
+        if ($rootNode->isSynthetic || ! $this->hasDetachedTopLevelDiagnostics($rootNode, $logData)) {
+            return $rootNode;
+        }
+
+        $forestRoot = TreeNode::synthetic('__forest__', '__forest__', []);
+        $forestRoot->addChild($rootNode);
+
+        return $forestRoot;
+    }
+
+    /** @param array<string, mixed> $logData */
+    private function hasDetachedTopLevelDiagnostics(TreeNode $rootNode, array $logData): bool
+    {
+        return $this->hasDetachedTopLevelCloses($rootNode, $logData)
+            || $this->hasDetachedTopLevelEvents($rootNode, $logData);
+    }
+
+    /** @param array<string, mixed> $logData */
+    private function hasDetachedTopLevelCloses(TreeNode $rootNode, array $logData): bool
+    {
+        if (! array_key_exists('close', $logData) || ! is_array($logData['close'])) {
+            return false;
+        }
+
+        $matchedCloseOpenIds = [];
+        foreach ($logData['close'] as $closeEntry) {
+            if (! is_array($closeEntry)) {
+                return true;
+            }
+
+            $closeEntry = $this->normalizeMap($closeEntry);
+            $payload = $this->extractClosePayload($closeEntry);
+            $openId = $payload['openId'];
+            if ($openId === null || $this->findNodeById($rootNode, $openId) === null) {
+                return true;
+            }
+
+            if (array_key_exists($openId, $matchedCloseOpenIds)) {
+                return true;
+            }
+
+            $matchedCloseOpenIds[$openId] = true;
+        }
+
+        return false;
+    }
+
+    /** @param array<string, mixed> $logData */
+    private function hasDetachedTopLevelEvents(TreeNode $rootNode, array $logData): bool
+    {
+        if (! array_key_exists('events', $logData) || ! is_array($logData['events'])) {
+            return false;
+        }
+
+        foreach ($logData['events'] as $event) {
+            if (! is_array($event)) {
+                return true;
+            }
+
+            $event = $this->normalizeMap($event);
+            /** @var mixed $rawOpenId */
+            $rawOpenId = $event['openId'] ?? null;
+            $openId = is_scalar($rawOpenId) ? (string) $rawOpenId : null;
+            if ($openId === null || $this->findNodeById($rootNode, $openId) === null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

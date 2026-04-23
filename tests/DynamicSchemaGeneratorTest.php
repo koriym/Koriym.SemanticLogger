@@ -62,8 +62,8 @@ final class DynamicSchemaGeneratorTest extends TestCase
         $this->assertSame('array', $closeProperty['type']);
 
         $this->assertOpenEntryDefinition($definitions['openEntry'] ?? null);
-        $this->assertLeafEntryDefinition($definitions['eventEntry'] ?? null, true);
-        $this->assertLeafEntryDefinition($definitions['closeEntry'] ?? null, true, true);
+        $this->assertLeafEntryDefinition($definitions['eventEntry'] ?? null);
+        $this->assertLeafEntryDefinition($definitions['closeEntry'] ?? null, true);
 
         $this->assertSame(
             '#/definitions/openEntry',
@@ -121,11 +121,8 @@ final class DynamicSchemaGeneratorTest extends TestCase
         );
     }
 
-    private function assertLeafEntryDefinition(
-        mixed $definition,
-        bool $allowsDiagnosticOpenId,
-        bool $allowsProfile = false,
-    ): void {
+    private function assertLeafEntryDefinition(mixed $definition, bool $allowsProfile = false): void
+    {
         $definition = $this->expectArray($definition);
         $properties = $this->expectArray($definition['properties'] ?? null);
         $allOf = $this->expectArray($definition['allOf'] ?? null);
@@ -137,10 +134,7 @@ final class DynamicSchemaGeneratorTest extends TestCase
         $this->assertArrayNotHasKey('open', $properties);
         $this->assertArrayNotHasKey('events', $properties);
         $this->assertArrayNotHasKey('close', $properties);
-
-        if ($allowsDiagnosticOpenId) {
-            $this->assertArrayHasKey('openId', $properties);
-        }
+        $this->assertArrayHasKey('openId', $properties);
 
         if ($allowsProfile) {
             $this->assertArrayHasKey('profile', $properties);

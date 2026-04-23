@@ -113,7 +113,7 @@ final class TreeRendererTest extends TestCase
         $this->assertFalse(str_starts_with($lines[1], '└'));
     }
 
-    public function testOrphanCloseRendersAsDiagnosticChild(): void
+    public function testOrphanCloseRendersAsTopLevelDiagnosticInSingleRootLog(): void
     {
         $logData = [
             'open' => [
@@ -140,12 +140,14 @@ final class TreeRendererTest extends TestCase
         $config = new RenderConfig(false, 0.0, 5);
 
         $result = $renderer->render($logData, $config);
+        $lines = explode("\n", trim($result));
 
-        $this->assertStringContainsString('some_open : unclosed', $result);
-        $this->assertStringContainsString('└── some_close result=ok [orphan close]', $result);
+        $this->assertSame('some_open : unclosed', $lines[0]);
+        $this->assertSame('some_close result=ok [orphan close]', $lines[1]);
+        $this->assertFalse(str_starts_with($lines[1], '└'));
     }
 
-    public function testTopLevelCloseWithoutOpenIdRemainsDiagnosticChildInSingleRootLog(): void
+    public function testTopLevelCloseWithoutOpenIdRemainsTopLevelDiagnosticInSingleRootLog(): void
     {
         $logData = [
             'open' => [
@@ -171,9 +173,11 @@ final class TreeRendererTest extends TestCase
         $config = new RenderConfig(false, 0.0, 5);
 
         $result = $renderer->render($logData, $config);
+        $lines = explode("\n", trim($result));
 
-        $this->assertStringContainsString('some_open : unclosed', $result);
-        $this->assertStringContainsString('└── some_close result=ok [orphan close]', $result);
+        $this->assertSame('some_open : unclosed', $lines[0]);
+        $this->assertSame('some_close result=ok [orphan close]', $lines[1]);
+        $this->assertFalse(str_starts_with($lines[1], '└'));
     }
 
     public function testNestedRendering(): void

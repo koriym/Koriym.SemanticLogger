@@ -10,10 +10,10 @@
                 "uri": "/api/orders",
                 "headers": {
                     "Content-Type": "application/json",
-                    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIs..."
+                    "Authorization": "[REDACTED]"
                 },
                 "userAgent": "ECommerceApp/2.0.0",
-                "clientIp": "192.168.1.100"
+                "clientIp": "192.0.2.100"
             },
             "open": [
                 {
@@ -22,7 +22,7 @@
                     "schemaUrl": "./schemas/authentication.json",
                     "context": {
                         "method": "JWT",
-                        "token": "user_12345",
+                        "token": "[REDACTED]",
                         "executionTime": 0.012
                     },
                     "open": [
@@ -235,7 +235,7 @@
                         "schemaUrl": "./schemas/authentication.json",
                         "context": {
                             "method": "JWT",
-                            "token": "user_12345",
+                            "token": "[REDACTED]",
                             "success": true,
                             "duration": 0.012
                         }
