@@ -54,7 +54,7 @@
     }
   ],
   "type": "object",
-  "required": ["id", "type", "schemaUrl", "context", "openId"],
+  "required": ["id", "type", "schemaUrl", "context"],
   "properties": {
     "id": {
       "type": "string",
@@ -163,7 +163,7 @@
     "openId": {
       "type": "string",
       "pattern": "^[a-z_]+_[0-9]+$",
-      "description": "Sequential ID of the corresponding open context in format {type}_{number}, used to correlate open/close pairs"
+      "description": "Optional open correlation ID retained only when this close entry is emitted as a top-level orphan diagnostic"
     }
   },
   "additionalProperties": false

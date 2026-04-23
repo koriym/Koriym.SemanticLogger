@@ -13,9 +13,7 @@ use function glob;
 use function is_file;
 use function str_replace;
 
-/**
- * Generates dynamic JSON Schema with if/then/else conditions based on context types
- */
+/** Generates a tree-oriented semantic log schema with dynamic context validation. */
 final class DynamicSchemaGenerator
 {
     public function __construct(
@@ -25,7 +23,7 @@ final class DynamicSchemaGenerator
     }
 
     /**
-     * Generate combined schema with dynamic type-based context validation
+     * Generate tree-oriented public schema with dynamic type-based context validation.
      *
      * @return array<string, mixed>
      */
@@ -34,21 +32,29 @@ final class DynamicSchemaGenerator
         $contextTypes = $this->discoverContextTypes();
 
         return [
-            '$schema' => 'https://json-schema.org/draft/2020-12/schema',
+            '$schema' => 'http://json-schema.org/draft-07/schema#',
             '$id' => 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log-generated.json',
             'title' => 'Dynamic Semantic Logger Schema',
-            'description' => 'Auto-generated schema with type-based context validation',
+            'description' => 'Auto-generated tree-oriented semantic log schema with type-based context validation',
             'type' => 'object',
-            'required' => ['schemaUrl', 'open', 'close'],
+            'required' => ['$schema', 'open'],
             'properties' => [
-                'schemaUrl' => [
-                    'type' => 'string',
-                    'format' => 'uri',
-                    'description' => 'URL to the semantic log schema',
+                '$schema' => [
+                    '$ref' => '#/definitions/schemaUrl',
                 ],
-                'open' => $this->generateOpenSchema($contextTypes),
-                'close' => $this->generateCloseSchema($contextTypes),
-                'events' => $this->generateEventsSchema($contextTypes),
+                'open' => [
+                    'type' => 'array',
+                    'minItems' => 1,
+                    'items' => ['$ref' => '#/definitions/openEntry'],
+                ],
+                'close' => [
+                    'type' => 'array',
+                    'items' => ['$ref' => '#/definitions/closeEntry'],
+                ],
+                'events' => [
+                    'type' => 'array',
+                    'items' => ['$ref' => '#/definitions/eventEntry'],
+                ],
                 'links' => [
                     'type' => 'array',
                     'items' => [
@@ -65,7 +71,12 @@ final class DynamicSchemaGenerator
                 ],
             ],
             'additionalProperties' => false,
-            '$defs' => [
+            'definitions' => [
+                'schemaUrl' => [
+                    'type' => 'string',
+                    'format' => 'uri',
+                    'description' => 'URL to the semantic log schema',
+                ],
                 'operationId' => [
                     'type' => 'string',
                     'pattern' => '^[a-z_]+_[0-9]+$',
@@ -76,6 +87,9 @@ final class DynamicSchemaGenerator
                     'pattern' => '^[a-z_]+_[0-9]+$',
                     'description' => 'References a parent operation ID',
                 ],
+                'openEntry' => $this->generateOpenEntrySchema($contextTypes),
+                'closeEntry' => $this->generateCloseEntrySchema($contextTypes),
+                'eventEntry' => $this->generateEventEntrySchema($contextTypes),
             ],
         ];
     }
@@ -109,91 +123,105 @@ final class DynamicSchemaGenerator
     }
 
     /**
-     * Generate open schema with dynamic type validation
+     * Generate open entry schema with dynamic type validation.
      *
      * @param array<string, string> $contextTypes
      *
      * @return array<string, mixed>
      */
-    private function generateOpenSchema(array $contextTypes): array
+    private function generateOpenEntrySchema(array $contextTypes): array
     {
-        $baseSchema = [
+        $schema = [
             'type' => 'object',
-            'required' => ['id', 'type'],
+            'required' => ['id', 'type', 'schemaUrl', 'context'],
             'properties' => [
-                'id' => ['$ref' => '#/$defs/operationId'],
+                'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['type' => 'string'],
+                'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
-                'open' => ['$ref' => '#/properties/open'],
+                'events' => [
+                    'type' => 'array',
+                    'items' => ['$ref' => '#/definitions/eventEntry'],
+                ],
+                'close' => [
+                    '$ref' => '#/definitions/closeEntry',
+                ],
+                'open' => [
+                    'type' => 'array',
+                    'items' => ['$ref' => '#/definitions/openEntry'],
+                ],
             ],
             'additionalProperties' => true,
         ];
 
         if (! empty($contextTypes)) {
-            $baseSchema['allOf'] = $this->generateTypeConditions($contextTypes);
+            $schema['allOf'] = $this->generateTypeConditions($contextTypes);
         }
 
-        return $baseSchema;
+        return $schema;
     }
 
     /**
-     * Generate close schema with dynamic type validation
+     * Generate close entry schema with dynamic type validation.
      *
      * @param array<string, string> $contextTypes
      *
      * @return array<string, mixed>
      */
-    private function generateCloseSchema(array $contextTypes): array
+    private function generateCloseEntrySchema(array $contextTypes): array
     {
-        $baseSchema = [
+        $schema = [
             'type' => 'object',
-            'required' => ['id', 'type', 'openId'],
+            'required' => ['id', 'type', 'schemaUrl', 'context'],
             'properties' => [
-                'id' => ['$ref' => '#/$defs/operationId'],
+                'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['type' => 'string'],
-                'openId' => ['$ref' => '#/$defs/openIdReference'],
+                'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
+                'openId' => ['$ref' => '#/definitions/openIdReference'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
-                'close' => ['$ref' => '#/properties/close'],
+                'profile' => ['type' => 'object', 'additionalProperties' => true],
+                'close' => [
+                    'type' => 'array',
+                    'items' => ['$ref' => '#/definitions/closeEntry'],
+                ],
             ],
             'additionalProperties' => true,
         ];
 
         if (! empty($contextTypes)) {
-            $baseSchema['allOf'] = $this->generateTypeConditions($contextTypes);
+            $schema['allOf'] = $this->generateTypeConditions($contextTypes);
         }
 
-        return $baseSchema;
+        return $schema;
     }
 
     /**
-     * Generate events schema with dynamic type validation
+     * Generate event entry schema with dynamic type validation.
      *
      * @param array<string, string> $contextTypes
      *
      * @return array<string, mixed>
      */
-    private function generateEventsSchema(array $contextTypes): array
+    private function generateEventEntrySchema(array $contextTypes): array
     {
-        $eventItemSchema = [
+        $schema = [
             'type' => 'object',
-            'required' => ['id', 'type', 'openId'],
+            'required' => ['id', 'type', 'schemaUrl', 'context'],
             'properties' => [
-                'id' => ['$ref' => '#/$defs/operationId'],
+                'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['type' => 'string'],
-                'openId' => ['$ref' => '#/$defs/openIdReference'],
+                'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
+                'openId' => ['$ref' => '#/definitions/openIdReference'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
             ],
             'additionalProperties' => true,
         ];
 
         if (! empty($contextTypes)) {
-            $eventItemSchema['allOf'] = $this->generateTypeConditions($contextTypes);
+            $schema['allOf'] = $this->generateTypeConditions($contextTypes);
         }
 
-        return [
-            'type' => 'array',
-            'items' => $eventItemSchema,
-        ];
+        return $schema;
     }
 
     /**

@@ -28,7 +28,24 @@ final class TreeRenderer
         // Propagate status up the tree
         $this->propagateStatus($root);
 
-        return $this->renderRoot($root, $config);
+        if ($root->isSynthetic) {
+            return $this->renderForest($root, $config);
+        }
+
+        return $this->renderTopLevelNode($root, $config);
+    }
+
+    /** Render top-level sibling nodes flush-left (no synthetic "session" header). */
+    private function renderForest(TreeNode $root, RenderConfig $config): string
+    {
+        $lines = [];
+        $totalChildren = count($root->children);
+        for ($i = 0; $i < $totalChildren; $i++) {
+            $child = $root->children[$i];
+            $this->renderTopLevelNodeInto($child, $lines, $config);
+        }
+
+        return implode("\n", $lines);
     }
 
     /**
@@ -37,12 +54,21 @@ final class TreeRenderer
      * tree-style close branch. Multi-line display (formatter-emitted open + its own
      * continuation) is split so both lines sit flush-left.
      */
-    private function renderRoot(TreeNode $root, RenderConfig $config): string
+    private function renderTopLevelNode(TreeNode $root, RenderConfig $config): string
     {
         $lines = [];
+        $this->renderTopLevelNodeInto($root, $lines, $config);
 
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param string[] $lines
+     */
+    private function renderTopLevelNodeInto(TreeNode $root, array &$lines, RenderConfig $config): void
+    {
         if ($config->timeThreshold > 0 && $root->executionTime < $config->timeThreshold) {
-            return '';
+            return;
         }
 
         $displayLine = $root->getDisplayLine($config);
@@ -71,8 +97,6 @@ final class TreeRenderer
         } elseif ($hasCloseLine) {
             $lines[] = self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $closeSignals;
         }
-
-        return implode("\n", $lines);
     }
 
     /** @param string[] $lines */
@@ -276,7 +300,7 @@ final class TreeRenderer
             $this->propagateStatus($child);
         }
 
-        if ($node->closeType === null && ! $node->isEvent) {
+        if ($node->closeType === null && ! $node->isEvent && ! $node->isOrphanClose) {
             $node->status = 'unclosed';
 
             return;

@@ -66,32 +66,48 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Extract and validate all contexts from log data
      *
-     * @param array<mixed, mixed> $data
-     * @param array<string>       $violations
+     * @param array<mixed> $data
+     * @param list<string>        $violations
+     * @param-out list<string>    $violations
      */
     private function validateContexts(array $data, string $schemaDir, array &$violations): void
     {
-        // Validate open contexts (recursive)
         if (isset($data['open']) && is_array($data['open'])) {
-            $this->validateContext($data['open'], $schemaDir, 'open', $violations);
+            /** @var array<int, mixed> $opens */
+            $opens = $data['open'];
+            foreach ($opens as $index => $open) {
+                if (! is_array($open)) {
+                    continue;
+                }
+
+                /** @var array<mixed> $open */
+                $this->validateOpenEntry($open, $schemaDir, "open[{$index}]", $violations);
+            }
         }
 
-        // Validate close contexts (recursive)
         if (isset($data['close']) && is_array($data['close'])) {
-            $this->validateContext($data['close'], $schemaDir, 'close', $violations);
+            /** @var array<int, mixed> $closes */
+            $closes = $data['close'];
+            foreach ($closes as $index => $close) {
+                if (! is_array($close)) {
+                    continue;
+                }
+
+                /** @var array<mixed> $close */
+                $this->validateCloseEntry($close, $schemaDir, "close[{$index}]", $violations);
+            }
         }
 
-        // Validate event contexts
         if (isset($data['events']) && is_array($data['events'])) {
             /** @var array<int, mixed> $events */
             $events = $data['events'];
-            /** @psalm-suppress MixedAssignment */
             foreach ($events as $index => $event) {
-                if (is_array($event)) {
-                    /** @var array<mixed, mixed> $eventData */
-                    $eventData = $event;
-                    $this->validateContext($eventData, $schemaDir, "events[{$index}]", $violations);
+                if (! is_array($event)) {
+                    continue;
                 }
+
+                /** @var array<mixed> $event */
+                $this->validateEventEntry($event, $schemaDir, "events[{$index}]", $violations);
             }
         }
     }
@@ -99,24 +115,22 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Validate a single context against its schema
      *
-     * @param array<mixed, mixed> $contextData
-     * @param array<string>       $violations
+     * @param array<mixed> $contextData
+     * @param list<string>        $violations
+     * @param-out list<string>    $violations
      */
     private function validateContext(array $contextData, string $schemaDir, string $path, array &$violations): void
     {
-        // Validate current context if it has required fields
         $schemaUrl = $this->extractSchemaUrl($contextData);
         if ($schemaUrl !== null && isset($contextData['context'], $contextData['type'])) {
             $this->validateSingleContext($contextData, $schemaUrl, $schemaDir, $path, $violations);
         }
-
-        // Recursively validate nested structures
-        $this->validateNestedContexts($contextData, $schemaDir, $path, $violations);
     }
 
     /**
-     * @param array<mixed, mixed> $contextData
-     * @param array<string>       $violations
+     * @param array<mixed> $contextData
+     * @param list<string>        $violations
+     * @param-out list<string>    $violations
      */
     private function validateSingleContext(array $contextData, string $schemaUrl, string $schemaDir, string $path, array &$violations): void
     {
@@ -144,7 +158,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $this->performValidation($context, $schema, $type, $schemaUrl, $path, $violations);
     }
 
-    /** @param array<mixed, mixed> $contextData */
+    /** @param array<mixed> $contextData */
     private function extractSchemaUrl(array $contextData): string|null
     {
         if (isset($contextData['$schema']) && is_string($contextData['$schema'])) {
@@ -158,7 +172,10 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         return null;
     }
 
-    /** @param array<string> $violations */
+    /**
+     * @param list<string>     $violations
+     * @param-out list<string> $violations
+     */
     private function loadSchema(string $schemaFile, string $path, array &$violations): object|null
     {
         $schemaContents = file_get_contents($schemaFile);
@@ -180,8 +197,9 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param array<mixed, mixed> $context
-     * @param array<string>       $violations
+     * @param array<mixed> $context
+     * @param list<string>        $violations
+     * @param-out list<string>    $violations
      */
     private function performValidation(array $context, object $schema, string $type, string $schemaUrl, string $path, array &$violations): void
     {
@@ -206,7 +224,10 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         echo "✅ {$path} ({$type}) validates against {$schemaUrl}\n";
     }
 
-    /** @param array<string> $violations */
+    /**
+     * @param list<string>     $violations
+     * @param-out list<string> $violations
+     */
     private function addValidationErrors(Validator $validator, string $type, string $path, array &$violations): void
     {
         foreach ($validator->getErrors() as $error) {
@@ -221,17 +242,77 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param array<mixed, mixed> $contextData
-     * @param array<string>       $violations
+     * @param array<mixed> $entry
+     * @param list<string>        $violations
+     * @param-out list<string>    $violations
      */
-    private function validateNestedContexts(array $contextData, string $schemaDir, string $path, array &$violations): void
+    private function validateOpenEntry(array $entry, string $schemaDir, string $path, array &$violations): void
     {
-        if (isset($contextData['open']) && is_array($contextData['open'])) {
-            $this->validateContext($contextData['open'], $schemaDir, "{$path}.open", $violations);
+        $this->validateContext($entry, $schemaDir, $path, $violations);
+
+        if (isset($entry['events']) && is_array($entry['events'])) {
+            /** @var array<int, mixed> $events */
+            $events = $entry['events'];
+            foreach ($events as $index => $event) {
+                if (! is_array($event)) {
+                    continue;
+                }
+
+                /** @var array<mixed> $event */
+                $this->validateEventEntry($event, $schemaDir, "{$path}.events[{$index}]", $violations);
+            }
         }
 
-        if (isset($contextData['close']) && is_array($contextData['close'])) {
-            $this->validateContext($contextData['close'], $schemaDir, "{$path}.close", $violations);
+        if (isset($entry['close']) && is_array($entry['close'])) {
+            /** @var array<mixed> $close */
+            $close = $entry['close'];
+            $this->validateCloseEntry($close, $schemaDir, "{$path}.close", $violations);
+        }
+
+        if (isset($entry['open']) && is_array($entry['open'])) {
+            /** @var array<int, mixed> $children */
+            $children = $entry['open'];
+            foreach ($children as $index => $child) {
+                if (! is_array($child)) {
+                    continue;
+                }
+
+                /** @var array<mixed> $child */
+                $this->validateOpenEntry($child, $schemaDir, "{$path}.open[{$index}]", $violations);
+            }
+        }
+    }
+
+    /**
+     * @param array<mixed> $entry
+     * @param list<string>        $violations
+     * @param-out list<string>    $violations
+     */
+    private function validateEventEntry(array $entry, string $schemaDir, string $path, array &$violations): void
+    {
+        $this->validateContext($entry, $schemaDir, $path, $violations);
+    }
+
+    /**
+     * @param array<mixed> $entry
+     * @param list<string>        $violations
+     * @param-out list<string>    $violations
+     */
+    private function validateCloseEntry(array $entry, string $schemaDir, string $path, array &$violations): void
+    {
+        $this->validateContext($entry, $schemaDir, $path, $violations);
+
+        if (isset($entry['close']) && is_array($entry['close'])) {
+            /** @var array<int, mixed> $children */
+            $children = $entry['close'];
+            foreach ($children as $index => $child) {
+                if (! is_array($child)) {
+                    continue;
+                }
+
+                /** @var array<mixed> $child */
+                $this->validateCloseEntry($child, $schemaDir, "{$path}.close[{$index}]", $violations);
+            }
         }
     }
 

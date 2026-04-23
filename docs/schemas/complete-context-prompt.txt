@@ -4,7 +4,7 @@ This schema defines successful resource completion as a knowledge graph node wit
 
 Semantic Web Knowledge Graph Properties:
 
-1. **Correlation Semantics**: openId creates explicit knowledge graph edges linking request initiation to completion, enabling AI to trace complete request lifecycles.
+1. **Structural Correlation**: Public logs are tree-shaped. Completion is understood through nesting under the matching operation node, while orphan diagnostics may still retain openId-like references for recovery and analysis.
 
 2. **HTTP Semantic Web Integration**: Every HTTP element (status codes, headers, URIs) links to authoritative web standards, making this schema web-native and machine-understandable.
 

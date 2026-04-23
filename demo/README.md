@@ -51,17 +51,27 @@ The generated `semantic-log.json` follows the Universal Semantic Logger Schema w
 ### Hierarchical Structure
 ```json
 {
-  "open": {"id": "http_request_1", "type": "http_request"},
-  "open": {"id": "auth_1", "openId": "http_request_1"},
-  "close": {"id": "auth_complete_1", "openId": "auth_1"},
-  "close": {"id": "http_response_1", "openId": "http_request_1"}
+  "open": [
+    {
+      "id": "http_request_1",
+      "type": "http_request",
+      "open": [
+        {
+          "id": "auth_1",
+          "type": "auth",
+          "close": {"id": "auth_complete_1", "type": "auth_complete"}
+        }
+      ],
+      "close": {"id": "http_response_1", "type": "http_response"}
+    }
+  ]
 }
 ```
 
-### OpenId Correlation
-- Every `close` and `event` references its parent `open` via `openId`  
-- Creates parent-child relationships for performance attribution
-- Enables complete request flow tracing
+### Structural Correlation
+- Matched `close` entries live directly under their `open`
+- Nested `open` nodes capture parent-child relationships explicitly
+- Top-level `events` and `close` are reserved for root-scope or orphan diagnostics
 
 ## Schema Validation
 

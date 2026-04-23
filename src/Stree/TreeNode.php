@@ -26,6 +26,9 @@ final class TreeNode
     /** Whether this node was produced from the events section */
     public bool $isEvent = false;
 
+    /** Whether this node was produced from a top-level or unmatched close entry */
+    public bool $isOrphanClose = false;
+
     /** Status: 'failed' | 'unclosed' | '' */
     public string $status = '';
 
@@ -36,6 +39,7 @@ final class TreeNode
         public readonly array $context,
         public readonly float $executionTime = 0.0,
         public readonly TreeNode|null $parent = null,
+        public readonly bool $isSynthetic = false,
     ) {
     }
 
@@ -83,6 +87,8 @@ final class TreeNode
 
         if ($this->isEvent) {
             $line .= ' [event]';
+        } elseif ($this->isOrphanClose) {
+            $line .= ' [orphan close]';
         }
 
         return $line;

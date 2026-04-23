@@ -147,6 +147,7 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Import types from Types.php using `@psalm-import-type`
 - Use typed parameters and return types
 - Leverage static analysis tools
+- For generic arrays, prefer `array<T>`; use `array<string, T>` or `list<T>` when key shape matters, and do not use `array<mixed, mixed>`
 
 ### Logging Patterns
 - Always call flush() to get complete log output

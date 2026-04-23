@@ -100,11 +100,11 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
 ### 3. Output Shape
 
-`flush()` returns a `LogJson` object. Its default serialized shape keeps `open` and `close` as parallel trees and uses `openId` to pair them:
+`flush()` returns a `LogJson` object. Its public JSON shape is tree-oriented: each `open` node contains nested child `open`s, scoped `events`, and its matching `close` object. Top-level `events` and `close` are reserved for root-scope or orphan diagnostics when structural placement is not possible.
 
 ```json
 {
-  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/combined.json",
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
   "open": [
     {
       "id": "process_1",
@@ -112,29 +112,25 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
       "schemaUrl": "https://example.com/schemas/process.json",
       "context": {
         "name": "data import"
+      },
+      "events": [
+        {
+          "id": "process_event_1",
+          "type": "process_event",
+          "schemaUrl": "https://example.com/schemas/process-event.json",
+          "context": {
+            "message": "processing started"
+          }
+        }
+      ],
+      "close": {
+        "id": "process_result_1",
+        "type": "process_result",
+        "schemaUrl": "https://example.com/schemas/process-result.json",
+        "context": {
+          "status": "success"
+        }
       }
-    }
-  ],
-  "events": [
-    {
-      "id": "process_event_1",
-      "type": "process_event",
-      "schemaUrl": "https://example.com/schemas/process-event.json",
-      "context": {
-        "message": "processing started"
-      },
-      "openId": "process_1"
-    }
-  ],
-  "close": [
-    {
-      "id": "process_result_1",
-      "type": "process_result",
-      "schemaUrl": "https://example.com/schemas/process-result.json",
-      "context": {
-        "status": "success"
-      },
-      "openId": "process_1"
     }
   ],
   "links": [
@@ -167,7 +163,7 @@ $devLogger->log($semanticLogger);
 
 This creates `semantic-dev-*.json`.
 
-Unlike `flush()`, `DevLogger` writes a tree-shaped view that nests `events`, child `open`s, and the matching `close` under each node. That makes the file easier to read directly and works naturally with `stree`.
+`DevLogger` writes the same public tree JSON shape returned by `flush()`, which works naturally with `stree`. Top-level `events` and `close` are reserved for root-scope or orphan diagnostics when structural placement is not possible.
 
 ## Validate Semantic Logs
 

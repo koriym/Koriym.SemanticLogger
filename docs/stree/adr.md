@@ -71,18 +71,20 @@ We decided to implement `stree` (semantic tree), a command-line tool that render
 ### Data Flow
 
 1. **Input**: SemanticLogger JSON file
-2. **Parse**: Extract hierarchical `open` structure and flat `events` array
-3. **Transform**: Build tree structure with linked events
+2. **Parse**: Extract tree-shaped `open` nodes plus any top-level orphan/root-scope `events`
+3. **Transform**: Build a tree (or forest) structure for rendering
 4. **Filter**: Apply depth, expansion, and time threshold rules
 5. **Render**: Generate ASCII tree with context-specific formatting
 6. **Output**: Display to console
 
 ### JSON Structure Handling
 
-The tool handles SemanticLogger's dual structure:
+The tool handles SemanticLogger's public tree JSON:
 
-- **Hierarchical**: Nested `open.open.open...` structure for operations
-- **Flat Events**: Array of events linked via `openId` references
+- **Hierarchical operations**: Nested `open.open.open...` structure for operations
+- **Nested close**: Matching `close` objects live directly under their `open`
+- **Top-level diagnostics**: `events` and `close` may appear at the top level for root-scope or orphan diagnostics
+- **Multi-root logs**: Multiple sibling roots are rendered as a forest
 - **Timing Data**: Multiple possible fields (`executionTime`, `responseTime`, `duration`)
 
 ## Consequences

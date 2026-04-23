@@ -259,7 +259,7 @@ final class DevLoggerTest extends TestCase
     }
 
     /**
-     * @param array<mixed, mixed> $entry
+     * @param array<mixed> $entry
      *
      * @return array<string, mixed>
      */

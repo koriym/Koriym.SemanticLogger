@@ -354,24 +354,39 @@ class AppModule extends AbstractModule
 **Flat Logging (Traditional)**:
 ```
 [INFO] Started order processing
-[INFO] Validating payment method  
+[INFO] Validating payment method
 [INFO] Calling Stripe API
 [INFO] Payment completed
 [INFO] Order processing finished
 ```
 
-**Hierarchical Semantic Logging**:
+**Hierarchical Semantic Logging (Public JSON)**:
 ```json
 {
-  "open": {"id": "order_1", "type": "order_processing"},
-  "open": {"id": "payment_1", "type": "payment_validation", "openId": "order_1"},  
-  "open": {"id": "stripe_1", "type": "external_api", "openId": "payment_1"}
+  "open": [
+    {
+      "id": "order_1",
+      "type": "order_processing",
+      "open": [
+        {
+          "id": "payment_1",
+          "type": "payment_validation",
+          "open": [
+            {
+              "id": "stripe_1",
+              "type": "external_api"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
 ```
 
 ### The Critical Difference
 **Flat**: Events appear independent → AI cannot determine relationships
-**Hierarchical**: Events explicitly show parent-child relationships → AI understands causality
+**Hierarchical**: JSON structure itself shows parent-child relationships → AI understands causality
 
 ### Why This Structure Matches Reality
 Real systems work hierarchically:
@@ -408,7 +423,7 @@ The Semantic Logger framework is built on these fundamental principles:
 
 **Extensibility**: New context types can be added without framework changes. The schema system scales to any domain or application type through application-defined schemas.
 
-**Hierarchical Correlation**: Operations are linked through `openId` references to preserve natural request flow structure. This reflects how systems actually work - through nested, related operations.
+**Hierarchical Correlation**: Public JSON uses nested `open`, `events`, and `close` fields so the request flow is visible without reconstructing links. Internal `openId` tracking still exists inside the logger, but it is no longer the public contract.
 
 **Semantic Enrichment**: Web Links provide contextual relationships beyond pure data structure, following RFC 8288 Web Linking principles to enable AI understanding of relationships that data alone cannot express.
 
@@ -440,126 +455,138 @@ BEAR.Resource includes comprehensive semantic logging for observability:
 - **Xdebug**: Detailed function call tracing
 - Automatic profile file generation and linking
 
-### OpenId: Hierarchical Operation Correlation System
+### Public Tree JSON: Hierarchical Operation Correlation
 
-**Critical Concept**: The `openId` field is SemanticLogger's core mechanism for linking operations across the open/event/close lifecycle and establishing hierarchical relationships between nested operations.
+**Critical Concept**: The public contract is tree-shaped JSON. Each operation owns its nested operations, `events`, and optional `close`, so consumers can read causality directly from structure instead of reconstructing it from IDs.
 
-#### OpenId Correlation Pattern
-Every `close` and `event` entry contains an `openId` field that references the `id` of its corresponding `open` entry:
+#### Tree Correlation Pattern
+Matched `event` and `close` entries are emitted under the corresponding `open` entry:
 
 ```json
 {
-    "open": {
-        "id": "http_request_1",              // ← This ID
-        "type": "http_request",
-        "context": {...}
-    },
-    "close": {
-        "id": "http_response_1",
-        "type": "http_response", 
-        "openId": "http_request_1",          // ← Links to above open ID
-        "context": {...}
-    },
-    "events": [
+    "open": [
         {
-            "id": "cache_operation_1",
-            "type": "cache_operation",
-            "openId": "http_request_1",      // ← Also links to same open ID
-            "context": {...}
+            "id": "http_request_1",
+            "type": "http_request",
+            "context": {...},
+            "events": [
+                {
+                    "id": "cache_operation_1",
+                    "type": "cache_operation",
+                    "context": {...}
+                }
+            ],
+            "close": {
+                "id": "http_response_1",
+                "type": "http_response",
+                "context": {...}
+            }
         }
     ]
 }
 ```
 
-#### Hierarchical Nesting with OpenId
-In nested operations, `openId` creates parent-child relationships enabling complete request flow analysis:
+#### Nested Operations
+Nested operations are expressed structurally with child `open` entries:
 
 ```json
 {
-    "open": {
-        "id": "http_request_1",              // Top-level operation
-        "type": "http_request",
-        "open": {                            // Nested operation
-            "id": "database_query_1",        // Child operation
-            "type": "database_query",
-            "open": {                        // Deeply nested
-                "id": "cache_check_1",
-                "type": "cache_operation"
-            }
-        }
-    },
-    "close": {
-        "id": "cache_result_1",
-        "openId": "cache_check_1",           // Links to deepest nested operation
-        "close": {
-            "id": "query_result_1", 
-            "openId": "database_query_1",    // Links to middle operation
+    "open": [
+        {
+            "id": "http_request_1",
+            "type": "http_request",
+            "open": [
+                {
+                    "id": "database_query_1",
+                    "type": "database_query",
+                    "open": [
+                        {
+                            "id": "cache_check_1",
+                            "type": "cache_operation",
+                            "close": {
+                                "id": "cache_result_1",
+                                "type": "cache_result"
+                            }
+                        }
+                    ],
+                    "close": {
+                        "id": "query_result_1",
+                        "type": "query_result"
+                    }
+                }
+            ],
             "close": {
                 "id": "http_response_1",
-                "openId": "http_request_1"   // Links to top-level operation
+                "type": "http_response"
             }
         }
-    }
+    ]
 }
 ```
 
-#### OpenId Business Logic Rules
+#### Tree Business Logic Rules
 
-1. **Correlation Identity**: Every `openId` MUST reference an existing `id` from an `open` entry
+1. **Structural Correlation**: Operations are related by nesting, not by public `openId` references
 2. **Hierarchical Integrity**: Child operations close before their parent operations
-3. **Scope Binding**: Events and closes are scoped to their `openId` operation
+3. **Scope Binding**: Nested `events` and `close` belong to the containing operation
 4. **Performance Attribution**: Nested operations contribute to their parent's total execution time
+5. **Diagnostics Escape Hatch**: Top-level `events` or `close` entries are reserved for root-scope or orphan diagnostics only
 
-#### AI Analysis Guidelines for OpenId
+#### AI Analysis Guidelines for Tree Logs
 
 **DO:**
-- Trace complete request flows by following `openId` chains
-- Calculate hierarchical performance metrics (child time contributes to parent)
-- Identify operation scope and context through `openId` relationships
-- Use `openId` to group related events and understand business logic flow
+- Trace complete request flows by recursively walking the tree
+- Calculate hierarchical performance metrics from parent/child structure
+- Use nested `events` and `close` to understand operation scope
+- Treat top-level `events` or `close` as diagnostics rather than normal correlated operations
 
 **DON'T:**
-- Treat operations with different `openId` values as unrelated
-- Ignore the hierarchical structure when calculating performance impact
-- Assume events belong to the top-level operation without checking `openId`
+- Reconstruct correlation from public `openId` fields as if they were the main contract
+- Flatten the tree before reasoning about causality
+- Assume top-level diagnostics belong to the first root operation
 
-#### OpenId Performance Analysis Example
+#### Tree Performance Analysis Example
 
 ```
 http_request_1 (Total: 676ms)
-├── authentication_request_1 (15ms) ← openId: http_request_1  
-├── business_logic_1 (520ms) ← openId: http_request_1
-│   ├── database_query_1 (45ms) ← openId: business_logic_1
-│   ├── external_api_1 (247ms) ← openId: business_logic_1  
-│   └── file_processing_1 (118ms) ← openId: business_logic_1
-└── cache_operation_1 (3ms) ← openId: http_request_1
+├── authentication_request_1 (15ms)
+├── business_logic_1 (520ms)
+│   ├── database_query_1 (45ms)
+│   ├── external_api_1 (247ms)
+│   └── file_processing_1 (118ms)
+└── cache_operation_1 (3ms)
 ```
 
-This hierarchical structure enables precise bottleneck identification: external_api_1 consumed 247ms of the business_logic_1's 520ms, which itself consumed 520ms of http_request_1's total 676ms.
+This hierarchical structure enables precise bottleneck identification: external_api_1 consumed 247ms of business_logic_1's 520ms, which itself consumed 520ms of http_request_1's total 676ms.
 
 ### Structured Log Output
 ```json
 {
-    "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-    "open": {
-        "id": "bear_resource_request_1",
-        "type": "bear_resource_request",
-        "context": {
-            "method": "GET",
-            "uri": "app://self/user?id=123"
+    "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+    "open": [
+        {
+            "id": "bear_resource_request_1",
+            "type": "bear_resource_request",
+            "context": {
+                "method": "GET",
+                "uri": "app://self/user?id=123"
+            },
+            "close": {
+                "id": "bear_resource_complete_1",
+                "type": "bear_resource_complete",
+                "context": {
+                    "code": 200,
+                    "body": {"id": 123, "name": "John"},
+                    "xhprofProfile": [
+                        {"path": "/tmp/profile_123.xhprof"}
+                    ],
+                    "xdebugTrace": [
+                        {"path": "/tmp/trace_123.xt"}
+                    ]
+                }
+            }
         }
-    },
-    "close": {
-        "id": "bear_resource_complete_1", 
-        "type": "bear_resource_complete",
-        "openId": "bear_resource_request_1",  // ← Explicit correlation
-        "context": {
-            "code": 200,
-            "body": {"id": 123, "name": "John"},
-            "xhprofFile": "/tmp/profile_123.xhprof",
-            "xdebugTraceFile": "/tmp/trace_123.xt"
-        }
-    }
+    ]
 }
 ```
 

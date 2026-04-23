@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
-use RuntimeException;
-
+use function array_combine;
+use function array_keys;
+use function array_map;
+use function array_values;
 use function array_key_exists;
 use function count;
 use function is_array;
@@ -18,20 +20,18 @@ final class LogDataParser
     public function parseLogData(array $logData): TreeNode
     {
         if (! array_key_exists('open', $logData) || ! is_array($logData['open'])) {
-            throw new RuntimeException('Invalid log data: missing open section');
+            throw new \RuntimeException('Invalid log data: missing open section');
         }
 
         /** @var list<array<string, mixed>> $openList */
         $openList = $logData['open'];
         if ($openList === []) {
-            throw new RuntimeException('Invalid log data: open section is empty');
+            throw new \RuntimeException('Invalid log data: open section is empty');
         }
 
-        if (count($openList) !== 1) {
-            throw new RuntimeException('stree rendering expects a single root open entry; wrap sibling roots in a parent span.');
-        }
-
-        $rootNode = $this->parseOpenEntry($openList[0]);
+        $rootNode = count($openList) === 1
+            ? $this->parseOpenEntry($openList[0])
+            : $this->createForestRoot($openList);
 
         // Merge close entries into their matching open nodes by openId.
         if (array_key_exists('close', $logData) && is_array($logData['close'])) {
@@ -50,6 +50,17 @@ final class LogDataParser
         }
 
         return $rootNode;
+    }
+
+    /** @param list<array<string, mixed>> $openList */
+    private function createForestRoot(array $openList): TreeNode
+    {
+        $forestRoot = new TreeNode('__forest__', '__forest__', [], 0.0, null, true);
+        foreach ($openList as $openEntry) {
+            $forestRoot->addChild($this->parseOpenEntry($openEntry, $forestRoot));
+        }
+
+        return $forestRoot;
     }
 
     /** @param array<string, mixed> $closeEntry */
@@ -72,12 +83,18 @@ final class LogDataParser
         }
 
         $node = $openId !== null ? $this->findNodeById($rootNode, $openId) : null;
+        if ($node === null && $openId === null && ! $rootNode->isSynthetic) {
+            $node = $rootNode;
+        }
+
         if ($node !== null) {
             /** @var array<string, mixed> $closeCtx */
             $closeCtx = $context;
             /** @var array<string, mixed> $closeProfile */
             $closeProfile = $profile;
             $node->setClose($type, $closeCtx, $closeProfile);
+        } else {
+            $rootNode->addChild($this->createOrphanCloseNode($type, $context, $profile, $rootNode));
         }
 
         if (array_key_exists('close', $closeEntry) && is_array($closeEntry['close'])) {
@@ -174,6 +191,26 @@ final class LogDataParser
         }
     }
 
+    /**
+     * @param array<mixed> $context
+     * @param array<mixed> $profile
+     */
+    private function createOrphanCloseNode(string $type, array $context, array $profile, TreeNode $parent): TreeNode
+    {
+        $normalizedContext = $this->normalizeMap($context);
+        $node = new TreeNode(
+            'orphan_close',
+            $type,
+            $normalizedContext,
+            $this->extractExecutionTime($normalizedContext),
+            $parent,
+        );
+        $node->isOrphanClose = true;
+        $node->closeProfile = $this->normalizeMap($profile);
+
+        return $node;
+    }
+
     /** @param array<string, mixed>[] $events */
     private function attachEvents(TreeNode $rootNode, array $events): void
     {
@@ -257,5 +294,22 @@ final class LogDataParser
     private static function stringifyScalar(mixed $value, string $default): string
     {
         return is_scalar($value) ? (string) $value : $default;
+    }
+
+    /**
+     * @param array<array-key, mixed> $values
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeMap(array $values): array
+    {
+        if ($values === []) {
+            return [];
+        }
+
+        $keys = array_map(static fn (int|string $key): string => (string) $key, array_keys($values));
+        $normalized = array_combine($keys, array_values($values));
+
+        return $normalized;
     }
 }
