@@ -273,7 +273,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     }
 
     /**
-     * @param OpenChildrenByParent $childrenByParent
+     * @param OpenChildrenByParent      $childrenByParent
      * @param array<string, EventEntry> $closeByOpenId
      *
      * @return EventEntryList

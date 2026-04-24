@@ -18,7 +18,7 @@ final class EventEntry implements JsonSerializable
 {
     /**
      * @param ContextData      $context
-     * @param list<EventEntry> $close Child closes (zero or more) — immediate nested close entries in the order their opens closed.
+     * @param list<EventEntry> $close   Child closes (zero or more) — immediate nested close entries in the order their opens closed.
      */
     public function __construct(
         public readonly string $id,

@@ -17,7 +17,7 @@ final class OpenCloseEntry implements JsonSerializable
 {
     /**
      * @param ContextData          $context
-     * @param list<OpenCloseEntry> $open Child opens (zero or more) — immediate nested operations in chronological order.
+     * @param list<OpenCloseEntry> $open    Child opens (zero or more) — immediate nested operations in chronological order.
      */
     public function __construct(
         public readonly string $id,

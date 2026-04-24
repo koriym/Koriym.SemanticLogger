@@ -4,14 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
-/**
- * @psalm-import-type SchemaLinks from Types
- *
- * Semantic Logger Interface for hierarchical structured logging
- *
- * Provides type-safe logging with JSON schema validation for complex application workflows.
- * Supports open/event/close patterns for tracking nested operations.
- */
+/** @psalm-import-type SchemaLinks from Types */
 interface SemanticLoggerInterface
 {
     /**

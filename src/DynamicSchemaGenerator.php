@@ -16,8 +16,6 @@ use function str_replace;
 /**
  * @psalm-import-type JsonMap from Types
  * @psalm-import-type SchemaTypeMap from Types
- *
- * Generates a tree-oriented semantic log schema with dynamic context validation.
  */
 final class DynamicSchemaGenerator
 {

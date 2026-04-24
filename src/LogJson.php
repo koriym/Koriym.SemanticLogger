@@ -21,11 +21,11 @@ use function array_map;
  * @psalm-import-type PublicOpenEntry from Types
  * @psalm-import-type SchemaLinks from Types
  */
-final class phpLogJson implements JsonSerializable
+final class LogJson implements JsonSerializable
 {
     /**
-     * @param OpenCloseEntryList $open Top-level opens (one or more) in chronological order.
-     * @param EventEntryList     $close Internal close entries; matched closes are nested during public serialization.
+     * @param OpenCloseEntryList $open   Top-level opens (one or more) in chronological order.
+     * @param EventEntryList     $close  Internal close entries; matched closes are nested during public serialization.
      * @param EventEntryList     $events
      * @param SchemaLinks        $links
      */
@@ -92,7 +92,7 @@ final class phpLogJson implements JsonSerializable
     }
 
     /**
-     * @param CloseByOpenIdMap $closeByOpenId
+     * @param CloseByOpenIdMap  $closeByOpenId
      * @param EventsByOpenIdMap $eventsByOpenId
      *
      * @return PublicOpenEntry
@@ -128,10 +128,10 @@ final class phpLogJson implements JsonSerializable
     }
 
     /**
-     * @param EventEntryList  $closes
-     * @param array<string, true> $openIds
+     * @param EventEntryList            $closes
+     * @param array<string, true>       $openIds
      * @param array<string, EventEntry> $closeByOpenId
-     * @param list<EventEntry> $orphanCloses
+     * @param list<EventEntry>          $orphanCloses
      */
     private function partitionCloses(array $closes, array $openIds, array &$closeByOpenId, array &$orphanCloses): void
     {
@@ -170,7 +170,7 @@ final class phpLogJson implements JsonSerializable
     }
 
     /**
-     * @param OpenCloseEntryList $entries
+     * @param OpenCloseEntryList  $entries
      * @param array<string, true> $openIds
      */
     private function collectOpenIds(array $entries, array &$openIds): void

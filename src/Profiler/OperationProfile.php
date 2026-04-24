@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Profiler;
 
 use JsonSerializable;
+use Koriym\SemanticLogger\Types;
 use Override;
 
 /**
- * @psalm-import-type OperationProfileData from \Koriym\SemanticLogger\Types
- * @psalm-import-type ProfileArtifact from \Koriym\SemanticLogger\Types
+ * @psalm-import-type OperationProfileData from Types
+ * @psalm-import-type ProfileArtifact from Types
  */
 final class OperationProfile implements JsonSerializable
 {

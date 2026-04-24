@@ -159,7 +159,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
      * Walk the close tree and, at each node, attach the matching OperationProfile
      * directly to that close entry when external profiler output was captured.
      *
-     * @param EventEntryList       $closes
+     * @param EventEntryList        $closes
      * @param OperationProfilesById $operations
      *
      * @return EventEntryList
