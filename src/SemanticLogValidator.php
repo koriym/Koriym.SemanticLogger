@@ -8,7 +8,6 @@ use InvalidArgumentException;
 use JsonSchema\Validator;
 use Override;
 use RuntimeException;
-use stdClass;
 
 use function basename;
 use function count;
@@ -19,7 +18,6 @@ use function is_array;
 use function is_object;
 use function is_string;
 use function json_decode;
-use function json_encode;
 use function property_exists;
 use function realpath;
 use function sprintf;
@@ -55,7 +53,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
             throw new InvalidArgumentException('Log data must be an object');
         }
 
-        $this->validateRootSchema($logData, $schemaDir, $violations);
+        $this->validateRootSchema($logData, $violations);
         $this->validateContexts($logData, $schemaDir, $violations);
 
         if (! empty($violations)) {
@@ -245,9 +243,14 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
      *
      * @param-out list<string> $violations
      */
-    private function validateRootSchema(object $logData, string $schemaDir, array &$violations): void
+    private function validateRootSchema(object $logData, array &$violations): void
     {
-        $schema = $this->loadRootSchema($schemaDir, $violations);
+        $schemaFile = dirname(__DIR__) . '/docs/schemas/semantic-log.json';
+        if (! file_exists($schemaFile)) {
+            throw new RuntimeException("Bundled semantic-log schema not found: {$schemaFile}");
+        }
+
+        $schema = $this->loadSchema($schemaFile, 'root', $violations);
         if ($schema === null) {
             return;
         }
@@ -255,46 +258,19 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $validator = new Validator();
         $validator->validate($logData, $schema);
 
-        if (! $validator->isValid()) {
-            foreach ($validator->getErrors() as $error) {
-                if (! is_array($error)) {
-                    continue;
-                }
+        if ($validator->isValid()) {
+            return;
+        }
 
-                $property = isset($error['property']) && is_string($error['property']) ? $error['property'] : '';
-                $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Validation failed';
-                $violations[] = "[root] {$message} at '{$property}'";
+        foreach ($validator->getErrors() as $error) {
+            if (! is_array($error)) {
+                continue;
             }
+
+            $property = isset($error['property']) && is_string($error['property']) ? $error['property'] : '';
+            $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Validation failed';
+            $violations[] = "[root] {$message} at '{$property}'";
         }
-    }
-
-    /**
-     * @param list<string> $violations
-     *
-     * @param-out list<string> $violations
-     */
-    private function loadRootSchema(string $schemaDir, array &$violations): object|null
-    {
-        $staticSchemaFile = dirname(__DIR__) . '/docs/schemas/semantic-log.json';
-        if (file_exists($staticSchemaFile)) {
-            return $this->loadSchema($staticSchemaFile, 'root', $violations);
-        }
-
-        $schemaJson = json_encode((new DynamicSchemaGenerator($schemaDir))->generateCombinedSchema());
-        if ($schemaJson === false) {
-            $violations[] = '[root] Failed to encode generated root schema';
-
-            return null;
-        }
-
-        $schema = json_decode($schemaJson);
-        if (! $schema instanceof stdClass) {
-            $violations[] = '[root] Failed to decode generated root schema';
-
-            return null;
-        }
-
-        return $schema;
     }
 
     /**

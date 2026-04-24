@@ -3,7 +3,12 @@
 # Exclude build/test files from archive
 /tests            export-ignore
 /demo             export-ignore
-/docs             export-ignore
+/docs/css         export-ignore
+/docs/images      export-ignore
+/docs/stree       export-ignore
+/docs/*.html      export-ignore
+/docs/*.md        export-ignore
+/docs/*.txt       export-ignore
 /scripts          export-ignore
 /build            export-ignore
 /vendor-bin       export-ignore
