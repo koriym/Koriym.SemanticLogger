@@ -11,12 +11,14 @@ use RuntimeException;
 
 use function basename;
 use function count;
+use function dirname;
 use function file_exists;
 use function file_get_contents;
 use function is_array;
+use function is_object;
 use function is_string;
 use function json_decode;
-use function json_encode;
+use function property_exists;
 use function realpath;
 use function sprintf;
 use function str_contains;
@@ -40,18 +42,18 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
             throw new InvalidArgumentException("Cannot read log file: {$file}");
         }
 
-        $logData = json_decode($contents, true);
+        $logData = json_decode($contents);
         if ($logData === null) {
             throw new InvalidArgumentException("Invalid JSON in log file: {$file}");
         }
 
         $violations = [];
 
-        // Validate all contexts recursively
-        if (! is_array($logData)) {
-            throw new InvalidArgumentException('Log data must be an array');
+        if (! is_object($logData)) {
+            throw new InvalidArgumentException('Log data must be an object');
         }
 
+        $this->validateRootSchema($logData, $violations);
         $this->validateContexts($logData, $schemaDir, $violations);
 
         if (! empty($violations)) {
@@ -66,48 +68,44 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Extract and validate all contexts from log data
      *
-     * @param array<mixed> $data
      * @param list<string> $violations
      *
      * @param-out list<string>    $violations
      */
-    private function validateContexts(array $data, string $schemaDir, array &$violations): void
+    private function validateContexts(object $data, string $schemaDir, array &$violations): void
     {
-        if (isset($data['open']) && is_array($data['open'])) {
+        if (isset($data->open) && is_array($data->open)) {
             /** @var array<int, mixed> $opens */
-            $opens = $data['open'];
+            $opens = $data->open;
             foreach ($opens as $index => $open) {
-                if (! is_array($open)) {
+                if (! is_object($open)) {
                     continue;
                 }
 
-                /** @var array<string, mixed> $open */
                 $this->validateOpenEntry($open, $schemaDir, "open[{$index}]", $violations);
             }
         }
 
-        if (isset($data['close']) && is_array($data['close'])) {
+        if (isset($data->close) && is_array($data->close)) {
             /** @var array<int, mixed> $closes */
-            $closes = $data['close'];
+            $closes = $data->close;
             foreach ($closes as $index => $close) {
-                if (! is_array($close)) {
+                if (! is_object($close)) {
                     continue;
                 }
 
-                /** @var array<string, mixed> $close */
                 $this->validateCloseEntry($close, $schemaDir, "close[{$index}]", $violations);
             }
         }
 
-        if (isset($data['events']) && is_array($data['events'])) {
+        if (isset($data->events) && is_array($data->events)) {
             /** @var array<int, mixed> $events */
-            $events = $data['events'];
+            $events = $data->events;
             foreach ($events as $index => $event) {
-                if (! is_array($event)) {
+                if (! is_object($event)) {
                     continue;
                 }
 
-                /** @var array<string, mixed> $event */
                 $this->validateEventEntry($event, $schemaDir, "events[{$index}]", $violations);
             }
         }
@@ -116,31 +114,35 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Validate a single context against its schema
      *
-     * @param array<string, mixed> $contextData
-     * @param list<string>         $violations
+     * @param list<string> $violations
      *
      * @param-out list<string>    $violations
      */
-    private function validateContext(array $contextData, string $schemaDir, string $path, array &$violations): void
+    private function validateContext(object $contextData, string $schemaDir, string $path, array &$violations): void
     {
         $schemaUrl = $this->extractSchemaUrl($contextData);
-        if ($schemaUrl !== null && isset($contextData['context'], $contextData['type'])) {
+        if ($schemaUrl !== null && isset($contextData->context, $contextData->type)) {
             $this->validateSingleContext($contextData, $schemaUrl, $schemaDir, $path, $violations);
         }
     }
 
     /**
-     * @param array<string, mixed> $contextData
-     * @param list<string>         $violations
+     * @param list<string> $violations
      *
      * @param-out list<string>    $violations
      */
-    private function validateSingleContext(array $contextData, string $schemaUrl, string $schemaDir, string $path, array &$violations): void
+    private function validateSingleContext(object $contextData, string $schemaUrl, string $schemaDir, string $path, array &$violations): void
     {
-        $type = $contextData['type'];
-        $context = $contextData['context'];
+        if (! property_exists($contextData, 'type') || ! property_exists($contextData, 'context')) {
+            $violations[] = "[{$path}] Invalid context structure";
 
-        if (! is_string($type) || ! is_array($context)) {
+            return;
+        }
+
+        $type = $contextData->type;
+        $context = $contextData->context;
+
+        if (! is_string($type) || ! is_object($context)) {
             $violations[] = "[{$path}] Invalid context structure";
 
             return;
@@ -161,15 +163,14 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $this->performValidation($context, $schema, $type, $schemaUrl, $path, $violations);
     }
 
-    /** @param array<string, mixed> $contextData */
-    private function extractSchemaUrl(array $contextData): string|null
+    private function extractSchemaUrl(object $contextData): string|null
     {
-        if (isset($contextData['$schema']) && is_string($contextData['$schema'])) {
-            return $contextData['$schema'];
+        if (property_exists($contextData, '$schema') && is_string($contextData->{'$schema'})) {
+            return $contextData->{'$schema'};
         }
 
-        if (isset($contextData['schemaUrl']) && is_string($contextData['schemaUrl'])) {
-            return $contextData['schemaUrl'];
+        if (isset($contextData->schemaUrl) && is_string($contextData->schemaUrl)) {
+            return $contextData->schemaUrl;
         }
 
         return null;
@@ -201,24 +202,14 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param array<mixed> $context
      * @param list<string> $violations
      *
      * @param-out list<string>    $violations
      */
-    private function performValidation(array $context, object $schema, string $type, string $schemaUrl, string $path, array &$violations): void
+    private function performValidation(object $context, object $schema, string $type, string $schemaUrl, string $path, array &$violations): void
     {
         $validator = new Validator();
-        $contextJson = json_encode($context);
-        if ($contextJson === false) {
-            $violations[] = "[{$path}] Failed to encode context to JSON";
-
-            return;
-        }
-
-        /** @var object|null $contextObj */
-        $contextObj = json_decode($contextJson);
-        $validator->validate($contextObj, $schema);
+        $validator->validate($context, $schema);
 
         if (! $validator->isValid()) {
             $this->addValidationErrors($validator, $type, $path, $violations);
@@ -248,66 +239,95 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * @param array<string, mixed> $entry
-     * @param list<string>         $violations
+     * @param list<string> $violations
+     *
+     * @param-out list<string> $violations
+     */
+    private function validateRootSchema(object $logData, array &$violations): void
+    {
+        $schemaFile = dirname(__DIR__) . '/docs/schemas/semantic-log.json';
+        if (! file_exists($schemaFile)) {
+            throw new RuntimeException("Bundled semantic-log schema not found: {$schemaFile}");
+        }
+
+        $schema = $this->loadSchema($schemaFile, 'root', $violations);
+        if ($schema === null) {
+            return;
+        }
+
+        $validator = new Validator();
+        $validator->validate($logData, $schema);
+
+        if ($validator->isValid()) {
+            return;
+        }
+
+        foreach ($validator->getErrors() as $error) {
+            if (! is_array($error)) {
+                continue;
+            }
+
+            $property = isset($error['property']) && is_string($error['property']) ? $error['property'] : '';
+            $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Validation failed';
+            $violations[] = "[root] {$message} at '{$property}'";
+        }
+    }
+
+    /**
+     * @param list<string> $violations
      *
      * @param-out list<string>    $violations
      */
-    private function validateOpenEntry(array $entry, string $schemaDir, string $path, array &$violations): void
+    private function validateOpenEntry(object $entry, string $schemaDir, string $path, array &$violations): void
     {
         $this->validateContext($entry, $schemaDir, $path, $violations);
 
-        if (isset($entry['events']) && is_array($entry['events'])) {
+        if (isset($entry->events) && is_array($entry->events)) {
             /** @var array<int, mixed> $events */
-            $events = $entry['events'];
+            $events = $entry->events;
             foreach ($events as $index => $event) {
-                if (! is_array($event)) {
+                if (! is_object($event)) {
                     continue;
                 }
 
-                /** @var array<string, mixed> $event */
                 $this->validateEventEntry($event, $schemaDir, "{$path}.events[{$index}]", $violations);
             }
         }
 
-        if (isset($entry['close']) && is_array($entry['close'])) {
-            /** @var array<string, mixed> $close */
-            $close = $entry['close'];
+        if (isset($entry->close) && is_object($entry->close)) {
+            $close = $entry->close;
             $this->validateCloseEntry($close, $schemaDir, "{$path}.close", $violations);
         }
 
-        if (isset($entry['open']) && is_array($entry['open'])) {
+        if (isset($entry->open) && is_array($entry->open)) {
             /** @var array<int, mixed> $children */
-            $children = $entry['open'];
+            $children = $entry->open;
             foreach ($children as $index => $child) {
-                if (! is_array($child)) {
+                if (! is_object($child)) {
                     continue;
                 }
 
-                /** @var array<string, mixed> $child */
                 $this->validateOpenEntry($child, $schemaDir, "{$path}.open[{$index}]", $violations);
             }
         }
     }
 
     /**
-     * @param array<string, mixed> $entry
-     * @param list<string>         $violations
+     * @param list<string> $violations
      *
      * @param-out list<string>    $violations
      */
-    private function validateEventEntry(array $entry, string $schemaDir, string $path, array &$violations): void
+    private function validateEventEntry(object $entry, string $schemaDir, string $path, array &$violations): void
     {
         $this->validateContext($entry, $schemaDir, $path, $violations);
     }
 
     /**
-     * @param array<string, mixed> $entry
-     * @param list<string>         $violations
+     * @param list<string> $violations
      *
      * @param-out list<string>    $violations
      */
-    private function validateCloseEntry(array $entry, string $schemaDir, string $path, array &$violations): void
+    private function validateCloseEntry(object $entry, string $schemaDir, string $path, array &$violations): void
     {
         $this->validateContext($entry, $schemaDir, $path, $violations);
     }
