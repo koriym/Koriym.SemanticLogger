@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Profiler;
 
 use JsonSerializable;
+use Koriym\SemanticLogger\Types;
 use Override;
 
+/**
+ * @psalm-import-type OperationProfileData from Types
+ * @psalm-import-type ProfileArtifact from Types
+ */
 final class OperationProfile implements JsonSerializable
 {
     /**
@@ -22,7 +27,7 @@ final class OperationProfile implements JsonSerializable
     ) {
     }
 
-    /** @return array<string, mixed> */
+    /** @return OperationProfileData */
     #[Override]
     public function jsonSerialize(): array
     {
@@ -48,7 +53,7 @@ final class OperationProfile implements JsonSerializable
         return $this->serializeXdebugTraceSegments() !== [] || $this->serializeXhprofProfileSegments() !== [];
     }
 
-    /** @return list<array{path: string}> */
+    /** @return list<ProfileArtifact> */
     private function serializeXdebugTraceSegments(): array
     {
         $result = [];
@@ -64,7 +69,7 @@ final class OperationProfile implements JsonSerializable
         return $result;
     }
 
-    /** @return list<array{path: string}> */
+    /** @return list<ProfileArtifact> */
     private function serializeXhprofProfileSegments(): array
     {
         $result = [];

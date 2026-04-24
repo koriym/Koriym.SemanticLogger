@@ -4,12 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
-/**
- * Semantic Logger Interface for hierarchical structured logging
- *
- * Provides type-safe logging with JSON schema validation for complex application workflows.
- * Supports open/event/close patterns for tracking nested operations.
- */
+/** @psalm-import-type SchemaLinks from Types */
 interface SemanticLoggerInterface
 {
     /**
@@ -48,7 +43,7 @@ interface SemanticLoggerInterface
      * the internal state for the next logging session. This implements the
      * flush pattern for one-time log consumption.
      *
-     * @param list<array{rel: string, href: string, title?: string, type?: string}> $links Optional links for complete system transparency
+     * @param SchemaLinks $links Optional links for complete system transparency
      */
     public function flush(array $links = []): LogJson;
 }

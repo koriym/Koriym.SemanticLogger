@@ -14,18 +14,26 @@ use function array_pop;
 use function end;
 use function uniqid;
 
+/**
+ * @psalm-import-type EventEntryList from Types
+ * @psalm-import-type OperationProfilesById from Types
+ * @psalm-import-type SchemaLinks from Types
+ * @psalm-import-type WallTimesByOperationId from Types
+ * @psalm-import-type XdebugSegmentsByOperationId from Types
+ * @psalm-import-type XhprofSegmentsByOperationId from Types
+ */
 final class DevSemanticLogger implements SemanticLoggerInterface
 {
     /** @var array<string, PhpProfile> */
     private array $startedPhp = [];
 
-    /** @var array<string, float> */
+    /** @var WallTimesByOperationId */
     private array $wallTimes = [];
 
-    /** @var array<string, list<XdebugTrace>> */
+    /** @var XdebugSegmentsByOperationId */
     private array $xdebugSegments = [];
 
-    /** @var array<string, list<XHProfResult>> */
+    /** @var XhprofSegmentsByOperationId */
     private array $xhprofSegments = [];
 
     /** @var list<string> */
@@ -93,7 +101,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
         $this->inner->event($context);
     }
 
-    /** @param list<array{rel: string, href: string, title?: string, type?: string}> $links */
+    /** @param SchemaLinks $links */
     #[Override]
     public function flush(array $links = []): LogJson
     {
@@ -151,10 +159,10 @@ final class DevSemanticLogger implements SemanticLoggerInterface
      * Walk the close tree and, at each node, attach the matching OperationProfile
      * directly to that close entry when external profiler output was captured.
      *
-     * @param list<EventEntry>                $closes
-     * @param array<string, OperationProfile> $operations
+     * @param EventEntryList        $closes
+     * @param OperationProfilesById $operations
      *
-     * @return list<EventEntry>
+     * @return EventEntryList
      */
     private function attachProfilesToCloses(array $closes, array $operations): array
     {

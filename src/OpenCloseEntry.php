@@ -9,10 +9,14 @@ use Override;
 
 use function array_map;
 
+/**
+ * @psalm-import-type ContextData from Types
+ * @psalm-import-type OpenCloseEntryArray from Types
+ */
 final class OpenCloseEntry implements JsonSerializable
 {
     /**
-     * @param array<string, mixed> $context
+     * @param ContextData          $context
      * @param list<OpenCloseEntry> $open    Child opens (zero or more) — immediate nested operations in chronological order.
      */
     public function __construct(
@@ -25,7 +29,7 @@ final class OpenCloseEntry implements JsonSerializable
     ) {
     }
 
-    /** @return array<string, mixed> */
+    /** @return OpenCloseEntryArray */
     public function toArray(): array
     {
         $result = [

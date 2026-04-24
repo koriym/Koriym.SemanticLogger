@@ -13,7 +13,10 @@ use function glob;
 use function is_file;
 use function str_replace;
 
-/** Generates a tree-oriented semantic log schema with dynamic context validation. */
+/**
+ * @psalm-import-type JsonMap from Types
+ * @psalm-import-type SchemaTypeMap from Types
+ */
 final class DynamicSchemaGenerator
 {
     public function __construct(
@@ -25,7 +28,7 @@ final class DynamicSchemaGenerator
     /**
      * Generate tree-oriented public schema with dynamic type-based context validation.
      *
-     * @return array<string, mixed>
+     * @return JsonMap
      */
     public function generateCombinedSchema(): array
     {
@@ -91,7 +94,7 @@ final class DynamicSchemaGenerator
     /**
      * Discover all context types from schema files
      *
-     * @return array<string, string> Map of type => schema file path
+     * @return SchemaTypeMap Map of type => schema file path
      */
     private function discoverContextTypes(): array
     {
@@ -119,9 +122,9 @@ final class DynamicSchemaGenerator
     /**
      * Generate open entry schema with dynamic type validation.
      *
-     * @param array<string, string> $contextTypes
+     * @param SchemaTypeMap $contextTypes
      *
-     * @return array<string, mixed>
+     * @return JsonMap
      */
     private function generateOpenEntrySchema(array $contextTypes): array
     {
@@ -156,9 +159,9 @@ final class DynamicSchemaGenerator
     /**
      * Generate close entry schema with dynamic type validation.
      *
-     * @param array<string, string> $contextTypes
+     * @param SchemaTypeMap $contextTypes
      *
-     * @return array<string, mixed>
+     * @return JsonMap
      */
     private function generateCloseEntrySchema(array $contextTypes): array
     {
@@ -186,9 +189,9 @@ final class DynamicSchemaGenerator
     /**
      * Generate event entry schema with dynamic type validation.
      *
-     * @param array<string, string> $contextTypes
+     * @param SchemaTypeMap $contextTypes
      *
-     * @return array<string, mixed>
+     * @return JsonMap
      */
     private function generateEventEntrySchema(array $contextTypes): array
     {
@@ -215,9 +218,9 @@ final class DynamicSchemaGenerator
     /**
      * Generate if/then/else conditions for each context type
      *
-     * @param array<string, string> $contextTypes
+     * @param SchemaTypeMap $contextTypes
      *
-     * @return array<array<string, mixed>>
+     * @return list<JsonMap>
      */
     private function generateTypeConditions(array $contextTypes): array
     {
@@ -251,7 +254,7 @@ final class DynamicSchemaGenerator
         return './schemas/' . basename($filePath);
     }
 
-    /** @return array<string, mixed> */
+    /** @return JsonMap */
     private function generateSchemaUrlDefinition(): array
     {
         return [
