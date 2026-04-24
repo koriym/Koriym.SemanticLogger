@@ -1,6 +1,6 @@
 # Koriym.SemanticLogger
 
-Type-safe semantic logging for hierarchical application workflows.
+Type-safe semantic logging for hierarchical application workflows with tree-shaped JSON output.
 
 `Koriym.SemanticLogger` records three kinds of facts as structured JSON:
 
@@ -9,6 +9,8 @@ Type-safe semantic logging for hierarchical application workflows.
 - `close`: how it ended
 
 Each entry carries a schema URL and typed context data, so logs stay machine-readable and can be validated, rendered, and inspected without depending on free-form log messages.
+
+The public log contract is structural: matched `close` entries and scoped `events` are nested under the `open` entry they belong to. Once serialized to JSON, normal operation results are read from paths such as `open[0].close` — not from a separate top-level close list.
 
 ## Installation
 
@@ -33,6 +35,7 @@ This gives you:
 - nested workflow structure
 - intent vs outcome
 - schema-backed context instead of ad-hoc strings
+- parent-child relationships embedded in the tree — no need to correlate open/close pairs by ID
 
 Optional RFC 8288 links can be attached at flush time when you want to point to related resources such as source code, schemas, or external specs.
 
@@ -100,7 +103,7 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
 ### 3. Output Shape
 
-`flush()` returns a `LogJson` object. Its public JSON shape is tree-oriented: each `open` node contains nested child `open`s, scoped `events`, and its matching `close` object. Top-level `events` and `close` are reserved for root-scope or orphan diagnostics when structural placement is not possible.
+`flush()` returns a `LogJson` object. Its public JSON shape is tree-oriented: each `open` node contains nested child `open`s, scoped `events`, and its matching `close` object. Top-level `events` and `close` are reserved for root-scope or orphan diagnostics when structural placement is not possible, so normal consumers should treat the tree as the source of truth.
 
 ```json
 {
@@ -143,6 +146,20 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 }
 ```
 
+### Open / Close Ordering
+
+`open` and `close` must be paired in LIFO order. Violations raise exceptions from `Koriym\SemanticLogger\Exception`:
+
+- `InvalidOperationOrderException` — `close()` called with an id other than the innermost open
+- `NoOpenOperationsException` — `close()` called with no open operation on the stack
+- `UnclosedLogicException` — `flush()` called while opens are still pending
+
+Wrap work in `try/finally` so `close()` always runs, even on error paths.
+
+### Try It
+
+A runnable end-to-end example lives under `demo/` (see `demo/run.php`, `demo/e-commerce.php`). `composer demo` runs it with XHProf + Xdebug enabled, validates the output, and renders it with `stree`.
+
 ## Development Logs
 
 Use `DevLogger` to write logs to disk during development:
@@ -161,21 +178,52 @@ $semanticLogger->close(new ProcessResultContext('success'), $operationId);
 $devLogger->log($semanticLogger);
 ```
 
-This creates `semantic-dev-*.json`.
+Each call writes a file named `semantic-dev-<timestamp>-<pid>-<uniqid>.json` (microsecond timestamp, PID, and `uniqid()` suffix) to the given directory, or to `sys_get_temp_dir()` when no directory is passed.
 
 `DevLogger` writes the same public tree JSON shape returned by `flush()`, which works naturally with `stree`. Top-level `events` and `close` are reserved for root-scope or orphan diagnostics when structural placement is not possible.
+
+## Profiling (XHProf / Xdebug)
+
+Wrap a `SemanticLogger` in `DevSemanticLogger` to attach per-operation profiler artifacts to each matched `close` entry:
+
+```php
+use Koriym\SemanticLogger\DevSemanticLogger;
+use Koriym\SemanticLogger\SemanticLogger;
+
+$logger = new DevSemanticLogger(new SemanticLogger());
+// open() / event() / close() / flush() as usual
+```
+
+When XHProf and/or Xdebug are enabled, each `close` in the tree gains a `profile` object with `wallTime` plus `xhprofProfile` / `xdebugTrace` segments captured while that operation was active:
+
+```json
+"close": {
+  "id": "process_result_1",
+  "type": "process_result",
+  "context": { "status": "success" },
+  "profile": {
+    "wallTime": 0.0123,
+    "xhprofProfile": [{ "path": "/tmp/xhprof-...xhprof" }],
+    "xdebugTrace":   [{ "path": "/tmp/trace-...xt" }]
+  }
+}
+```
+
+Segments are attributed only to the operation they ran inside — the parent's profile pauses while a child is open. No extensions required to use the logger itself; `DevSemanticLogger` simply skips profile attachment when XHProf / Xdebug are not loaded.
 
 ## Validate Semantic Logs
 
 ```bash
-php vendor/bin/validate-semantic-log.php path/to/semantic-log.json path/to/schemas
+vendor/bin/validate-semantic-log.php path/to/semantic-log.json [path/to/schemas]
 ```
+
+The envelope (root tree) is always validated against the bundled `docs/schemas/semantic-log.json` shipped in the composer dist. You supply a schema directory for your own context schemas — the CLI defaults to `./schemas/` when the second argument is omitted.
 
 ```php
 use Koriym\SemanticLogger\SemanticLogValidator;
 
 $validator = new SemanticLogValidator();
-$validator->validate('path/to/semantic-log.json', 'path/to/schemas');
+$validator->validate('path/to/semantic-log.json', 'path/to/context-schemas');
 ```
 
 Validation checks:
@@ -187,7 +235,7 @@ Validation checks:
 
 ## Semantic Tree Visualizer
 
-`stree` renders semantic logs as a readable tree:
+`vendor/bin/stree` renders semantic logs as a readable tree:
 
 ```bash
 vendor/bin/stree debug.json

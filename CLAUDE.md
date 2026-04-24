@@ -46,6 +46,12 @@ Keep commit messages concise and focused on what was changed, not categorizing t
 - `composer metrics` - Generate metrics report
 - `composer crc` - Run composer require checker
 
+### Demo and Schema Tooling
+- `composer demo` - Run `demo/run.php` with Xdebug+XHProf profiling, then validate and render the resulting log
+- `composer validate-demo` - Validate bundled demo JSON logs (`demo/*.json`) against `demo/schemas`
+- `composer sgen` - Regenerate `demo/schemas/combined.json` from per-context schemas via `demo/generate-schema.php`
+- `composer stree` / `composer stree:full` / `composer stree:perf` / `composer stree:db` - Render `demo/semantic-log-demo.json` as a tree with different filters
+
 ## Architecture Overview
 
 koriym/semantic-logger is a type-safe structured logging library with JSON schema validation for hierarchical application workflows.
@@ -63,25 +69,40 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Enforces type safety with const TYPE and SCHEMA_URL
 - Context data extracted via array casting
 
-**LogEntry/OpenEntry** (`src/LogEntry.php`, `src/OpenEntry.php`)
+**EventEntry / OpenCloseEntry** (`src/EventEntry.php`, `src/OpenCloseEntry.php`)
 - Immutable value objects for log entries
-- LogEntry for events and close operations
-- OpenEntry for hierarchical open operations with nesting support
+- `EventEntry` represents events and matched `close` nodes (including nested close children and attached profile data)
+- `OpenCloseEntry` represents `open` operations and carries its child opens plus the `parentId` captured at open time
 
 **LogJson** (`src/LogJson.php`)
 - Immutable structured log output
-- Implements JsonSerializable for clean JSON export
-- Contains the complete log session data
+- Implements JsonSerializable; public tree shape nests child opens, scoped events, and matching `close` under each `open`
+- Top-level `events` / `close` arrays are reserved for root-scope or orphan diagnostics
 
-**ProfilerInterface** (`src/ProfilerInterface.php`)
-- Interface for profiling operations (XHProf, Xdebug)
-- Used by BEAR.Resource for performance profiling
-- Designed for dependency injection
+**DevLogger / DevSemanticLogger** (`src/DevLogger.php`, `src/DevSemanticLogger.php`)
+- Development-time helpers that flush the logger and write `semantic-dev-*.json` to disk
+- `DevLogger` takes an existing `SemanticLoggerInterface` and writes its `flush()` output; `DevSemanticLogger` combines logging + disk sink
 
-**ProfileResult** (`src/ProfileResult.php`)
-- Immutable value object for profiling results
-- Contains optional XHProf and Xdebug trace file paths
-- Used by ProfilerInterface implementations
+**SemanticLogValidator / SemanticLogValidatorInterface** (`src/SemanticLogValidator.php`, `src/SemanticLogValidatorInterface.php`)
+- Validates a semantic-log JSON file against the envelope schema and each referenced context schema
+- Backs `bin/validate-semantic-log.php`
+- Schemas bundled in `docs/schemas/` are shipped in the composer dist and used as the default fallback
+
+**DynamicSchemaGenerator** (`src/DynamicSchemaGenerator.php`)
+- Builds a combined JSON schema document from per-context schemas (see `demo/generate-schema.php`, `composer sgen`)
+
+**Stree command** (`src/Stree/`, `bin/stree`)
+- Tree-shaped renderer for semantic logs; `StreeCommand` is the entry point
+- `FormatterRegistry` / `NodeFormatterInterface` let context types register custom value formatting
+- `SignalExtractor`, `RenderConfig`, `TreeRenderer`, `TreeNode`, `LogDataParser` handle parsing and rendering
+
+**Profiler value objects** (`src/Profiler/`)
+- `OperationProfile` aggregates per-operation profiler artifacts (wallTime + XHProf / Xdebug segments)
+- `PhpProfile`, `XdebugTrace`, `XHProfResult` are immutable value objects for individual artifacts
+
+**Types.php** (`src/Types.php`)
+- Central catalog of `@psalm-type` / `@phpstan-type` aliases (ContextData, EventEntryList, OpenCloseEntryList, SchemaLinks, OperationProfileData, etc.)
+- Not instantiable; import with `@psalm-import-type` / `@phpstan-import-type`. See `skills/php-domain-types/SKILL.md` for the policy.
 
 ### Key Architectural Patterns
 
@@ -106,10 +127,14 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Prevents log pollution between operations
 - Returns immutable LogJson object
 
+**Tree-shaped Public JSON**
+- `flush()` returns a tree: each `open` node carries its own nested child opens, scoped events, and its matching `close`
+- Normal results are read from paths like `$log['open'][0]['close']`, not a separate top-level close list
+- Top-level `events` / `close` arrays exist only for root-scope or orphan diagnostics; consumers should treat the tree as the source of truth
+
 **Profiler Integration Pattern**
-- ProfilerInterface provides abstraction for performance profiling
-- ProfileResult encapsulates profiling output (XHProf files, Xdebug traces)
-- Designed for BEAR.Resource DI integration to eliminate duplicate profiling code
+- Profiler output is modeled as immutable value objects under `src/Profiler/` (`OperationProfile`, `XdebugTrace`, `XHProfResult`, `PhpProfile`)
+- `docs/profiler-di-implementation.md` still describes an older `ProfilerInterface` / `ProfileResult` DI shape for BEAR.Resource; those top-level classes no longer exist in `src/`, so treat that doc as historical context, not current API
 
 ### Testing Structure
 
@@ -165,10 +190,8 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Validate schema URLs format
 
 ### Profiler Integration (BEAR.Resource)
-- ProfilerInterface defines contract for profiling operations
-- Implement VerboseProfiler in BEAR.Resource to handle XHProf/Xdebug
-- Use dependency injection to eliminate duplicate profiling code
-- See `docs/profiler-di-implementation.md` for BEAR.Resource implementation guide
+- Profile data is carried by the immutable value objects in `src/Profiler/` (`OperationProfile` + artifact classes)
+- `docs/profiler-di-implementation.md` predates the current layout and still references a removed `ProfilerInterface` / `ProfileResult`; keep it as historical context only
 
 ## Static Analysis Configuration
 
