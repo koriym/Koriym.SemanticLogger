@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`LogRendererInterface`** and **`LogJson::render(LogRendererInterface)`** — a log can render itself with any renderer via double dispatch, without knowing the output format. Implement the interface to add new formats (e.g. Markdown, Mermaid) without touching the logger.
+
+### Changed
+- **BREAKING — `TreeRenderer` API.** The array entry point `TreeRenderer::render(array $logData, RenderConfig $config)` is renamed to `TreeRenderer::renderTree(array $logData)`, and `RenderConfig` now moves to the constructor (`new TreeRenderer($config)`). `TreeRenderer::render()` now implements `LogRendererInterface::render(LogJson $log)`. The CLI (`stree`, `vendor/bin/stree`) and the `Koriym\SemanticLogger\Stree` namespace are unchanged.
+  - Migrate: `(new TreeRenderer())->render($logData, $config)` → `(new TreeRenderer($config))->renderTree($logData)`, or render a log directly with `$log->render(new TreeRenderer($config))`.
+- The tree renderer now lives as a self-contained monorepo subpackage under `src-stree/` (`koriym/stree`), merged into the root autoload and `git subtree split`-able later. The namespace stays `Koriym\SemanticLogger\Stree`, so usage is unchanged.
+
 ## [0.7.0] - 2026-04-22
 
 ### Changed
