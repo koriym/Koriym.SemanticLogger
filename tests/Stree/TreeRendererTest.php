@@ -36,10 +36,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         $this->assertStringNotContainsString('session', $result);
         $this->assertStringContainsString('test_operation', $result);
@@ -69,10 +69,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
         $lines = explode("\n", trim($result));
 
         // First line is the root node itself, flush-left (no tree prefix, no "session" header)
@@ -101,10 +101,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
         $lines = explode("\n", trim($result));
 
         $this->assertSame('first_op : unclosed', $lines[0]);
@@ -136,10 +136,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
         $lines = explode("\n", trim($result));
 
         $this->assertSame('some_open : unclosed', $lines[0]);
@@ -169,10 +169,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
         $lines = explode("\n", trim($result));
 
         $this->assertSame('some_open : unclosed', $lines[0]);
@@ -210,10 +210,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(true, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         $this->assertStringContainsString('parent_operation', $result);
         $this->assertStringContainsString('child_operation', $result);
@@ -251,10 +251,10 @@ final class TreeRendererTest extends TestCase
             ],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(true, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         $this->assertStringContainsString('test_operation', $result);
         $this->assertStringContainsString('test_event', $result);
@@ -300,10 +300,10 @@ final class TreeRendererTest extends TestCase
             ],
         ];
 
-        $renderer = new TreeRenderer();
-        $config = new RenderConfig(true, 0.010, 5); // 10ms threshold
+        $config = new RenderConfig(true, 0.010, 5);
+        $renderer = new TreeRenderer($config); // 10ms threshold
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         // Root appears in session + as child (above threshold)
         $this->assertStringContainsString('parent_operation', $result);
@@ -328,10 +328,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         $this->assertStringContainsString(': unclosed', $result);
     }
@@ -359,10 +359,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         $this->assertStringContainsString(': Failed', $result);
     }
@@ -407,10 +407,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         // Root node (checkout) propagates the Failed status from its child (charge).
         $lines = explode("\n", trim($result));
@@ -441,10 +441,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(true, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         $this->assertStringContainsString('operation: validate', $result);
         $this->assertStringContainsString('input: data', $result);
@@ -488,10 +488,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(true, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         $this->assertStringContainsString('becoming HelloInput', $result);
         $this->assertStringContainsString('name: World', $result);
@@ -556,10 +556,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(true, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         $this->assertStringContainsString('becoming HelloInput', $result);
         $this->assertStringContainsString('name: World', $result);
@@ -598,10 +598,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         // Type shown (suffix stripped because closed)
         $this->assertStringContainsString('metamorphosis', $result);
@@ -636,10 +636,10 @@ final class TreeRendererTest extends TestCase
 
         $registry = new FormatterRegistry();
         $registry->register('fake_open', new FakeFormatter());
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5, false, $registry);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
         $lines = explode("\n", trim($result));
 
         // Root line is the formatter's open line, flush-left.
@@ -674,10 +674,10 @@ final class TreeRendererTest extends TestCase
             'events' => [],
         ];
 
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
 
         $this->assertStringContainsString('└── exit=success', $result);
         $this->assertStringNotContainsString('final=Hello', $result);
@@ -725,10 +725,10 @@ final class TreeRendererTest extends TestCase
 
         $registry = new FormatterRegistry();
         $registry->register('fake_open', new FakeFormatter());
-        $renderer = new TreeRenderer();
         $config = new RenderConfig(false, 0.0, 5, false, $registry);
+        $renderer = new TreeRenderer($config);
 
-        $result = $renderer->render($logData, $config);
+        $result = $renderer->renderTree($logData);
         $lines = explode("\n", trim($result));
 
         // Child node rendered under a tree prefix; continuation indents to child-content column.

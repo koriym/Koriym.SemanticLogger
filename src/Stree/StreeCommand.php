@@ -76,8 +76,8 @@ final class StreeCommand
                 return 0;
             }
 
-            $renderer = new TreeRenderer();
-            $output = $renderer->render($logData, $config);
+            $renderer = new TreeRenderer($config);
+            $output = $renderer->renderTree($logData);
             echo $output . "\n";
 
             return 0;
