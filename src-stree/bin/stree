@@ -3,7 +3,7 @@
 
 declare(strict_types=1);
 
-/** @psalm-suppress UnresolvableInclude, MixedAssignment, MixedArgument */
+/** @psalm-suppress MixedAssignment */
 $autoload = $GLOBALS['_composer_autoload_path']
     ?? (static function (): string {
         // Standalone package: src-stree/vendor; monorepo: repository-root vendor.
@@ -15,6 +15,13 @@ $autoload = $GLOBALS['_composer_autoload_path']
 
         return __DIR__ . '/../../vendor/autoload.php';
     })();
+
+if (! is_string($autoload) || ! is_readable($autoload)) {
+    fwrite(STDERR, "stree: Composer autoloader not found. Run 'composer install' first.\n");
+    exit(1);
+}
+
+/** @psalm-suppress UnresolvableInclude */
 require_once $autoload;
 
 use Koriym\SemanticLogger\Stree\StreeCommand;
