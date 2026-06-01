@@ -35,6 +35,30 @@ final class LogSessionTest extends TestCase
         $this->assertSame('close_1', $this->entryClose($openEntry)['id']);
     }
 
+    public function testRenderHandsLogToRenderer(): void
+    {
+        $open = new OpenCloseEntry('test_1', 'test', 'https://example.com/test.json', ['data' => 'value']);
+        $close = new EventEntry('close_1', 'close', 'https://example.com/close.json', ['result' => 'success'], 'test_1');
+        $session = new LogJson('https://schema.example.com/log.json', [$open], [$close], []);
+
+        $renderer = new class implements LogRendererInterface {
+            public LogJson|null $received = null;
+
+            public function render(LogJson $log): string
+            {
+                $this->received = $log;
+
+                return 'rendered:' . $log->open[0]->id;
+            }
+        };
+
+        $output = $session->render($renderer);
+
+        // Double dispatch: the log hands itself back to the renderer unchanged.
+        $this->assertSame($session, $renderer->received);
+        $this->assertSame('rendered:test_1', $output);
+    }
+
     public function testLogSessionWithCompleteData(): void
     {
         $open = new OpenCloseEntry('start_1', 'start', 'https://example.com/start.json', ['start' => true]);

@@ -1,0 +1,31 @@
+{
+    "name": "koriym/stree",
+    "description": "Semantic tree visualizer: render semantic logs as a readable tree",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Akihito Koriyama",
+            "email": "akihito.koriyama@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "koriym/semantic-logger": "^0.8"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Koriym\\SemanticLogger\\Stree\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Koriym\\SemanticLogger\\Stree\\": "tests/"
+        }
+    },
+    "bin": [
+        "bin/stree"
+    ]
+}

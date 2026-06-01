@@ -7,11 +7,13 @@
     <testsuites>
         <testsuite name="Koriym.SematicLogger test suite">
             <directory>tests</directory>
+            <directory>src-stree/tests</directory>
         </testsuite>
     </testsuites>
     <coverage processUncoveredFiles="true">
         <include>
             <directory suffix=".php">src</directory>
+            <directory suffix=".php">src-stree/src</directory>
         </include>
         <exclude>
             <file>src/DevLogger.php</file>

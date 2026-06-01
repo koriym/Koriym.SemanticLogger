@@ -91,8 +91,10 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 **DynamicSchemaGenerator** (`src/DynamicSchemaGenerator.php`)
 - Builds a combined JSON schema document from per-context schemas (see `demo/generate-schema.php`, `composer sgen`)
 
-**Stree command** (`src/Stree/`, `bin/stree`)
+**Stree command** (`src-stree/` monorepo subpackage: `src-stree/src/`, `src-stree/bin/stree`, `src-stree/tests/`)
 - Tree-shaped renderer for semantic logs; `StreeCommand` is the entry point
+- Lives as its own composer package (`koriym/stree`, namespace `Koriym\SemanticLogger\Stree`) under `src-stree/`, merged into the root autoload; `subtree split`-able to a standalone Packagist package later
+- `TreeRenderer` implements the core `Koriym\SemanticLogger\LogRendererInterface`, so `$log->render(new TreeRenderer())` works via double dispatch
 - `FormatterRegistry` / `NodeFormatterInterface` let context types register custom value formatting
 - `SignalExtractor`, `RenderConfig`, `TreeRenderer`, `TreeNode`, `LogDataParser` handle parsing and rendering
 

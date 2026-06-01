@@ -45,6 +45,18 @@ final class LogJson implements JsonSerializable
         return $this->toArray();
     }
 
+    /**
+     * Render this log with the given renderer (double dispatch).
+     *
+     * The log does not know any concrete output format. It hands itself back to
+     * the renderer, which decides how to present it (tree, markdown, ...), so
+     * output formats can be swapped without touching the log.
+     */
+    public function render(LogRendererInterface $renderer): string
+    {
+        return $renderer->render($this);
+    }
+
     /** @return LogSessionArray */
     public function toArray(): array
     {

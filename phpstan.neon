@@ -2,9 +2,12 @@ parameters:
   level: max
   paths:
     - src
+    - src-stree/src
+    - src-stree/tests
     - tests
   excludePaths:
     - tests/Fake/*
+    - src-stree/tests/Fake/*
   reportUnmatchedIgnoredErrors: true
 includes:
   - phpstan-baseline.neon

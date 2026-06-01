@@ -11,6 +11,8 @@
 >
     <projectFiles>
         <directory name="src" />
+        <directory name="src-stree/src" />
         <directory name="bin" />
+        <directory name="src-stree/bin" />
     </projectFiles>
 </psalm>

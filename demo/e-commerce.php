@@ -549,9 +549,9 @@ class ComplexWebRequestSimulation
         echo "Generated semantic log saved to: {$outputPath}\n";
         echo "Check /tmp for semantic-dev-*.json files with complex nested data.\n";
         echo "\nTo view the beautiful tree structure:\n";
-        echo "  php bin/stree demo/semantic-log-demo.json\n";
-        echo "  php bin/stree --full demo/semantic-log-demo.json\n";
-        echo "  php bin/stree --threshold=50ms --full demo/semantic-log-demo.json\n";
+        echo "  php src-stree/bin/stree demo/semantic-log-demo.json\n";
+        echo "  php src-stree/bin/stree --full demo/semantic-log-demo.json\n";
+        echo "  php src-stree/bin/stree --threshold=50ms --full demo/semantic-log-demo.json\n";
     }
 
     private function isXdebugTraceEnabled(): bool

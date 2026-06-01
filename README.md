@@ -255,6 +255,22 @@ vendor/bin/stree --json debug.json
 | `--json` | | Pretty-print raw JSON |
 | `--help` | `-h` | Display help |
 
+### Rendering in process
+
+`stree` is a thin CLI over the same renderer you can call directly. `LogJson::render()` takes a `LogRendererInterface` and hands the log to it (double dispatch), so the log never needs to know the output format — you swap the renderer instead:
+
+```php
+use Koriym\SemanticLogger\Stree\TreeRenderer;
+use Koriym\SemanticLogger\Stree\RenderConfig;
+
+$log = $logger->flush();
+
+echo $log->render(new TreeRenderer());                              // compact tree
+echo $log->render(new TreeRenderer(new RenderConfig(true, 0.0, 5))); // full tree
+```
+
+This keeps the tree compact for both humans (visual parent/child structure) and AI consumers (far fewer tokens than the raw JSON). Implement `LogRendererInterface` to add your own output format (e.g. Markdown or Mermaid) without changing the logger.
+
 ## Use Cases
 
 - trace nested application workflows

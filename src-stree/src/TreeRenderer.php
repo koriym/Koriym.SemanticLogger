@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\LogJson;
+use Koriym\SemanticLogger\LogRendererInterface;
+use Override;
+
 use function array_key_exists;
 use function count;
 use function explode;
@@ -11,7 +15,7 @@ use function implode;
 use function in_array;
 use function is_array;
 
-final class TreeRenderer
+final class TreeRenderer implements LogRendererInterface
 {
     private const TREE_VERTICAL = '│';
     private const TREE_BRANCH = '├';
@@ -19,9 +23,21 @@ final class TreeRenderer
     private const TREE_HORIZONTAL = '─';
     private const TREE_SPACE = ' ';
 
-    /** @param array<string, mixed> $logData */
-    public function render(array $logData, RenderConfig $config): string
+    public function __construct(
+        private readonly RenderConfig $config = new RenderConfig(false, 0.0, 5),
+    ) {
+    }
+
+    #[Override]
+    public function render(LogJson $log): string
     {
+        return $this->renderTree($log->toArray());
+    }
+
+    /** @param array<string, mixed> $logData */
+    public function renderTree(array $logData): string
+    {
+        $config = $this->config;
         $parser = new LogDataParser();
         $root = $parser->parseLogData($logData);
 
