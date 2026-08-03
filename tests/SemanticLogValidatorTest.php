@@ -11,11 +11,14 @@ use RuntimeException;
 use function file_exists;
 use function file_put_contents;
 use function is_dir;
+use function json_encode;
 use function mkdir;
 use function rmdir;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
+
+use const JSON_THROW_ON_ERROR;
 
 final class SemanticLogValidatorTest extends TestCase
 {
@@ -158,6 +161,42 @@ JSON,
 
         $this->expectException(RuntimeException::class);
         $this->expectOutputRegex('/open\[0\]\.id|regex pattern/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateUsesBundledSchemasForTotalModeDiagnostics(): void
+    {
+        $logger = new SemanticLogger(SemanticLoggerMode::Total);
+        $logger->event(new class extends AbstractContext {
+            public const TYPE = 'Invalid-Type';
+            public const SCHEMA_URL = './schemas/not-used.json';
+
+            public string $value = 'kept in diagnostics';
+        });
+        file_put_contents(
+            $this->logFile,
+            json_encode($logger->flush()->toArray(), JSON_THROW_ON_ERROR),
+        );
+
+        $this->expectOutputRegex('/semantic_logger_invalid_context.*semantic_logger_error.*All contexts validate successfully/s');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateAcceptsEmptyDiscardedContextInCoreDiagnostic(): void
+    {
+        $logger = new SemanticLogger(SemanticLoggerMode::Total);
+        $logger->close(new class extends AbstractContext {
+            public const TYPE = 'empty_context';
+            public const SCHEMA_URL = './schemas/not-used.json';
+        }, 'missing_1');
+        file_put_contents(
+            $this->logFile,
+            json_encode($logger->flush()->toArray(), JSON_THROW_ON_ERROR),
+        );
+
+        $this->expectOutputRegex('/semantic_logger_error.*All contexts validate successfully/s');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }

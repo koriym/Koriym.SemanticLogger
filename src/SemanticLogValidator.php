@@ -26,6 +26,9 @@ use function str_starts_with;
 
 final class SemanticLogValidator implements SemanticLogValidatorInterface
 {
+    private const DIAGNOSTIC_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json';
+    private const INVALID_CONTEXT_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-invalid-context.json';
+
     #[Override]
     public function validate(string $file, string $schemaDir): void
     {
@@ -337,9 +340,14 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
      */
     private function resolveSchemaPath(string $schemaUrl, string $schemaDir): string|null
     {
+        $filename = basename($schemaUrl);
+        $bundledCoreSchema = $this->resolveBundledCoreSchema($schemaUrl);
+        if ($bundledCoreSchema !== null) {
+            return $bundledCoreSchema;
+        }
+
         // Handle relative paths like "./schemas/http_request.json"
         if (str_starts_with($schemaUrl, './schemas/')) {
-            $filename = basename($schemaUrl);
             $schemaFile = realpath($schemaDir . '/' . $filename);
 
             return $schemaFile !== false ? $schemaFile : null;
@@ -353,8 +361,6 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         }
 
         // For absolute URLs, try to extract filename and map to local files
-        $filename = basename($schemaUrl);
-
         // Special case: complex-query.json from external URL
         if ($filename === 'complex-query.json') {
             $localFile = realpath($schemaDir . '/complex_query.json');
@@ -365,6 +371,22 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
         // General case: try exact filename match
         $schemaFile = realpath($schemaDir . '/' . $filename);
+
+        return $schemaFile !== false ? $schemaFile : null;
+    }
+
+    private function resolveBundledCoreSchema(string $schemaUrl): string|null
+    {
+        $filename = match ($schemaUrl) {
+            self::DIAGNOSTIC_SCHEMA_URL => 'semantic-logger-error.json',
+            self::INVALID_CONTEXT_SCHEMA_URL => 'semantic-logger-invalid-context.json',
+            default => null,
+        };
+        if ($filename === null) {
+            return null;
+        }
+
+        $schemaFile = realpath(dirname(__DIR__) . '/docs/schemas/' . $filename);
 
         return $schemaFile !== false ? $schemaFile : null;
     }

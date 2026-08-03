@@ -9,6 +9,7 @@ use Koriym\SemanticLogger\Profiler\PhpProfile;
 use Koriym\SemanticLogger\Profiler\XdebugTrace;
 use Koriym\SemanticLogger\Profiler\XHProfResult;
 use Override;
+use Throwable;
 
 use function array_pop;
 use function end;
@@ -74,23 +75,39 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     public function close(AbstractContext $context, string $openId): void
     {
         $tracked = isset($this->startedPhp[$openId]);
+        $currentId = end($this->openStack);
+        $isCurrent = $tracked && $currentId === $openId;
 
-        if ($tracked) {
-            // Stop the being's final segment and capture wallTime BEFORE
-            // inner->close runs, so none of the logger plumbing (inner->close,
-            // xdebug_stop_trace teardown, json writes, etc.) pollutes this
-            // being's profile.
-            $this->stopAndAttachTo($openId);
-            $this->wallTimes[$openId] = $this->startedPhp[$openId]->stop()->wallTime;
-            unset($this->startedPhp[$openId]);
-            array_pop($this->openStack);
-            $this->depth--;
+        if (! $isCurrent) {
+            $this->inner->close($context, $openId);
+
+            return;
         }
 
-        $this->inner->close($context, $openId);
+        // Stop the being's final segment and capture wallTime BEFORE
+        // inner->close runs, so none of the logger plumbing (inner->close,
+        // xdebug_stop_trace teardown, json writes, etc.) pollutes this
+        // being's profile.
+        $this->stopAndAttachTo($openId);
+        $wallTime = $this->startedPhp[$openId]->stop()->wallTime;
+
+        try {
+            $this->inner->close($context, $openId);
+        } catch (Throwable $throwable) {
+            $this->wallTimes[$openId] = ($this->wallTimes[$openId] ?? 0.0) + $wallTime;
+            $this->startedPhp[$openId] = PhpProfile::start();
+            $this->startNewSegment();
+
+            throw $throwable;
+        }
+
+        $this->wallTimes[$openId] = ($this->wallTimes[$openId] ?? 0.0) + $wallTime;
+        unset($this->startedPhp[$openId]);
+        array_pop($this->openStack);
+        $this->depth--;
 
         // Returning to a parent operation: resume profiling under the parent.
-        if ($tracked && $this->depth > 0) {
+        if ($this->depth > 0) {
             $this->startNewSegment();
         }
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
+use Koriym\SemanticLogger\Profiler\PhpProfile;
 use Koriym\SemanticLogger\Profiler\XdebugTrace;
 use Koriym\SemanticLogger\Profiler\XHProfResult;
 use PHPUnit\Framework\TestCase;
@@ -162,6 +163,59 @@ final class DevSemanticLoggerTest extends TestCase
         $this->assertCount(1, $second->close);
         $this->assertSame($id1, $first->close[0]->openId);
         $this->assertSame($id2, $second->close[0]->openId);
+    }
+
+    public function testStrictCloseFailureKeepsProfilerAndInnerStacksRetryable(): void
+    {
+        $openId = $this->logger->open(new FakeContext('start'));
+        $reflection = new ReflectionClass($this->logger);
+        /** @var array<string, PhpProfile> $startedPhp */
+        $startedPhp = $reflection->getProperty('startedPhp')->getValue($this->logger);
+        $initialProfile = $startedPhp[$openId];
+
+        try {
+            $this->logger->close(new ModeThrowingContext(), $openId);
+            $this->fail('Expected serialization failure.');
+        } catch (ModeTestSerializationException) {
+        }
+
+        /** @var array<string, PhpProfile> $startedPhp */
+        $startedPhp = $reflection->getProperty('startedPhp')->getValue($this->logger);
+        $this->assertNotSame($initialProfile, $startedPhp[$openId]);
+
+        $this->logger->close(new FakeContext('done'), $openId);
+        $array = $this->logger->flush()->toArray();
+
+        $this->assertSame($openId, $array['open'][0]['id']);
+        $this->assertSame('example_event_2', $this->firstSerializedClose($array)['id']);
+    }
+
+    public function testTotalWrongCloseIdDoesNotCorruptProfilerStack(): void
+    {
+        $logger = new DevSemanticLogger(new SemanticLogger(SemanticLoggerMode::Total));
+        $outerId = $logger->open(new FakeContext('outer'));
+        $innerId = $logger->open(new FakeContext('inner'));
+
+        $logger->close(new FakeContext('wrong order'), $outerId);
+        $logger->close(new FakeContext('inner close'), $innerId);
+        $logger->close(new FakeContext('outer close'), $outerId);
+
+        $array = $logger->flush()->toArray();
+        $this->assertSame($outerId, $array['open'][0]['id']);
+        $this->assertSame($innerId, $this->valueAt($array, 'open', 0, 'open', 0, 'id'));
+        $this->assertSame('close_id_mismatch', $this->valueAt($array, 'open', 0, 'open', 0, 'events', 0, 'context', 'kind'));
+    }
+
+    public function testTotalCloseFailureCommitsPlaceholderWithProfileTopologyIntact(): void
+    {
+        $logger = new DevSemanticLogger(new SemanticLogger(SemanticLoggerMode::Total));
+        $openId = $logger->open(new FakeContext('start'));
+
+        $logger->close(new ModeThrowingContext(), $openId);
+        $array = $logger->flush()->toArray();
+
+        $this->assertSame('semantic_logger_invalid_context', $this->firstSerializedClose($array)['type']);
+        $this->assertSame('context_serialization_failed', $this->valueAt($array, 'open', 0, 'events', 0, 'context', 'kind'));
     }
 
     public function testDevStateIsResetEvenWhenInnerFlushThrows(): void
@@ -412,5 +466,18 @@ final class DevSemanticLoggerTest extends TestCase
         }
 
         return $normalized;
+    }
+
+    /** @param array<array-key, mixed> $array */
+    private function valueAt(array $array, int|string ...$path): mixed
+    {
+        $value = $array;
+        foreach ($path as $key) {
+            $this->assertIsArray($value);
+            $this->assertArrayHasKey($key, $value);
+            $value = $value[$key];
+        }
+
+        return $value;
     }
 }

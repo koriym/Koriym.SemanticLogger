@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Exception;
 
-use LogicException;
-
 use function sprintf;
 
 final class UnclosedLogicException extends LogicException
@@ -17,7 +15,7 @@ final class UnclosedLogicException extends LogicException
     ) {
         parent::__construct(
             sprintf(
-                'Unclosed operations detected. %d operations remain open. Last operation: %s. See: https://github.com/koriym/semantic-logger/blob/main/docs/unclosed-operations.md',
+                'Unclosed operations detected. %d operations remain open. Last operation: %s. See: https://github.com/koriym/Koriym.SemanticLogger/blob/1.x/README.md#open--close-ordering',
                 $openStackDepth,
                 $lastOperationType,
             ),

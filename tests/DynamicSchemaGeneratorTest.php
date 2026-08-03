@@ -53,13 +53,16 @@ final class DynamicSchemaGeneratorTest extends TestCase
         $openProperty = $this->expectArray($properties['open'] ?? null);
         $eventsProperty = $this->expectArray($properties['events'] ?? null);
         $closeProperty = $this->expectArray($properties['close'] ?? null);
+        $contextType = $this->expectArray($definitions['contextType'] ?? null);
 
         $this->assertSame(['$schema', 'open'], $schema['required']);
         $this->assertArrayHasKey('$schema', $properties);
         $this->assertArrayNotHasKey('schemaUrl', $properties);
         $this->assertSame('array', $openProperty['type']);
+        $this->assertArrayNotHasKey('minItems', $openProperty);
         $this->assertSame('array', $eventsProperty['type']);
         $this->assertSame('array', $closeProperty['type']);
+        $this->assertSame('^[a-z_]+$', $contextType['pattern']);
 
         $this->assertOpenEntryDefinition($definitions['openEntry'] ?? null);
         $this->assertLeafEntryDefinition($definitions['eventEntry'] ?? null);

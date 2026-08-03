@@ -19,7 +19,6 @@
     },
     "open": {
       "type": "array",
-      "minItems": 1,
       "description": "Top-level root operations in chronological order. Each entry may carry nested child opens, nested events, and its matching close.",
       "items": { "$ref": "#/definitions/openEntry" }
     },
@@ -39,7 +38,7 @@
             "$ref": "#/definitions/operationId"
           },
           "type": {
-            "type": "string", 
+            "$ref": "#/definitions/contextType",
             "description": "Application-defined event type (e.g., cache_operation, database_query, external_api)"
           },
           "schemaUrl": {
@@ -107,7 +106,7 @@
       "properties": {
         "id": { "$ref": "#/definitions/operationId" },
         "type": {
-          "type": "string",
+          "$ref": "#/definitions/contextType",
           "description": "Application-defined context type (e.g., http_request, database_query, business_logic)"
         },
         "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
@@ -140,7 +139,7 @@
       "properties": {
         "id": { "$ref": "#/definitions/operationId" },
         "type": {
-          "type": "string",
+          "$ref": "#/definitions/contextType",
           "description": "Application-defined event type"
         },
         "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
@@ -160,7 +159,7 @@
       "properties": {
         "id": { "$ref": "#/definitions/operationId" },
         "type": {
-          "type": "string",
+          "$ref": "#/definitions/contextType",
           "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
         },
         "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
@@ -190,7 +189,8 @@
     },
     "contextType": {
       "type": "string",
-      "description": "Application-defined context type identifier. Applications define their own context types through individual schema files"
+      "pattern": "^[a-z_]+$",
+      "description": "Context type identifier. The semantic_logger_* namespace is reserved for core diagnostics and placeholders; applications define other types through individual schema files."
     },
     "operationProfile": {
       "type": "object",

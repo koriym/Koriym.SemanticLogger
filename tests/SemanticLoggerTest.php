@@ -589,7 +589,7 @@ final class SemanticLoggerTest extends TestCase
             $this->assertSame(1, $e->openStackDepth);
             $this->assertSame('example_event', $e->lastOperationType);
             $this->assertSame('https://example.com/schemas/example.json', $e->lastOperationSchema);
-            $this->assertStringContainsString('docs/unclosed-operations.md', $e->getMessage());
+            $this->assertStringContainsString('README.md#open--close-ordering', $e->getMessage());
         }
     }
 

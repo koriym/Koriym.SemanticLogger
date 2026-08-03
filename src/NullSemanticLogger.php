@@ -9,11 +9,9 @@ use Override;
 /**
  * No-op semantic logger
  *
- * A zero-cost {@see SemanticLoggerInterface} for when logging is turned off:
- * open() returns an empty id (callers treat it as "no close needed"), event()
- * and close() do nothing, and flush() returns an empty log session. Useful as a
- * default so instrumentation code can call the logger unconditionally without a
- * runtime cost when observability is disabled.
+ * A minimal {@see SemanticLoggerInterface} for when logging is turned off.
+ * Calls remain unconditional and the open/close id protocol stays intact, while
+ * event() and close() do not retain log data.
  *
  * @psalm-import-type SchemaLinks from Types
  */
@@ -21,10 +19,14 @@ final class NullSemanticLogger implements SemanticLoggerInterface
 {
     private const SEMANTIC_LOG_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json';
 
+    private int $sequence = 0;
+
     #[Override]
     public function open(AbstractContext $context): string
     {
-        return '';
+        $this->sequence++;
+
+        return 'noop_' . (string) $this->sequence;
     }
 
     #[Override]
@@ -41,6 +43,8 @@ final class NullSemanticLogger implements SemanticLoggerInterface
     #[Override]
     public function flush(array $links = []): LogJson
     {
+        $this->sequence = 0;
+
         return new LogJson(self::SEMANTIC_LOG_SCHEMA_URL, [], [], [], $links);
     }
 }
