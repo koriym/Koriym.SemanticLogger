@@ -17,7 +17,17 @@
         "type": "object",
         "required": ["kind", "message"],
         "properties": {
-          "kind": { "type": "string" },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "invalid_type",
+              "invalid_schema_url",
+              "context_serialization_failed",
+              "close_without_open",
+              "close_id_mismatch",
+              "unclosed_at_flush"
+            ]
+          },
           "message": { "type": "string" }
         },
         "additionalProperties": false

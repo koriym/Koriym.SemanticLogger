@@ -38,7 +38,7 @@
             "$ref": "#/definitions/operationId"
           },
           "type": {
-            "$ref": "#/definitions/contextType",
+            "allOf": [{ "$ref": "#/definitions/contextType" }],
             "description": "Application-defined event type (e.g., cache_operation, database_query, external_api)"
           },
           "schemaUrl": {
@@ -106,7 +106,7 @@
       "properties": {
         "id": { "$ref": "#/definitions/operationId" },
         "type": {
-          "$ref": "#/definitions/contextType",
+          "allOf": [{ "$ref": "#/definitions/contextType" }],
           "description": "Application-defined context type (e.g., http_request, database_query, business_logic)"
         },
         "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
@@ -139,7 +139,7 @@
       "properties": {
         "id": { "$ref": "#/definitions/operationId" },
         "type": {
-          "$ref": "#/definitions/contextType",
+          "allOf": [{ "$ref": "#/definitions/contextType" }],
           "description": "Application-defined event type"
         },
         "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
@@ -159,7 +159,7 @@
       "properties": {
         "id": { "$ref": "#/definitions/operationId" },
         "type": {
-          "$ref": "#/definitions/contextType",
+          "allOf": [{ "$ref": "#/definitions/contextType" }],
           "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
         },
         "schemaUrl": { "$ref": "#/definitions/schemaUrl" },

@@ -65,6 +65,19 @@ namespace Koriym\SemanticLogger;
  *     context: ContextData,
  *     diagnostics: list<DiagnosticData>
  * }
+ * @psalm-type PreparedMetadata = array{
+ *     type: LogType|null,
+ *     schemaUrl: SchemaUrl|null,
+ *     diagnostics: list<DiagnosticData>
+ * }
+ * @psalm-type PreparedSerialization = array{
+ *     context: ContextData|null,
+ *     diagnostics: list<DiagnosticData>
+ * }
+ * @psalm-type LogTree = array{
+ *     open: OpenCloseEntryList,
+ *     close: EventEntryList
+ * }
  *
  * Serialized log entry types
  * @psalm-type EventEntryArray = array{

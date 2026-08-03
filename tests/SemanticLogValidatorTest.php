@@ -184,6 +184,38 @@ JSON,
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
 
+    public function testValidateRejectsUnsupportedCoreDiagnosticKind(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            json_encode([
+                '$schema' => CoreSchema::LOG_URL,
+                'open' => [],
+                'events' => [
+                    [
+                        'id' => 'semantic_logger_invalid_context_1',
+                        'type' => CoreSchema::INVALID_CONTEXT_TYPE,
+                        'schemaUrl' => CoreSchema::INVALID_CONTEXT_URL,
+                        'context' => [
+                            'operation' => 'event',
+                            'errors' => [
+                                [
+                                    'kind' => 'unsupported_kind',
+                                    'message' => 'invalid protocol value',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ], JSON_THROW_ON_ERROR),
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/semantic_logger_invalid_context.*enumeration/s');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
     public function testValidateAcceptsEmptyDiscardedContextInCoreDiagnostic(): void
     {
         $logger = new SemanticLogger(SemanticLoggerMode::Total);

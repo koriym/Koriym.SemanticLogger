@@ -26,9 +26,6 @@ use function str_starts_with;
 
 final class SemanticLogValidator implements SemanticLogValidatorInterface
 {
-    private const DIAGNOSTIC_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json';
-    private const INVALID_CONTEXT_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-invalid-context.json';
-
     #[Override]
     public function validate(string $file, string $schemaDir): void
     {
@@ -378,8 +375,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     private function resolveBundledCoreSchema(string $schemaUrl): string|null
     {
         $filename = match ($schemaUrl) {
-            self::DIAGNOSTIC_SCHEMA_URL => 'semantic-logger-error.json',
-            self::INVALID_CONTEXT_SCHEMA_URL => 'semantic-logger-invalid-context.json',
+            CoreSchema::DIAGNOSTIC_URL => 'semantic-logger-error.json',
+            CoreSchema::INVALID_CONTEXT_URL => 'semantic-logger-invalid-context.json',
             default => null,
         };
         if ($filename === null) {

@@ -5,61 +5,30 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger;
 
 use JsonSerializable;
-use Koriym\SemanticLogger\Exception\InvalidContextTypeException;
 use Koriym\SemanticLogger\Exception\InvalidOperationOrderException;
-use Koriym\SemanticLogger\Exception\InvalidSchemaUrlException;
 use Koriym\SemanticLogger\Exception\NoLogSessionException;
 use Koriym\SemanticLogger\Exception\NoOpenOperationsException;
 use Koriym\SemanticLogger\Exception\UnclosedLogicException;
 use Override;
 use SplStack;
-use stdClass;
 use Throwable;
 
-use function array_combine;
-use function array_keys;
 use function array_map;
 use function array_reverse;
-use function array_values;
-use function get_debug_type;
-use function get_object_vars;
-use function is_array;
-use function is_string;
 use function iterator_to_array;
-use function json_decode;
-use function json_encode;
-use function parse_url;
-use function preg_match;
-use function str_starts_with;
-use function strval;
-
-use const JSON_THROW_ON_ERROR;
-use const PHP_URL_SCHEME;
 
 /**
- * @psalm-import-type ContextData from Types
  * @psalm-import-type DiagnosticData from Types
  * @psalm-import-type DiagnosticKind from Types
  * @psalm-import-type EventEntryList from Types
+ * @psalm-import-type LogTree from Types
  * @psalm-import-type LogSessionArray from Types
- * @psalm-import-type OpenChildrenByParent from Types
  * @psalm-import-type OpenCloseEntryList from Types
- * @psalm-import-type PreparedContext from Types
  * @psalm-import-type SchemaLinks from Types
  * @psalm-import-type TypeCounts from Types
  */
 final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 {
-    private const SEMANTIC_LOG_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json';
-    private const DIAGNOSTIC_TYPE = 'semantic_logger_error';
-    private const DIAGNOSTIC_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json';
-    private const INVALID_CONTEXT_TYPE = 'semantic_logger_invalid_context';
-    private const INVALID_CONTEXT_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-invalid-context.json';
-    private const RESERVED_TYPE_PREFIX = 'semantic_logger_';
-    private const TYPE_PATTERN = '/^[a-z_]+$/D';
-    private const RELATIVE_SCHEMA_PATTERN = '/^\.\/schemas\/[a-zA-Z0-9_-]+\.json$/D';
-    private const URI_SCHEME_PATTERN = '/^[a-zA-Z][a-zA-Z0-9+.-]*$/D';
-
     /** @var EventEntryList */
     private array $events = [];
 
@@ -74,6 +43,8 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 
     /** @var TypeCounts */
     private array $typeCounts = [];
+    private readonly ContextPreparer $contextPreparer;
+    private readonly LogTreeBuilder $logTreeBuilder;
 
     public function __construct(
         private readonly SemanticLoggerMode $mode = SemanticLoggerMode::Strict,
@@ -81,12 +52,14 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         /** @var SplStack<OpenCloseEntry> $openStack */
         $openStack = new SplStack();
         $this->openStack = $openStack;
+        $this->contextPreparer = new ContextPreparer($mode);
+        $this->logTreeBuilder = new LogTreeBuilder();
     }
 
     #[Override]
     public function open(AbstractContext $context): string
     {
-        $prepared = $this->prepareContext($context, 'open');
+        $prepared = $this->contextPreparer->prepare($context, 'open');
         $operationId = $this->nextId($prepared['type']);
         $parentId = $this->openStack->isEmpty() ? null : $this->openStack->top()->id;
         $this->openStack->push(new OpenCloseEntry(
@@ -105,7 +78,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     #[Override]
     public function event(AbstractContext $context): void
     {
-        $prepared = $this->prepareContext($context, 'event');
+        $prepared = $this->contextPreparer->prepare($context, 'event');
         $eventId = $this->nextId($prepared['type']);
         $currentOpenId = $this->openStack->isEmpty() ? null : $this->openStack->top()->id;
         $this->events[] = new EventEntry(
@@ -148,7 +121,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             throw new InvalidOperationOrderException($openId, $lastOpen->id);
         }
 
-        $prepared = $this->prepareContext($context, 'close');
+        $prepared = $this->contextPreparer->prepare($context, 'close');
         $closeId = $this->nextId($prepared['type']);
         $completedOpen = $this->openStack->pop();
         $this->completedOperations[] = $completedOpen;
@@ -188,7 +161,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             }
 
             if ($this->openStack->isEmpty()) {
-                return $this->buildLogJson($links);
+                return $this->buildCompletedLog($links);
             }
 
             if ($this->mode === SemanticLoggerMode::Strict) {
@@ -203,7 +176,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 
             $this->recordDiagnostics([$this->unclosedDiagnostic()], null);
 
-            return $this->buildLogJson($links, true);
+            return $this->buildLiveLog($links);
         } finally {
             $this->resetState();
         }
@@ -220,7 +193,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         }
 
         if ($this->openStack->isEmpty()) {
-            return $this->buildLogJson();
+            return $this->buildCompletedLog();
         }
 
         if ($this->mode === SemanticLoggerMode::Strict) {
@@ -236,12 +209,12 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         $diagnostic = $this->diagnosticEntry(
             $this->unclosedDiagnostic(),
             null,
-            $this->previewId(self::DIAGNOSTIC_TYPE),
+            $this->previewId(CoreSchema::DIAGNOSTIC_TYPE),
         );
         $events = $this->events;
         $events[] = $diagnostic;
 
-        return $this->buildLogJson([], true, $events);
+        return $this->buildLiveLog([], $events);
     }
 
     private function getLastOpenContext(): OpenCloseEntry
@@ -252,209 +225,38 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     }
 
     /**
-     * Build the open tree from real parent-child links captured at open() time.
-     *
-     * Each completed operation carries its own parentId; children are grouped
-     * under their parent and appear in chronological close order (which equals
-     * open order for correctly-nested LIFO sessions).
-     *
-     * @return OpenCloseEntryList
+     * @param SchemaLinks    $links
+     * @param EventEntryList $events
      */
-    private function buildNestedOpen(bool $includeLive = false): array
+    private function buildCompletedLog(array $links = [], array|null $events = null): LogJson
     {
-        $childrenByParent = $this->groupByParent($this->allOpenOperations($includeLive));
+        $tree = $this->logTreeBuilder->completed($this->completedOperations, $this->closeLog);
 
-        return $this->buildOpenChildren(null, $childrenByParent);
-    }
-
-    /**
-     * @param OpenChildrenByParent $childrenByParent
-     *
-     * @return OpenCloseEntryList
-     */
-    private function buildOpenChildren(string|null $parentId, array $childrenByParent): array
-    {
-        $key = $parentId ?? '';
-        if (! isset($childrenByParent[$key])) {
-            return [];
-        }
-
-        $result = [];
-        foreach ($childrenByParent[$key] as $op) {
-            $result[] = new OpenCloseEntry(
-                $op->id,
-                $op->type,
-                $op->schemaUrl,
-                $op->context,
-                $this->buildOpenChildren($op->id, $childrenByParent),
-                $op->parentId,
-            );
-        }
-
-        return $result;
-    }
-
-    /**
-     * Build the internal close tree used for profile attachment and tree serialization.
-     *
-     * Closes are still tracked by openId internally even though the public JSON
-     * serializer nests matched closes directly under their open node.
-     *
-     * @return EventEntryList
-     */
-    private function buildNestedClose(bool $includeLive = false): array
-    {
-        $childrenByParent = $this->groupByParent($this->allOpenOperations($includeLive));
-        $closeByOpenId = [];
-        foreach ($this->closeLog as $close) {
-            if ($close->openId !== null) {
-                $closeByOpenId[$close->openId] = $close;
-            }
-        }
-
-        return $this->buildCloseChildren(null, $childrenByParent, $closeByOpenId);
-    }
-
-    /**
-     * @param OpenChildrenByParent      $childrenByParent
-     * @param array<string, EventEntry> $closeByOpenId
-     *
-     * @return EventEntryList
-     */
-    private function buildCloseChildren(string|null $parentId, array $childrenByParent, array $closeByOpenId): array
-    {
-        $key = $parentId ?? '';
-        if (! isset($childrenByParent[$key])) {
-            return [];
-        }
-
-        $result = [];
-        foreach ($childrenByParent[$key] as $op) {
-            $close = $closeByOpenId[$op->id] ?? null;
-            $childCloses = $this->buildCloseChildren($op->id, $childrenByParent, $closeByOpenId);
-            if ($close === null) {
-                foreach ($childCloses as $childClose) {
-                    $result[] = $childClose;
-                }
-
-                continue;
-            }
-
-            $result[] = new EventEntry(
-                $close->id,
-                $close->type,
-                $close->schemaUrl,
-                $close->context,
-                $close->openId,
-                $childCloses,
-                $close->profile,
-            );
-        }
-
-        return $result;
-    }
-
-    /**
-     * @param OpenCloseEntryList $operations
-     *
-     * @return OpenChildrenByParent
-     */
-    private function groupByParent(array $operations): array
-    {
-        $childrenByParent = [];
-        foreach ($operations as $op) {
-            $key = $op->parentId ?? '';
-            $childrenByParent[$key][] = $op;
-        }
-
-        return $childrenByParent;
-    }
-
-    /**
-     * Convert a context object to its stored array shape.
-     *
-     * Prefers `JsonSerializable::jsonSerialize()` when the context implements it,
-     * so callers that need an editorial shape (e.g. emitting empty maps as stdClass
-     * to satisfy `{}` schemas) retain control. Falls back to `(array)` cast for
-     * legacy contexts that rely on public-property introspection.
-     *
-     * @return ContextData
-     */
-    private function contextToArray(AbstractContext $context): array
-    {
-        if ($context instanceof JsonSerializable) {
-            /** @var mixed $serialized */
-            $serialized = $context->jsonSerialize();
-            if (is_array($serialized) && $this->hasOnlyStringKeys($serialized)) {
-                return $this->freezeContext($serialized);
-            }
-        }
-
-        /** @var ContextData $mixedArray */
-        $mixedArray = (array) $context;
-
-        return $this->freezeContext($mixedArray);
-    }
-
-    /** @param array<mixed> $context */
-    private function hasOnlyStringKeys(array $context): bool
-    {
-        foreach (array_keys($context) as $key) {
-            if (! is_string($key)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Freeze user values as an inert JSON tree so later snapshots and flushes
-     * never invoke nested JsonSerializable objects a second time.
-     *
-     * @param array<mixed> $context
-     *
-     * @return ContextData
-     */
-    private function freezeContext(array $context): array
-    {
-        $json = json_encode($context, JSON_THROW_ON_ERROR);
-
-        return $this->contextFromDecoded(json_decode($json, false, 512, JSON_THROW_ON_ERROR));
-    }
-
-    /** @return ContextData */
-    private function contextFromDecoded(mixed $frozen): array
-    {
-        if (is_array($frozen)) {
-            // Only an empty PHP context reaches this JSON-list branch;
-            // non-empty lists are rejected before context freezing.
-            return [];
-        }
-
-        if ($frozen instanceof stdClass) {
-            $properties = get_object_vars($frozen);
-            $keys = array_map(
-                static fn (int|string $key): string => strval($key),
-                array_keys($properties),
-            );
-
-            return array_combine($keys, array_values($properties));
-        }
-
-        return [];
+        return $this->logFromTree($tree, $links, $events);
     }
 
     /**
      * @param SchemaLinks    $links
      * @param EventEntryList $events
      */
-    private function buildLogJson(array $links = [], bool $includeLive = false, array|null $events = null): LogJson
+    private function buildLiveLog(array $links = [], array|null $events = null): LogJson
+    {
+        $tree = $this->logTreeBuilder->includingLive($this->completedOperations, $this->openStack, $this->closeLog);
+
+        return $this->logFromTree($tree, $links, $events);
+    }
+
+    /**
+     * @param LogTree        $tree
+     * @param SchemaLinks    $links
+     * @param EventEntryList $events
+     */
+    private function logFromTree(array $tree, array $links, array|null $events): LogJson
     {
         return new LogJson(
-            self::SEMANTIC_LOG_SCHEMA_URL,
-            $this->buildNestedOpen($includeLive),
-            $this->buildNestedClose($includeLive),
+            CoreSchema::LOG_URL,
+            $tree['open'],
+            $tree['close'],
             $events ?? $this->events,
             $links,
         );
@@ -463,7 +265,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     /** @param SchemaLinks $links */
     private function emptyLog(array $links = []): LogJson
     {
-        return new LogJson(self::SEMANTIC_LOG_SCHEMA_URL, [], [], [], $links);
+        return new LogJson(CoreSchema::LOG_URL, [], [], [], $links);
     }
 
     private function hasSession(): bool
@@ -497,162 +299,6 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         return $type . '_' . (($this->typeCounts[$type] ?? 0) + 1);
     }
 
-    /** @return OpenCloseEntryList */
-    private function allOpenOperations(bool $includeLive): array
-    {
-        $operations = $this->completedOperations;
-        if (! $includeLive) {
-            return $operations;
-        }
-
-        /** @var list<OpenCloseEntry> $liveOperations */
-        $liveOperations = array_reverse(iterator_to_array($this->openStack, false));
-        foreach ($liveOperations as $operation) {
-            $operations[] = $operation;
-        }
-
-        return $operations;
-    }
-
-    /** @return PreparedContext */
-    private function prepareContext(AbstractContext $context, string $operation): array
-    {
-        /** @var mixed $rawType */
-        $rawType = $context::TYPE;
-        /** @var mixed $rawSchemaUrl */
-        $rawSchemaUrl = $context::SCHEMA_URL;
-        /** @var list<DiagnosticData> $diagnostics */
-        $diagnostics = [];
-        $type = is_string($rawType) && $this->isValidType($rawType) ? $rawType : null;
-        $schemaUrl = is_string($rawSchemaUrl) && $this->isValidSchemaUrl($rawSchemaUrl) ? $rawSchemaUrl : null;
-
-        if ($type === null) {
-            if ($this->mode === SemanticLoggerMode::Strict) {
-                throw new InvalidContextTypeException();
-            }
-
-            $diagnostics[] = [
-                'kind' => 'invalid_type',
-                'message' => 'Context TYPE must match ^[a-z_]+$ and must not use the semantic_logger_* namespace.',
-                'originalType' => $this->originalValue($rawType),
-            ];
-        }
-
-        if ($schemaUrl === null) {
-            if ($this->mode === SemanticLoggerMode::Strict) {
-                throw new InvalidSchemaUrlException();
-            }
-
-            $diagnostics[] = [
-                'kind' => 'invalid_schema_url',
-                'message' => 'Context SCHEMA_URL must be an absolute URI or ./schemas/<name>.json.',
-                'originalSchemaUrl' => $this->originalValue($rawSchemaUrl),
-            ];
-        }
-
-        $serialized = [];
-        $serializationSucceeded = false;
-        try {
-            $serialized = $this->contextToArray($context);
-            $serializationSucceeded = true;
-        } catch (Throwable $throwable) {
-            if ($this->mode === SemanticLoggerMode::Strict) {
-                throw $throwable;
-            }
-
-            $diagnostics[] = [
-                'kind' => 'context_serialization_failed',
-                'message' => 'Context serialization failed.',
-                'exceptionClass' => $throwable::class,
-            ];
-        }
-
-        if ($diagnostics === [] && $type !== null && $schemaUrl !== null) {
-            return [
-                'type' => $type,
-                'schemaUrl' => $schemaUrl,
-                'context' => $serialized,
-                'diagnostics' => [],
-            ];
-        }
-
-        if ($serializationSucceeded) {
-            $diagnostics = array_map(static function (array $diagnostic) use ($serialized): array {
-                $diagnostic['discardedContext'] = $serialized;
-
-                return $diagnostic;
-            }, $diagnostics);
-        }
-
-        return [
-            'type' => self::INVALID_CONTEXT_TYPE,
-            'schemaUrl' => self::INVALID_CONTEXT_SCHEMA_URL,
-            'context' => $this->placeholderContext($operation, $diagnostics),
-            'diagnostics' => $diagnostics,
-        ];
-    }
-
-    private function isValidType(mixed $type): bool
-    {
-        if (! is_string($type) || preg_match(self::TYPE_PATTERN, $type) !== 1) {
-            return false;
-        }
-
-        return ! str_starts_with($type, self::RESERVED_TYPE_PREFIX);
-    }
-
-    private function isValidSchemaUrl(mixed $schemaUrl): bool
-    {
-        if (! is_string($schemaUrl) || $schemaUrl === '') {
-            return false;
-        }
-
-        if (preg_match(self::RELATIVE_SCHEMA_PATTERN, $schemaUrl) === 1) {
-            return true;
-        }
-
-        $scheme = parse_url($schemaUrl, PHP_URL_SCHEME);
-
-        return is_string($scheme) && preg_match(self::URI_SCHEME_PATTERN, $scheme) === 1;
-    }
-
-    /**
-     * @param list<DiagnosticData> $diagnostics
-     *
-     * @return ContextData
-     */
-    private function placeholderContext(string $operation, array $diagnostics): array
-    {
-        $errors = array_map(
-            static fn (array $diagnostic): array => [
-                'kind' => $diagnostic['kind'],
-                'message' => $diagnostic['message'],
-            ],
-            $diagnostics,
-        );
-        $context = [
-            'operation' => $operation,
-            'errors' => $errors,
-        ];
-
-        foreach ($diagnostics as $diagnostic) {
-            if (isset($diagnostic['originalType'])) {
-                $context['originalType'] = $diagnostic['originalType'];
-            }
-
-            if (isset($diagnostic['originalSchemaUrl'])) {
-                $context['originalSchemaUrl'] = $diagnostic['originalSchemaUrl'];
-            }
-        }
-
-        return $context;
-    }
-
-    private function originalValue(mixed $value): string
-    {
-        return is_string($value) ? $value : get_debug_type($value);
-    }
-
     /**
      * @param list<DiagnosticData> $diagnostics
      *
@@ -679,9 +325,9 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     private function diagnosticEntry(array $diagnostic, string|null $openId, string|null $id = null): EventEntry
     {
         return new EventEntry(
-            $id ?? $this->nextId(self::DIAGNOSTIC_TYPE),
-            self::DIAGNOSTIC_TYPE,
-            self::DIAGNOSTIC_SCHEMA_URL,
+            $id ?? $this->nextId(CoreSchema::DIAGNOSTIC_TYPE),
+            CoreSchema::DIAGNOSTIC_TYPE,
+            CoreSchema::DIAGNOSTIC_URL,
             $diagnostic,
             $openId,
         );
@@ -702,7 +348,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         ];
 
         try {
-            $diagnostic['discardedContext'] = $this->contextToArray($context);
+            $diagnostic['discardedContext'] = $this->contextPreparer->freezeContext($context);
         } catch (Throwable $throwable) {
             $diagnostic['exceptionClass'] = $throwable::class;
         }

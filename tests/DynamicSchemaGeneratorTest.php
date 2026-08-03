@@ -103,6 +103,7 @@ final class DynamicSchemaGeneratorTest extends TestCase
         $this->assertArrayHasKey('open', $properties);
         $this->assertArrayHasKey('events', $properties);
         $this->assertArrayHasKey('close', $properties);
+        $this->assertSame('#/definitions/contextType', $this->expectArray($properties['type'] ?? null)['$ref']);
 
         $this->assertCount(2, $allOf);
 
@@ -138,6 +139,7 @@ final class DynamicSchemaGeneratorTest extends TestCase
         $this->assertArrayNotHasKey('events', $properties);
         $this->assertArrayNotHasKey('close', $properties);
         $this->assertArrayHasKey('openId', $properties);
+        $this->assertSame('#/definitions/contextType', $this->expectArray($properties['type'] ?? null)['$ref']);
 
         if ($allowsProfile) {
             $this->assertArrayHasKey('profile', $properties);
