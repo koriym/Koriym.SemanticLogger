@@ -5,15 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - Unreleased
 
 ### Added
+- **Strict and total logger modes.** `SemanticLoggerMode::Strict` remains the constructor default; `SemanticLoggerMode::Total` records core-owned placeholders and diagnostic events instead of allowing logging failures to interrupt the caller.
+- Bundled schemas for `semantic_logger_error` diagnostics and `semantic_logger_invalid_context` placeholders.
+- Event-only sessions with the required `"open": []` envelope shape across the logger, validator, dynamic schema generator, and `stree`.
 - **`LogRendererInterface`** and **`LogJson::render(LogRendererInterface)`** — a log can render itself with any renderer via double dispatch, without knowing the output format. Implement the interface to add new formats (e.g. Markdown, Mermaid) without touching the logger.
 
 ### Changed
+- **BREAKING — context metadata is validated at write time.** Consumer `TYPE` values must match `^[a-z_]+$`; the `semantic_logger_*` namespace is reserved; `SCHEMA_URL` must be an absolute URI or `./schemas/<name>.json`.
+- Context values are frozen as inert JSON trees at write time, preventing nested `JsonSerializable` values from running again during snapshots or flushes. In strict mode, serialization failures therefore surface at the write call instead of during a later flush. In PHP snapshots, nested JSON objects are now represented as `stdClass` instead of associative arrays; the wire JSON shape is unchanged.
+- **BREAKING — PHP 8.2 is now the minimum supported version.** CI covers PHP 8.2 through 8.5.
+- `flush()` now resets state in both modes whether it returns or throws. `toArray()` and `jsonSerialize()` are explicitly non-destructive snapshots.
+- `NullSemanticLogger::open()` now returns unique `noop_N` ids per session instead of an empty sentinel; `flush()` resets its counter.
+- `koriym/stree` accepts both `koriym/semantic-logger ^0.8` and `^1.0` during the package transition.
 - **BREAKING — `TreeRenderer` API.** The array entry point `TreeRenderer::render(array $logData, RenderConfig $config)` is renamed to `TreeRenderer::renderTree(array $logData)`, and `RenderConfig` now moves to the constructor (`new TreeRenderer($config)`). `TreeRenderer::render()` now implements `LogRendererInterface::render(LogJson $log)`. The CLI (`stree`, `vendor/bin/stree`) and the `Koriym\SemanticLogger\Stree` namespace are unchanged.
   - Migrate: `(new TreeRenderer())->render($logData, $config)` → `(new TreeRenderer($config))->renderTree($logData)`, or render a log directly with `$log->render(new TreeRenderer($config))`.
 - The tree renderer now lives as a self-contained monorepo subpackage under `src-stree/` (`koriym/stree`), merged into the root autoload and `git subtree split`-able later. The namespace stays `Koriym\SemanticLogger\Stree`, so usage is unchanged.
+
+### Fixed
+- Strict-mode metadata and serialization failures no longer advance id counters or pop open operations before the write succeeds.
+- Event-only sessions are no longer mistaken for empty sessions and discarded.
+- Incomplete strict snapshots no longer emit self-invalid `"open": []` documents.
+- `DevSemanticLogger` keeps its profiler stack aligned when an inner close fails or a total-mode close is rejected for LIFO mismatch.
+
+### Removed
+- Dead MCP Psalm type aliases left after the MCP implementation moved out of this package.
+
+## [0.8.0] - 2026-04-24
+
+### Changed
+- **BREAKING — tree-only public log envelope.** Matched closes and scoped events serialize under their corresponding open node; top-level `events` and `close` remain only for detached diagnostics.
+- Normalized PHP domain types and tightened static-analysis and coding-standard coverage.
+
+### Fixed
+- Preserved detached events, orphan closes, and duplicate close diagnostics while parsing and rendering semantic trees.
+- Aligned the public JSON Schema and validator with the tree-only envelope, including nested context validation and empty object maps.
+- Resolved schema URL mapping regressions and shipped `docs/schemas` in the Composer distribution so root validation never depends on a remote schema.
 
 ## [0.7.0] - 2026-04-22
 

@@ -148,13 +148,59 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
 ### Open / Close Ordering
 
-`open` and `close` must be paired in LIFO order. Violations raise exceptions from `Koriym\SemanticLogger\Exception`:
+`open` and `close` must be paired in LIFO order. In the default strict mode, violations raise exceptions from `Koriym\SemanticLogger\Exception`:
 
 - `InvalidOperationOrderException` — `close()` called with an id other than the innermost open
 - `NoOpenOperationsException` — `close()` called with no open operation on the stack
 - `UnclosedLogicException` — `flush()` called while opens are still pending
 
 Wrap work in `try/finally` so `close()` always runs, even on error paths.
+
+## Strict and Total Modes
+
+`SemanticLogger` is strict by default. Strict mode is intended for development and tests: invalid metadata, serialization failures, ordering mistakes, and incomplete sessions are surfaced immediately.
+
+```php
+use Koriym\SemanticLogger\SemanticLogger;
+use Koriym\SemanticLogger\SemanticLoggerMode;
+
+$strictLogger = new SemanticLogger();
+$totalLogger = new SemanticLogger(SemanticLoggerMode::Total);
+```
+
+Total mode is intended for boundaries where logging must remain total. Instead of letting a caller error interrupt the application, it records a core-owned placeholder at the attempted entry's tree position and emits a `semantic_logger_error` diagnostic event. Core diagnostic payloads use bundled schemas and contain only inert JSON values, so reporting a serialization failure cannot recurse into user serialization.
+
+Context values are frozen as an inert JSON tree at each write. Nested `JsonSerializable` values therefore run once, during that write, and are never invoked again by a snapshot or flush. In PHP snapshots, nested JSON objects are represented as `stdClass` rather than associative arrays; the serialized JSON shape is unchanged. Consumers that inspect `toArray()` directly should treat nested context values as JSON-shaped data.
+
+| Condition | Strict | Total |
+|-----------|--------|-------|
+| Invalid `TYPE` or `SCHEMA_URL` | `InvalidContextTypeException` or `InvalidSchemaUrlException`; no mutation | Inline `semantic_logger_invalid_context` placeholder plus diagnostic |
+| Context serialization failure | Original exception; no mutation | Inline placeholder plus exception diagnostic |
+| `close()` without an open or with the wrong LIFO id | Ordering exception; no mutation | Diagnostic; open stack remains unchanged |
+| Valid close whose context cannot serialize | Original exception; open remains retryable | Placeholder close is committed and the span is closed |
+| Sessionless `flush()` | `NoLogSessionException` | Valid empty log with `"open": []` |
+| `flush()` with unclosed spans | `UnclosedLogicException` | Incomplete opens plus `unclosed_at_flush` diagnostic |
+
+Consumer context metadata must follow these rules:
+
+- `TYPE` is non-empty and matches `^[a-z_]+$`.
+- `semantic_logger_*` is reserved for core placeholders and diagnostics.
+- `SCHEMA_URL` is an absolute URI or a relative `./schemas/<name>.json` path.
+
+## Session Lifecycle
+
+A session is the interval between calls to `flush()` and begins implicitly with the first `open()`, `event()`, or diagnostic. Event-only sessions are valid and serialize with the required empty shape `"open": []`.
+
+Both modes reset all session state whenever `flush()` returns or throws. Writes after that call begin a fresh session and operation ids restart from one. This makes one logger instance per worker safe when every request or message boundary flushes in `finally`.
+
+All writers participating in one boundary must share the same logger instance, and exactly one owner must flush it. Multiple owners flushing the same instance split one logical session silently.
+
+`toArray()` and `jsonSerialize()` are non-destructive snapshots:
+
+- Strict mode throws on a sessionless or incomplete session and preserves state. Mid-session dumps are therefore intentionally unavailable in strict mode.
+- Total mode returns an empty sessionless snapshot or an honest incomplete tree. Its `unclosed_at_flush` diagnostic is synthesized for that snapshot only, so repeated snapshots do not accumulate events.
+
+`NullSemanticLogger` follows the same id protocol: `open()` returns unique per-session ids (`noop_1`, `noop_2`, …), `close()` accepts them unconditionally, and `flush()` resets the counter.
 
 ### Try It
 
@@ -217,7 +263,7 @@ Segments are attributed only to the operation they ran inside — the parent's p
 vendor/bin/validate-semantic-log.php path/to/semantic-log.json [path/to/schemas]
 ```
 
-The envelope (root tree) is always validated against the bundled `docs/schemas/semantic-log.json` shipped in the composer dist. You supply a schema directory for your own context schemas — the CLI defaults to `./schemas/` when the second argument is omitted.
+The envelope (root tree) is always validated against the bundled `docs/schemas/semantic-log.json` shipped in the composer dist. Core placeholder and diagnostic contexts also resolve against their bundled schemas. You supply a schema directory for your own context schemas — the CLI defaults to `./schemas/` when the second argument is omitted.
 
 ```php
 use Koriym\SemanticLogger\SemanticLogValidator;
