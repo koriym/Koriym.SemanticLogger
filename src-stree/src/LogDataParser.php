@@ -31,10 +31,6 @@ final class LogDataParser
 
         /** @var list<array<string, mixed>> $openList */
         $openList = $logData['open'];
-        if ($openList === []) {
-            throw new RuntimeException('Invalid log data: open section is empty');
-        }
-
         $rootNode = count($openList) === 1
             ? $this->parseOpenEntry($openList[0])
             : $this->createForestRoot($openList);

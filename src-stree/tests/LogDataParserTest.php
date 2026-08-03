@@ -203,6 +203,27 @@ final class LogDataParserTest extends TestCase
         $this->assertSame('b', $tree->children[1]->type);
     }
 
+    public function testEventOnlyLogUsesSyntheticForestRoot(): void
+    {
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData([
+            'open' => [],
+            'events' => [
+                [
+                    'id' => 'notice_1',
+                    'type' => 'notice',
+                    'schemaUrl' => 'notice.json',
+                    'context' => ['message' => 'event only'],
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($tree->isSynthetic);
+        $this->assertCount(1, $tree->children);
+        $this->assertTrue($tree->children[0]->isEvent);
+        $this->assertSame('notice', $tree->children[0]->type);
+    }
+
     public function testParseEventsData(): void
     {
         $logData = [
