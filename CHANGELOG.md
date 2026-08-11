@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - Unreleased
+## [0.9.0] - Unreleased
 
 ### Added
 - **Strict and total logger modes.** `SemanticLoggerMode::Strict` remains the constructor default; `SemanticLoggerMode::Total` records core-owned placeholders and diagnostic events instead of allowing logging failures to interrupt the caller.
@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING — PHP 8.2 is now the minimum supported version.** CI covers PHP 8.2 through 8.5.
 - `flush()` now resets state in both modes whether it returns or throws. `toArray()` and `jsonSerialize()` are explicitly non-destructive snapshots.
 - `NullSemanticLogger::open()` now returns unique `noop_N` ids per session instead of an empty sentinel; `flush()` resets its counter.
-- `koriym/stree` now requires `koriym/semantic-logger ^1.0` because its renderer implements the 1.0 `LogRendererInterface` contract.
+- `koriym/stree` now requires `koriym/semantic-logger ^0.9` because its renderer implements the new `LogRendererInterface` contract, which does not exist in 0.8.
 - **BREAKING — `TreeRenderer` API.** The array entry point `TreeRenderer::render(array $logData, RenderConfig $config)` is renamed to `TreeRenderer::renderTree(array $logData)`, and `RenderConfig` now moves to the constructor (`new TreeRenderer($config)`). `TreeRenderer::render()` now implements `LogRendererInterface::render(LogJson $log)`. The CLI (`stree`, `vendor/bin/stree`) and the `Koriym\SemanticLogger\Stree` namespace are unchanged.
   - Migrate: `(new TreeRenderer())->render($logData, $config)` → `(new TreeRenderer($config))->renderTree($logData)`, or render a log directly with `$log->render(new TreeRenderer($config))`.
 - The tree renderer now lives as a self-contained monorepo subpackage under `src-stree/` (`koriym/stree`), merged into the root autoload and `git subtree split`-able later. The namespace stays `Koriym\SemanticLogger\Stree`, so usage is unchanged.
