@@ -9,11 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **`LogRendererInterface`** and **`LogJson::render(LogRendererInterface)`** — a log can render itself with any renderer via double dispatch, without knowing the output format. Implement the interface to add new formats (e.g. Markdown, Mermaid) without touching the logger.
+- **Logger-recorded diagnostics** — two core-owned context types make failures visible as data instead of exceptions: `semantic_logger_error` (with a `kind` of `context_serialization_failed` / `close_without_open` / `close_id_mismatch` / `unclosed_at_flush`) and `semantic_logger_invalid_context`, a placeholder that preserves an entry's position in the tree when its context cannot be serialized. Both ship bundled JSON schemas under `docs/schemas/`.
+- **Static context metadata checks in the validator** (`ContextMetadataChecker`) — entry types must match `^[a-z_]+$` outside the reserved `semantic_logger_*` namespace, and schema URLs must be absolute URIs or `./schemas/<name>.json`. Diagnostic entries are listed with their own severity and validated against the bundled core schemas.
+- **`--fail-on-diagnostics` CLI flag** and `SemanticLogValidatorInterface::validate(..., $failOnDiagnostics)` — turn the presence of logger-recorded diagnostics into a failing CI gate.
 
 ### Changed
+- **BREAKING — the logger never throws.** `SemanticLogger::open()` / `event()` / `close()` / `flush()` / `toArray()` / `jsonSerialize()` always succeed. Recording failures and protocol misuse are recorded as diagnostic entries (see above). See [MIGRATION.md](MIGRATION.md).
+- **BREAKING — flush contract.** `flush()` on an empty session returns a valid empty log (`"open": []`) instead of throwing; on unclosed opens it returns the live tree with an `unclosed_at_flush` diagnostic. `flush()` always resets the session. `toArray()` / `jsonSerialize()` are total, non-destructive snapshots.
+- **BREAKING — envelope schema relaxed.** `required: ["$schema"]` and the `open` minimum is gone: an empty session is a valid, self-describing document.
+- Contexts are deep-frozen at record time (`ContextFreezer`): later mutation or repeated `JsonSerializable` invocation can never alter a recorded entry, and a serialization failure surfaces at its own operation — the loss radius of one bad context is that entry, never the session.
+- `NullSemanticLogger` returns `noop_N` ids from `open()` and resets its sequence on `flush()`.
 - **BREAKING — `TreeRenderer` API.** The array entry point `TreeRenderer::render(array $logData, RenderConfig $config)` is renamed to `TreeRenderer::renderTree(array $logData)`, and `RenderConfig` now moves to the constructor (`new TreeRenderer($config)`). `TreeRenderer::render()` now implements `LogRendererInterface::render(LogJson $log)`. The CLI (`stree`, `vendor/bin/stree`) and the `Koriym\SemanticLogger\Stree` namespace are unchanged.
   - Migrate: `(new TreeRenderer())->render($logData, $config)` → `(new TreeRenderer($config))->renderTree($logData)`, or render a log directly with `$log->render(new TreeRenderer($config))`.
 - The tree renderer now lives as a self-contained monorepo subpackage under `src-stree/` (`koriym/stree`), merged into the root autoload and `git subtree split`-able later. The namespace stays `Koriym\SemanticLogger\Stree`, so usage is unchanged.
+- stree accepts event-only and empty logs: an empty `open` section parses into a synthetic forest root instead of throwing. Parser errors now throw `Koriym\SemanticLogger\Stree\Exception\RuntimeException`; the dependency pin moves to `koriym/semantic-logger: ^0.9` with `LogJson` / `LogRendererInterface` as the public contract.
+
+### Removed
+- **BREAKING — the exception hierarchy.** `NoLogSessionException`, `NoOpenOperationsException`, `InvalidOperationOrderException`, `UnclosedLogicException`, and the package `LogicException` / `RuntimeException` are gone. Remove `catch` blocks and throwable expectations; see [MIGRATION.md](MIGRATION.md).
 
 ## [0.7.0] - 2026-04-22
 

@@ -187,9 +187,9 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Maintain schema versioning for breaking changes
 
 ### Error Handling
-- Use appropriate exception classes from `src/Exception/`
-- Handle stack underflow in close operations
-- Validate schema URLs format
+- The logger never throws: recording failures and protocol misuse become core-owned diagnostic entries (`semantic_logger_error` / `semantic_logger_invalid_context`)
+- Vocabulary violations (TYPE pattern, reserved namespace, SCHEMA_URL shape) are validator concerns, not runtime concerns
+- Use `--fail-on-diagnostics` in CI to fail on logger-recorded diagnostics
 
 ### Profiler Integration (BEAR.Resource)
 - Profile data is carried by the immutable value objects in `src/Profiler/` (`OperationProfile` + artifact classes)
