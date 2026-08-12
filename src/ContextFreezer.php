@@ -15,6 +15,7 @@ use function array_values;
 use function get_debug_type;
 use function get_object_vars;
 use function is_array;
+use function is_object;
 use function is_string;
 use function json_decode;
 use function json_encode;
@@ -86,12 +87,12 @@ final class ContextFreezer
         if ($context instanceof JsonSerializable) {
             /** @var mixed $serialized */
             $serialized = $context->jsonSerialize();
-            if ((is_array($serialized) && $this->hasOnlyStringKeys($serialized)) || $serialized instanceof stdClass) {
+            if ((is_array($serialized) && $this->hasOnlyStringKeys($serialized)) || is_object($serialized)) {
                 return $this->freezeArray($serialized);
             }
 
-            // Non-empty list results are not valid object contexts. Preserve
-            // the legacy public-property fallback instead of storing the list.
+            // Scalar/list results are not valid object contexts. Preserve
+            // the legacy public-property fallback instead of storing them.
         }
 
         /** @var ContextData $mixedArray */
@@ -101,11 +102,11 @@ final class ContextFreezer
     }
 
     /**
-     * @param array<mixed>|stdClass $context
+     * @param array<mixed>|object $context
      *
      * @return ContextData
      */
-    private function freezeArray(array|stdClass $context): array
+    private function freezeArray(array|object $context): array
     {
         $json = json_encode($context, JSON_THROW_ON_ERROR);
 

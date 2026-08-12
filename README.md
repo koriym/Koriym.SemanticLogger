@@ -77,6 +77,8 @@ final class ProcessResultContext extends AbstractContext
 }
 ```
 
+The recorded context data is the JSON representation of the context: public properties by default, or the `jsonSerialize()` result when the context implements `JsonSerializable` and that result is a string-keyed array or an object. Other return shapes fall back to public properties. A context that cannot be serialized is replaced by a core-owned placeholder entry, so one bad context never loses the session.
+
 ### 2. Log a Workflow
 
 ```php

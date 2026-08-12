@@ -23,6 +23,7 @@ always succeed.
 | 1.x / 0.8 | 0.9 |
 |---|---|
 | `flush()` with no session → `NoLogSessionException` | valid empty log (`"open": []`), always resets |
+| `catch (NoLogSessionException)` to skip persisting an empty session | flush never fails — check emptiness yourself instead: `$log->open === []` (top-level `events`/`close` may still exist, e.g. diagnostics) |
 | `flush()` with unclosed opens → `UnclosedLogicException` | live tree + `unclosed_at_flush` diagnostic carrying the unclosed ids, always resets |
 | `close()` with empty stack → `NoOpenOperationsException` | `close_without_open` diagnostic; context discarded; session unaffected |
 | `close()` with non-innermost id → `InvalidOperationOrderException` | `close_id_mismatch` diagnostic; the stack is never guess-mutated, so correct closes still work |

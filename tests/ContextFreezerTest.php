@@ -18,4 +18,15 @@ final class ContextFreezerTest extends TestCase
         $this->assertNull($frozen['diagnostic']);
         $this->assertSame(['serialized' => 'value'], $frozen['context']);
     }
+
+    public function testFreezePreservesDtoResultFromJsonSerialize(): void
+    {
+        // The same guarantee holds when jsonSerialize() returns a DTO (any
+        // object), not only stdClass: the serialized form is recorded, never
+        // the context's own properties.
+        $frozen = (new ContextFreezer())->freeze(new DtoSerializingContext(), 'event');
+
+        $this->assertNull($frozen['diagnostic']);
+        $this->assertSame(['serialized' => 'value'], $frozen['context']);
+    }
 }
