@@ -39,6 +39,7 @@ final class SignalExtractor
         'duration',
         'processingTime',
         'connectionTime',
+        'timestamp',
         'id',
         'openId',
         'schemaUrl',
