@@ -161,4 +161,237 @@ JSON,
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
+
+    public function testValidateRejectsInvalidContextType(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "open": [
+    {
+      "id": "being_final_open_1",
+      "type": "InvalidType",
+      "schemaUrl": "https://be-framework.org/schemas/being-final-open.json",
+      "context": {
+        "from": "App\\Input\\OrderInput",
+        "final": "App\\Final\\OrderConfirmed",
+        "input": {},
+        "inject": {}
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/Invalid context type: InvalidType/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsReservedTypePrefix(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "events": [
+    {
+      "id": "semantic_logger_fake_1",
+      "type": "semantic_logger_fake",
+      "schemaUrl": "https://example.com/schemas/fake.json",
+      "context": { "message": "user context squatting on the core namespace" }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/Invalid context type: semantic_logger_fake/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsInvalidSchemaUrl(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "open": [
+    {
+      "id": "being_final_open_1",
+      "type": "being_final_open",
+      "schemaUrl": "not-a-url",
+      "context": {
+        "from": "App\\Input\\OrderInput",
+        "final": "App\\Final\\OrderConfirmed",
+        "input": {},
+        "inject": {}
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/Invalid context schemaUrl: not-a-url/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateAcceptsRelativeSchemaUrl(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "open": [
+    {
+      "id": "being_final_open_1",
+      "type": "being_final_open",
+      "schemaUrl": "./schemas/being-final-open.json",
+      "context": {
+        "from": "App\\Input\\OrderInput",
+        "final": "App\\Final\\OrderConfirmed",
+        "input": {},
+        "inject": {}
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectOutputRegex('/All contexts validate successfully/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateListsDiagnosticsWithoutFailing(): void
+    {
+        $this->writeLogWithDiagnosticEvent();
+
+        $this->expectOutputRegex('/recorded 1 diagnostic entries[\s\S]*All contexts validate successfully/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateFailsOnDiagnosticsWhenRequested(): void
+    {
+        $this->writeLogWithDiagnosticEvent();
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('The logger recorded 1 diagnostic entries');
+        $this->expectOutputRegex('/recorded 1 diagnostic entries/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory, true);
+    }
+
+    public function testValidateRejectsInvalidCoreDiagnosticContext(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "events": [
+    {
+      "id": "semantic_logger_error_1",
+      "type": "semantic_logger_error",
+      "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json",
+      "context": {
+        "kind": "bogus_kind",
+        "message": "Not a real diagnostic kind."
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/semantic_logger_error/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateListsInvalidContextPlaceholder(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "events": [
+    {
+      "id": "semantic_logger_invalid_context_1",
+      "type": "semantic_logger_invalid_context",
+      "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-invalid-context.json",
+      "context": {
+        "operation": "event",
+        "errors": [
+          {
+            "kind": "context_serialization_failed",
+            "message": "Context serialization failed."
+          }
+        ],
+        "originalType": "broken_context",
+        "originalSchemaUrl": "https://example.com/schemas/broken.json"
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectOutputRegex('/semantic_logger_invalid_context \(context_serialization_failed\)[\s\S]*All contexts validate successfully/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    private function writeLogWithDiagnosticEvent(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "open": [
+    {
+      "id": "being_final_open_1",
+      "type": "being_final_open",
+      "schemaUrl": "https://be-framework.org/schemas/being-final-open.json",
+      "context": {
+        "from": "App\\Input\\OrderInput",
+        "final": "App\\Final\\OrderConfirmed",
+        "input": {},
+        "inject": {}
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "semantic_logger_error_1",
+      "type": "semantic_logger_error",
+      "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json",
+      "context": {
+        "kind": "close_without_open",
+        "message": "Close called without a matching open.",
+        "relatedId": "missing_open_1"
+      }
+    }
+  ]
+}
+JSON,
+        );
+    }
 }
