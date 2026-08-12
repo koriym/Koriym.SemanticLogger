@@ -17,8 +17,6 @@ use Override;
  */
 final class NullSemanticLogger implements SemanticLoggerInterface
 {
-    private const SEMANTIC_LOG_SCHEMA_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json';
-
     private int $sequence = 0;
 
     #[Override]
@@ -45,6 +43,6 @@ final class NullSemanticLogger implements SemanticLoggerInterface
     {
         $this->sequence = 0;
 
-        return new LogJson(self::SEMANTIC_LOG_SCHEMA_URL, [], [], [], $links);
+        return new LogJson(CoreSchema::LOG_URL, [], [], [], $links);
     }
 }

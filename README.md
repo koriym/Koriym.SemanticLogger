@@ -181,6 +181,8 @@ Context values are frozen as an inert JSON tree at each write. Nested `JsonSeria
 | Sessionless `flush()` | `NoLogSessionException` | Valid empty log with `"open": []` |
 | `flush()` with unclosed spans | `UnclosedLogicException` | Incomplete opens plus `unclosed_at_flush` diagnostic |
 
+Every document produced by `SemanticLogger` declares the mode that produced it as `"mode": "strict"|"total"` in the envelope. In a total-mode document, the absence of diagnostic entries is proof of a clean session; a document without `mode` carries no such proof. `NullSemanticLogger` omits the field by design — its document proves nothing about how it was produced.
+
 Consumer context metadata must follow these rules:
 
 - `TYPE` is non-empty and matches `^[a-z_]+$`.
