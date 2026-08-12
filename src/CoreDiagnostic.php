@@ -22,7 +22,17 @@ final class CoreDiagnostic
 {
     public function isCoreType(string $type): bool
     {
-        return $type === CoreSchema::DIAGNOSTIC_TYPE || $type === CoreSchema::INVALID_CONTEXT_TYPE;
+        return $this->schemaUrlFor($type) !== null;
+    }
+
+    /** Return the canonical schema URL for a core-owned type, or null for any other type. */
+    public function schemaUrlFor(string $type): string|null
+    {
+        return match ($type) {
+            CoreSchema::DIAGNOSTIC_TYPE => CoreSchema::DIAGNOSTIC_URL,
+            CoreSchema::INVALID_CONTEXT_TYPE => CoreSchema::INVALID_CONTEXT_URL,
+            default => null,
+        };
     }
 
     /** Build a one-line description of a logger-recorded diagnostic entry. */

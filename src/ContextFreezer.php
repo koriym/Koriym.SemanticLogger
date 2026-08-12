@@ -86,7 +86,7 @@ final class ContextFreezer
         if ($context instanceof JsonSerializable) {
             /** @var mixed $serialized */
             $serialized = $context->jsonSerialize();
-            if (is_array($serialized) && $this->hasOnlyStringKeys($serialized)) {
+            if ((is_array($serialized) && $this->hasOnlyStringKeys($serialized)) || $serialized instanceof stdClass) {
                 return $this->freezeArray($serialized);
             }
 
@@ -101,11 +101,11 @@ final class ContextFreezer
     }
 
     /**
-     * @param array<mixed> $context
+     * @param array<mixed>|stdClass $context
      *
      * @return ContextData
      */
-    private function freezeArray(array $context): array
+    private function freezeArray(array|stdClass $context): array
     {
         $json = json_encode($context, JSON_THROW_ON_ERROR);
 

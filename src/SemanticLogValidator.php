@@ -27,8 +27,8 @@ use function str_starts_with;
 
 final class SemanticLogValidator implements SemanticLogValidatorInterface
 {
-    private ContextMetadataChecker $metadataChecker;
-    private CoreDiagnostic $coreDiagnostic;
+    private readonly ContextMetadataChecker $metadataChecker;
+    private readonly CoreDiagnostic $coreDiagnostic;
 
     public function __construct()
     {
@@ -154,7 +154,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $type = $contextData->type;
         if (is_string($type) && $this->coreDiagnostic->isCoreType($type)) {
             $diagnostics[] = $this->coreDiagnostic->describe($contextData, $path, $type);
-            $this->validateCoreDiagnostic($contextData, $path, $violations);
+            $this->validateCoreDiagnostic($contextData, $type, $path, $violations);
 
             return;
         }
@@ -174,16 +174,26 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
     /**
      * Core diagnostic entries are validated against the schemas bundled with
-     * this package, not against the application's schema directory.
+     * this package, selected by the canonical type-to-URL mapping — an entry
+     * whose URL disagrees with its core type is rejected before any schema load.
      *
+     * @param object       $entry      the core-owned diagnostic entry
+     * @param string       $type       the entry's core-owned type
      * @param list<string> $violations
      *
      * @param-out list<string>    $violations
      */
-    private function validateCoreDiagnostic(object $entry, string $path, array &$violations): void
+    private function validateCoreDiagnostic(object $entry, string $type, string $path, array &$violations): void
     {
+        $canonicalUrl = $this->coreDiagnostic->schemaUrlFor($type);
         $schemaUrl = $this->extractSchemaUrl($entry);
-        $filename = $schemaUrl !== null ? basename($schemaUrl) : '';
+        if ($canonicalUrl === null || $schemaUrl !== $canonicalUrl) {
+            $violations[] = "[{$path}] Core diagnostic '{$type}' must use the canonical schema URL: {$canonicalUrl}";
+
+            return;
+        }
+
+        $filename = basename($canonicalUrl);
         $schemaFile = dirname(__DIR__) . '/docs/schemas/' . $filename;
         if (! file_exists($schemaFile)) {
             $violations[] = "[{$path}] Bundled core schema not found: {$filename}";

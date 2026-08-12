@@ -358,6 +358,64 @@ JSON,
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
 
+    public function testValidateRejectsCoreDiagnosticWithCrossTypeSchemaUrl(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "events": [
+    {
+      "id": "semantic_logger_error_1",
+      "type": "semantic_logger_error",
+      "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-invalid-context.json",
+      "context": {
+        "kind": "close_without_open",
+        "message": "Close called without a matching open.",
+        "relatedId": "missing_open_1"
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/canonical schema URL/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsCoreDiagnosticWithNoncanonicalSchemaUrl(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "events": [
+    {
+      "id": "semantic_logger_error_1",
+      "type": "semantic_logger_error",
+      "schemaUrl": "https://example.com/schemas/semantic-logger-error.json",
+      "context": {
+        "kind": "close_without_open",
+        "message": "Close called without a matching open.",
+        "relatedId": "missing_open_1"
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/canonical schema URL/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
     private function writeLogWithDiagnosticEvent(): void
     {
         file_put_contents(

@@ -4,7 +4,7 @@
   "title": "Semantic Logger Invalid Context Placeholder",
   "description": "Core-owned placeholder that preserves tree position when a user context cannot be recorded. Emitted only when context serialization fails; the original context identity is kept for attribution.",
   "type": "object",
-  "required": ["operation", "errors"],
+  "required": ["operation", "errors", "originalType", "originalSchemaUrl"],
   "properties": {
     "operation": {
       "type": "string",
