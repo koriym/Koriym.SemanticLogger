@@ -17,6 +17,11 @@
     "$schema": {
       "$ref": "#/definitions/schemaUrl"
     },
+    "mode": {
+      "type": "string",
+      "enum": ["strict", "total"],
+      "description": "The logger mode that produced this document. Recorded so the document is self-describing about its own evidential value: in a total-mode document the absence of diagnostic entries is proof of a clean session, while a document without mode carries no such proof. Optional in 0.9.x; planned to become required in 1.0."
+    },
     "open": {
       "type": "array",
       "description": "Top-level root operations in chronological order. Each entry may carry nested child opens, nested events, and its matching close.",

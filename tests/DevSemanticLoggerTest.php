@@ -60,6 +60,27 @@ final class DevSemanticLoggerTest extends TestCase
         $this->assertCount(1, $xhprofSegments[$inner]);
     }
 
+    public function testFlushPreservesInnerLoggerModeInEnvelope(): void
+    {
+        $openId = $this->logger->open(new FakeContext('test'));
+        $this->logger->close(new FakeContext('done'), $openId);
+
+        $array = $this->logger->flush()->toArray();
+
+        $this->assertSame('strict', $array['mode'] ?? null);
+    }
+
+    public function testFlushPreservesTotalModeFromInnerLogger(): void
+    {
+        $logger = new DevSemanticLogger(new SemanticLogger(SemanticLoggerMode::Total));
+        $openId = $logger->open(new FakeContext('test'));
+        $logger->close(new FakeContext('done'), $openId);
+
+        $array = $logger->flush()->toArray();
+
+        $this->assertSame('total', $array['mode'] ?? null);
+    }
+
     public function testProfileIsOmittedFromJsonOutputWithoutProfilerData(): void
     {
         $openId = $this->logger->open(new FakeContext('test'));

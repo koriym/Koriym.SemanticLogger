@@ -123,6 +123,7 @@ namespace Koriym\SemanticLogger;
  * @psalm-type CloseEntryArray = PublicCloseEntry
  * @psalm-type LogSessionArray = array{
  *     '$schema': SchemaUrl,
+ *     mode?: 'strict'|'total',
  *     open: list<PublicOpenEntry>,
  *     events?: list<PublicEventEntry>,
  *     close?: array<array-key, PublicCloseEntry>,

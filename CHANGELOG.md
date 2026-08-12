@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Strict and total logger modes.** `SemanticLoggerMode::Strict` remains the constructor default; `SemanticLoggerMode::Total` records core-owned placeholders and diagnostic events instead of allowing logging failures to interrupt the caller.
+- **`mode` in the log envelope.** `SemanticLogger` records `"mode": "strict"|"total"` in the produced document so it is self-describing about its evidential value: in a total-mode document the absence of diagnostics is proof of a clean session, while a document without `mode` carries no such proof. Optional in the schema for 0.9.x; planned to become required in 1.0. `NullSemanticLogger` output intentionally omits it.
 - Bundled schemas for `semantic_logger_error` diagnostics and `semantic_logger_invalid_context` placeholders.
 - Event-only sessions with the required `"open": []` envelope shape across the logger, validator, dynamic schema generator, and `stree`.
 - **`LogRendererInterface`** and **`LogJson::render(LogRendererInterface)`** — a log can render itself with any renderer via double dispatch, without knowing the output format. Implement the interface to add new formats (e.g. Markdown, Mermaid) without touching the logger.

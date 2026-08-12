@@ -27,6 +27,9 @@ final class NullSemanticLoggerTest extends TestCase
         $this->assertSame([], $log->close);
         $this->assertSame([], $log->events);
 
+        // A null log proves nothing about how it was produced, so it must not claim a mode.
+        $this->assertArrayNotHasKey('mode', $log->toArray());
+
         $this->assertSame('noop_1', $logger->open(new FakeContext('next session')));
     }
 }

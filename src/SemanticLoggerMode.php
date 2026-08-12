@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
-enum SemanticLoggerMode
+enum SemanticLoggerMode: string
 {
-    case Strict;
-    case Total;
+    case Strict = 'strict';
+    case Total = 'total';
 }

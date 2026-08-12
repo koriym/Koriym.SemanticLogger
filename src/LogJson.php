@@ -24,10 +24,13 @@ use function array_map;
 final class LogJson implements JsonSerializable
 {
     /**
-     * @param OpenCloseEntryList $open   Top-level opens (one or more) in chronological order.
-     * @param EventEntryList     $close  Internal close entries; matched closes are nested during public serialization.
-     * @param EventEntryList     $events
-     * @param SchemaLinks        $links
+     * @param OpenCloseEntryList      $open   Top-level opens (one or more) in chronological order.
+     * @param EventEntryList          $close  Internal close entries; matched closes are nested during public serialization.
+     * @param EventEntryList          $events
+     * @param SchemaLinks             $links
+     * @param SemanticLoggerMode|null $mode   The logger mode that produced this log. Recorded in the envelope so the
+     *                                        document is self-describing: a total-mode document with no diagnostics
+     *                                        is proof of a clean session, a mode-less document carries no such proof.
      */
     public function __construct(
         public readonly string $schemaUrl,
@@ -35,6 +38,7 @@ final class LogJson implements JsonSerializable
         public readonly array $close,
         public readonly array $events = [],
         public readonly array $links = [],
+        public readonly SemanticLoggerMode|null $mode = null,
     ) {
     }
 
@@ -67,13 +71,16 @@ final class LogJson implements JsonSerializable
         $this->partitionCloses($this->close, $openIds, $closeByOpenId, $orphanCloses);
         $eventsByOpenId = $this->groupEventsByOpenId($this->events);
 
-        $result = [
-            '$schema' => $this->schemaUrl,
-            'open' => array_map(
-                fn (OpenCloseEntry $entry): array => $this->buildTreeOpenEntry($entry, $closeByOpenId, $eventsByOpenId),
-                $this->open,
-            ),
-        ];
+        $result = ['$schema' => $this->schemaUrl];
+
+        if ($this->mode !== null) {
+            $result['mode'] = $this->mode->value;
+        }
+
+        $result['open'] = array_map(
+            fn (OpenCloseEntry $entry): array => $this->buildTreeOpenEntry($entry, $closeByOpenId, $eventsByOpenId),
+            $this->open,
+        );
 
         $topLevelEvents = $this->topLevelTreeEvents($openIds);
         if ($topLevelEvents !== []) {

@@ -337,8 +337,8 @@ final class SemanticLoggerModeTest extends TestCase
     {
         $logger = new SemanticLogger(SemanticLoggerMode::Total);
 
-        $this->assertSame(['$schema' => ModeTestContext::ROOT_SCHEMA, 'open' => []], $logger->flush()->toArray());
-        $this->assertSame(['$schema' => ModeTestContext::ROOT_SCHEMA, 'open' => []], $logger->flush()->toArray());
+        $this->assertSame(['$schema' => ModeTestContext::ROOT_SCHEMA, 'mode' => 'total', 'open' => []], $logger->flush()->toArray());
+        $this->assertSame(['$schema' => ModeTestContext::ROOT_SCHEMA, 'mode' => 'total', 'open' => []], $logger->flush()->toArray());
 
         $logger->event(new ModeTestContext('event'));
         $this->assertSame('mode_context_1', $this->valueAt($logger->flush()->toArray(), 'events', 0, 'id'));
@@ -387,6 +387,26 @@ final class SemanticLoggerModeTest extends TestCase
         $flushed = $logger->flush()->toArray();
         $this->assertCount(1, $this->arrayAt($flushed, 'events'));
         $this->assertSame('semantic_logger_error_1', $this->valueAt($flushed, 'events', 0, 'id'));
+    }
+
+    public function testStrictFlushRecordsModeInEnvelope(): void
+    {
+        $logger = new SemanticLogger();
+        $logger->event(new ModeTestContext('event'));
+
+        $array = $logger->flush()->toArray();
+
+        $this->assertSame('strict', $array['mode'] ?? null);
+    }
+
+    public function testTotalFlushRecordsModeInEnvelope(): void
+    {
+        $logger = new SemanticLogger(SemanticLoggerMode::Total);
+        $logger->event(new ModeTestContext('event'));
+
+        $array = $logger->flush()->toArray();
+
+        $this->assertSame('total', $array['mode'] ?? null);
     }
 
     /** @param array<array-key, mixed> $array */

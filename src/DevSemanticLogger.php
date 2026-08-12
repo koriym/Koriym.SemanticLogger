@@ -148,6 +148,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
                 $closeWithProfile,
                 $logJson->events,
                 $logJson->links,
+                $logJson->mode,
             );
         } finally {
             // Best-effort cleanup: stop anything still running so it does not

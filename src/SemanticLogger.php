@@ -259,13 +259,14 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             $tree['close'],
             $events ?? $this->events,
             $links,
+            $this->mode,
         );
     }
 
     /** @param SchemaLinks $links */
     private function emptyLog(array $links = []): LogJson
     {
-        return new LogJson(CoreSchema::LOG_URL, [], [], [], $links);
+        return new LogJson(CoreSchema::LOG_URL, [], [], [], $links, $this->mode);
     }
 
     private function hasSession(): bool
