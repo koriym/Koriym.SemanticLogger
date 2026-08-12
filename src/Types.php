@@ -48,6 +48,25 @@ namespace Koriym\SemanticLogger;
  * @psalm-type OperationIdSet = array<OperationId, true>
  * @psalm-type TypeCounts = array<LogType, int>
  * @psalm-type SchemaTypeMap = array<LogType, string>
+ * @psalm-type DiagnosticKind = 'context_serialization_failed'|'close_without_open'|'close_id_mismatch'|'unclosed_at_flush'
+ * @psalm-type DiagnosticData = array{
+ *     kind: DiagnosticKind,
+ *     message: string,
+ *     exceptionClass?: string,
+ *     relatedId?: OperationId,
+ *     discardedContext?: ContextData,
+ *     unclosedIds?: list<OperationId>
+ * }
+ * @psalm-type FrozenContext = array{
+ *     type: LogType,
+ *     schemaUrl: SchemaUrl,
+ *     context: ContextData,
+ *     diagnostic: DiagnosticData|null
+ * }
+ * @psalm-type LogTree = array{
+ *     open: OpenCloseEntryList,
+ *     close: EventEntryList
+ * }
  *
  * Serialized log entry types
  * @psalm-type EventEntryArray = array{

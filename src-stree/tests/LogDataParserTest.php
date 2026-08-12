@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
-use Koriym\SemanticLogger\Exception\RuntimeException;
+use Koriym\SemanticLogger\Stree\Exception\RuntimeException;
 use PHPUnit\Framework\TestCase;
 
 use function json_encode;
@@ -201,6 +201,27 @@ final class LogDataParserTest extends TestCase
         $this->assertCount(2, $tree->children);
         $this->assertSame('a', $tree->children[0]->type);
         $this->assertSame('b', $tree->children[1]->type);
+    }
+
+    public function testEventOnlyLogUsesSyntheticForestRoot(): void
+    {
+        $parser = new LogDataParser();
+        $tree = $parser->parseLogData([
+            'open' => [],
+            'events' => [
+                [
+                    'id' => 'notice_1',
+                    'type' => 'notice',
+                    'schemaUrl' => 'notice.json',
+                    'context' => ['message' => 'event only'],
+                ],
+            ],
+        ]);
+
+        $this->assertTrue($tree->isSynthetic);
+        $this->assertCount(1, $tree->children);
+        $this->assertTrue($tree->children[0]->isEvent);
+        $this->assertSame('notice', $tree->children[0]->type);
     }
 
     public function testParseEventsData(): void

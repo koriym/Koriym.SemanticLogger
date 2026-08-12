@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
-use Koriym\SemanticLogger\Exception\NoLogSessionException;
-use Koriym\SemanticLogger\Exception\UnclosedLogicException;
-use LogicException;
 use PHPUnit\Framework\TestCase;
 
 use function assert;
@@ -541,95 +538,6 @@ final class SemanticLoggerTest extends TestCase
         $traceLink = $links[1];
         $this->assertSame('trace', $traceLink['rel']);
         $this->assertSame('https://jaeger.example.com/trace/5f3a2b1c8d9e', $traceLink['href']);
-    }
-
-    public function testUnclosedOperationThrowsException(): void
-    {
-        $openContext = new FakeContext('database operation', 123);
-        $openId = $this->logger->open($openContext);
-
-        $eventContext = new FakeContext('processing data', 456);
-        $this->logger->event($eventContext);
-
-        // No close() called - should throw UnclosedLogicException
-        $this->expectException(UnclosedLogicException::class);
-        $this->expectExceptionMessage('Unclosed operations detected. 1 operations remain open. Last operation: example_event.');
-
-        $this->logger->flush();
-    }
-
-    public function testUnclosedNestedOperationsThrowsException(): void
-    {
-        $firstOpen = new FakeContext('outer operation', 1);
-        $this->logger->open($firstOpen);
-
-        $secondOpen = new FakeContext('inner operation', 2);
-        $this->logger->open($secondOpen);
-
-        $eventContext = new FakeContext('processing', 3);
-        $this->logger->event($eventContext);
-
-        // No close() called for nested operations - should throw exception
-        $this->expectException(UnclosedLogicException::class);
-        $this->expectExceptionMessage('Unclosed operations detected. 2 operations remain open. Last operation: example_event.');
-
-        $this->logger->flush();
-    }
-
-    public function testUnclosedOperationExceptionDetails(): void
-    {
-        $openContext = new FakeContext('database operation', 123);
-        $this->logger->open($openContext);
-
-        try {
-            $this->logger->flush();
-            $this->fail('Expected UnclosedLogicException was not thrown');
-        } catch (UnclosedLogicException $e) {
-            // Verify exception properties
-            $this->assertSame(1, $e->openStackDepth);
-            $this->assertSame('example_event', $e->lastOperationType);
-            $this->assertSame('https://example.com/schemas/example.json', $e->lastOperationSchema);
-            $this->assertStringContainsString('docs/unclosed-operations.md', $e->getMessage());
-        }
-    }
-
-    public function testCloseWithInvalidOperationId(): void
-    {
-        $openContext = new FakeContext('test operation', 123);
-        $openId = $this->logger->open($openContext);
-
-        $closeContext = new FakeContext('test complete', 456);
-
-        // Try to close with invalid ID
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessage("Cannot close operation 'invalid_id': expected");
-
-        $this->logger->close($closeContext, 'invalid_id');
-    }
-
-    public function testCloseAlreadyClosedOperation(): void
-    {
-        $openContext = new FakeContext('test operation', 123);
-        $openId = $this->logger->open($openContext);
-
-        $closeContext = new FakeContext('test complete', 456);
-        $this->logger->close($closeContext, $openId);
-
-        // Try to close again
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('Cannot close operation');
-
-        $this->logger->close($closeContext, $openId);
-    }
-
-    public function testFlushWithNoOperationsThrowsException(): void
-    {
-        // Coverage: NoLogSessionException when no operations exist + Usage example
-        $this->expectException(NoLogSessionException::class);
-        $this->expectExceptionMessage('Cannot create log session: no open entry');
-
-        // Try to flush without any operations
-        $this->logger->flush();
     }
 
     public function testDeeplyNestedCloseKeepsEveryLevel(): void

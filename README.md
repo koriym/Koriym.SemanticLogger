@@ -77,6 +77,8 @@ final class ProcessResultContext extends AbstractContext
 }
 ```
 
+The recorded context data is the JSON representation of the context: public properties by default, or the `jsonSerialize()` result when the context implements `JsonSerializable` and that result is a string-keyed array or an object. Other return shapes fall back to public properties. A context that cannot be serialized is replaced by a core-owned placeholder entry, so one bad context never loses the session.
+
 ### 2. Log a Workflow
 
 ```php
@@ -146,15 +148,28 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 }
 ```
 
+### The Logger Never Throws
+
+`SemanticLogger` never throws — not on serialization failures, not on protocol misuse, not on empty sessions. Failures become data: core-owned diagnostic entries in the log itself.
+
+- A context that cannot be serialized is replaced by a `semantic_logger_invalid_context` placeholder that keeps the entry's position in the tree; children still attach to it. The loss radius of one bad context is that entry — never the session.
+- Protocol misuse is recorded as `semantic_logger_error` entries (see below).
+- `flush()` always returns a log and always resets: an empty session is a valid empty document (`"open": []`), and an unclosed session returns its live tree with an `unclosed_at_flush` diagnostic.
+- `toArray()` / `jsonSerialize()` are total, non-destructive snapshots.
+
+Quality gates live on the reading side: the validator lists diagnostics with their own severity, and `--fail-on-diagnostics` lets CI turn their presence into a failing build.
+
+Note the layer boundary: diagnostics cover the logger's own recording operations. Detecting that a cache server or database is down is monitoring's job, not this library's — record what matters to your domain as your own context types.
+
 ### Open / Close Ordering
 
-`open` and `close` must be paired in LIFO order. Violations raise exceptions from `Koriym\SemanticLogger\Exception`:
+`open` and `close` must be paired in LIFO order. The logger never throws on violations — it records them as `semantic_logger_error` diagnostic entries with one of these `kind` values:
 
-- `InvalidOperationOrderException` — `close()` called with an id other than the innermost open
-- `NoOpenOperationsException` — `close()` called with no open operation on the stack
-- `UnclosedLogicException` — `flush()` called while opens are still pending
+- `close_id_mismatch` — `close()` called with an id other than the innermost open; the stack is left untouched (no guessing), so correct closes still work
+- `close_without_open` — `close()` called with no open operation on the stack; the context is discarded and the session continues
+- `unclosed_at_flush` — `flush()` called while opens are still pending; the live tree is returned and the session resets
 
-Wrap work in `try/finally` so `close()` always runs, even on error paths.
+Wrap work in `try/finally` so `close()` always runs — not because the logger throws, but because your log should reflect what actually happened.
 
 ### Try It
 
@@ -231,7 +246,15 @@ Validation checks:
 - nested log structure
 - schema URL resolution
 - context payloads against their schemas
+- static context metadata: entry types must match `^[a-z_]+$` outside the reserved `semantic_logger_*` namespace, and schema URLs must be absolute URIs or `./schemas/<name>.json`
+- diagnostic entries recorded by the logger, listed with their own severity and validated against the bundled core schemas
 - detailed validation errors when something does not match
+
+Pass `--fail-on-diagnostics` to exit non-zero when the log contains logger-recorded diagnostic entries — the recommended CI gate:
+
+```bash
+vendor/bin/validate-semantic-log.php --fail-on-diagnostics path/to/semantic-log.json path/to/schemas
+```
 
 ## Semantic Tree Visualizer
 
@@ -282,4 +305,5 @@ This keeps the tree compact for both humans (visual parent/child structure) and 
 ## Documentation
 
 - [Schema Portal](https://koriym.github.io/Koriym.SemanticLogger/)
+- [MIGRATION.md](MIGRATION.md) — 0.8 / 1.x → 0.9 migration guide
 - [CHANGELOG.md](CHANGELOG.md)

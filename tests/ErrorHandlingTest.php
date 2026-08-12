@@ -4,38 +4,48 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
-use Koriym\SemanticLogger\Exception\NoLogSessionException;
 use PHPUnit\Framework\TestCase;
 
+use function assert;
+use function is_string;
+use function json_decode;
 use function json_encode;
 
 final class ErrorHandlingTest extends TestCase
 {
-    public function testFlushWithoutOpenThrowsException(): void
+    public function testFlushWithoutOpenReturnsEmptyLog(): void
     {
         $logger = new SemanticLogger();
 
-        $this->expectException(NoLogSessionException::class);
+        $log = $logger->flush();
 
-        $logger->flush();
+        $this->assertSame(CoreSchema::LOG_URL, $log->schemaUrl);
+        $this->assertSame([], $log->open);
+        $this->assertSame([], $log->close);
+        $this->assertSame([], $log->events);
     }
 
-    public function testToArrayWithoutOpenThrowsException(): void
+    public function testToArrayWithoutOpenReturnsEmptyShape(): void
     {
         $logger = new SemanticLogger();
 
-        $this->expectException(NoLogSessionException::class);
+        $array = $logger->toArray();
 
-        $logger->toArray();
+        $this->assertSame(CoreSchema::LOG_URL, $array['$schema']);
+        $this->assertSame([], $array['open']);
     }
 
-    public function testJsonSerializeWithoutOpenThrowsException(): void
+    public function testJsonSerializeWithoutOpenProducesEmptyLog(): void
     {
         $logger = new SemanticLogger();
 
-        $this->expectException(NoLogSessionException::class);
+        $json = json_encode($logger);
+        assert(is_string($json));
+        $decoded = json_decode($json, true);
 
-        json_encode($logger);
+        $this->assertIsArray($decoded);
+        $this->assertSame(CoreSchema::LOG_URL, $decoded['$schema']);
+        $this->assertSame([], $decoded['open']);
     }
 
     public function testCompleteLogSessionSerialization(): void
@@ -67,7 +77,7 @@ final class ErrorHandlingTest extends TestCase
         $logJson = $logger->flush();
 
         // Verify structure
-        $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json', $logJson->schemaUrl);
+        $this->assertSame(CoreSchema::LOG_URL, $logJson->schemaUrl);
 
         // Test nested structure
         $this->assertSame('outer', $logJson->open[0]->context['message']);
@@ -82,23 +92,9 @@ final class ErrorHandlingTest extends TestCase
         // Test close (should be outer close since it's the root operation)
         $this->assertSame('outer_finished', $logJson->close[0]->context['message']);
 
-        // Test that logger is cleared after flush
-        $this->expectException(NoLogSessionException::class);
-        $logger->flush();
-    }
-
-    /**
-     * Note: Line 242 assert() in SemanticLogger::buildNestedClose()
-     * is an internal consistency check that should never fail in normal usage.
-     * The assert ensures that if completedOperations exist, there are corresponding
-     * closeStack entries. This is guaranteed by the class design where close()
-     * operations always add to both stacks.
-     */
-    public function testInternalConsistencyAssertDocumented(): void
-    {
-        // This test documents that line 242 assert() is an internal consistency check
-        // that should never fail through normal API usage. The assert will only
-        // trigger in development mode if there's a bug in the class implementation.
-        $this->addToAssertionCount(1); // Internal consistency check acknowledgment
+        // The logger is cleared after flush: a second flush returns an empty log.
+        $next = $logger->flush();
+        $this->assertSame([], $next->open);
+        $this->assertSame([], $next->events);
     }
 }

@@ -41,7 +41,9 @@ interface SemanticLoggerInterface
      *
      * Returns the entire log session as a structured LogJson object and resets
      * the internal state for the next logging session. This implements the
-     * flush pattern for one-time log consumption.
+     * flush pattern for one-time log consumption. The logger never throws:
+     * an empty session returns an empty log, and unclosed operations are
+     * recorded as a diagnostic entry in a live log.
      *
      * @param SchemaLinks $links Optional links for complete system transparency
      */
