@@ -50,6 +50,7 @@ final class SignalExtractorTest extends TestCase
             'duration' => 0.3,
             'processingTime' => 0.2,
             'connectionTime' => 0.05,
+            'timestamp' => '2026-06-10T12:34:56+00:00',
             'name' => 'task',
         ];
         $result = $this->extractor->extractSignals($context);
@@ -59,6 +60,7 @@ final class SignalExtractorTest extends TestCase
         $this->assertStringNotContainsString('duration', $result);
         $this->assertStringNotContainsString('processingTime', $result);
         $this->assertStringNotContainsString('connectionTime', $result);
+        $this->assertStringNotContainsString('timestamp', $result);
         $this->assertStringContainsString('name=task', $result);
     }
 
