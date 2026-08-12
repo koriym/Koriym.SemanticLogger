@@ -12,16 +12,22 @@ final class NullSemanticLoggerTest extends TestCase
     {
         $logger = new NullSemanticLogger();
 
-        $openId = $logger->open(new FakeContext('open'));
-        $this->assertSame('', $openId, 'open() returns an empty id meaning "no close needed"');
+        // open() returns protocol-valid ids so the open/close protocol stays
+        // intact; event() and close() retain nothing.
+        $firstId = $logger->open(new FakeContext('open'));
+        $this->assertSame('noop_1', $firstId);
+        $secondId = $logger->open(new FakeContext('open again'));
+        $this->assertSame('noop_2', $secondId);
 
-        // event() and close() are no-ops and must not throw or change the (empty) session.
         $logger->event(new FakeContext('event'));
-        $logger->close(new FakeContext('close'), $openId);
+        $logger->close(new FakeContext('close'), $firstId);
 
         $log = $logger->flush();
         $this->assertSame([], $log->open);
         $this->assertSame([], $log->close);
         $this->assertSame([], $log->events);
+
+        // flush() resets the id sequence.
+        $this->assertSame('noop_1', $logger->open(new FakeContext('after flush')));
     }
 }

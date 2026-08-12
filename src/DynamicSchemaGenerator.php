@@ -45,7 +45,6 @@ final class DynamicSchemaGenerator
                 '$schema' => ['$ref' => '#/definitions/schemaUrl'],
                 'open' => [
                     'type' => 'array',
-                    'minItems' => 1,
                     'items' => ['$ref' => '#/definitions/openEntry'],
                 ],
                 'close' => [
@@ -83,6 +82,11 @@ final class DynamicSchemaGenerator
                     'type' => 'string',
                     'pattern' => '^[a-z_]+_[0-9]+$',
                     'description' => 'References a parent operation ID',
+                ],
+                'contextType' => [
+                    'type' => 'string',
+                    'pattern' => '^[a-z_]+$',
+                    'description' => 'Context type identifier; semantic_logger_* is reserved for core entries',
                 ],
                 'openEntry' => $this->generateOpenEntrySchema($contextTypes),
                 'closeEntry' => $this->generateCloseEntrySchema($contextTypes),
@@ -133,7 +137,7 @@ final class DynamicSchemaGenerator
             'required' => ['id', 'type', 'schemaUrl', 'context'],
             'properties' => [
                 'id' => ['$ref' => '#/definitions/operationId'],
-                'type' => ['type' => 'string'],
+                'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
                 'events' => [
@@ -170,7 +174,7 @@ final class DynamicSchemaGenerator
             'required' => ['id', 'type', 'schemaUrl', 'context'],
             'properties' => [
                 'id' => ['$ref' => '#/definitions/operationId'],
-                'type' => ['type' => 'string'],
+                'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
                 'openId' => ['$ref' => '#/definitions/openIdReference'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
@@ -200,7 +204,7 @@ final class DynamicSchemaGenerator
             'required' => ['id', 'type', 'schemaUrl', 'context'],
             'properties' => [
                 'id' => ['$ref' => '#/definitions/operationId'],
-                'type' => ['type' => 'string'],
+                'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
                 'openId' => ['$ref' => '#/definitions/openIdReference'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
