@@ -113,6 +113,26 @@ final class TreeRendererTest extends TestCase
         $this->assertFalse(str_starts_with($lines[1], '└'));
     }
 
+    public function testEventOnlyLogRendersTopLevelEvent(): void
+    {
+        $config = new RenderConfig(false, 0.0, 5);
+        $renderer = new TreeRenderer($config);
+
+        $result = $renderer->renderTree([
+            'open' => [],
+            'events' => [
+                [
+                    'id' => 'notice_1',
+                    'type' => 'notice',
+                    'schemaUrl' => 'notice.json',
+                    'context' => ['message' => 'event only'],
+                ],
+            ],
+        ]);
+
+        $this->assertSame('notice message=event only [event]', trim($result));
+    }
+
     public function testOrphanCloseRendersAsTopLevelDiagnosticInSingleRootLog(): void
     {
         $logData = [

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
-use Koriym\SemanticLogger\Exception\RuntimeException;
+use Koriym\SemanticLogger\Stree\Exception\RuntimeException;
 
 use function array_combine;
 use function array_key_exists;
@@ -31,9 +31,6 @@ final class LogDataParser
 
         /** @var list<array<string, mixed>> $openList */
         $openList = $logData['open'];
-        if ($openList === []) {
-            throw new RuntimeException('Invalid log data: open section is empty');
-        }
 
         $rootNode = count($openList) === 1
             ? $this->parseOpenEntry($openList[0])
