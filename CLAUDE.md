@@ -164,6 +164,11 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 
 ## Development Guidelines
 
+### Release Operations (owner-only)
+- Merging PRs, creating tags, and publishing GitHub releases are performed by the repository owner, never by an agent
+- The agent prepares everything up to that point (branch, commits, PR, CHANGELOG draft, release notes draft, verification) and hands over the final action
+- Pushing branches and creating/closing PRs likewise require explicit per-action user approval
+
 ### Context Implementation
 - Extend AbstractContext for all context classes
 - Define TYPE and SCHEMA_URL constants

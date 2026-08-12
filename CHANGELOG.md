@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.9.0] - 2026-08-12
 
 ### Added
 - **`LogRendererInterface`** and **`LogJson::render(LogRendererInterface)`** — a log can render itself with any renderer via double dispatch, without knowing the output format. Implement the interface to add new formats (e.g. Markdown, Mermaid) without touching the logger.
@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Migrate: `(new TreeRenderer())->render($logData, $config)` → `(new TreeRenderer($config))->renderTree($logData)`, or render a log directly with `$log->render(new TreeRenderer($config))`.
 - The tree renderer now lives as a self-contained monorepo subpackage under `src-stree/` (`koriym/stree`), merged into the root autoload and `git subtree split`-able later. The namespace stays `Koriym\SemanticLogger\Stree`, so usage is unchanged.
 - stree accepts event-only and empty logs: an empty `open` section parses into a synthetic forest root instead of throwing. Parser errors now throw `Koriym\SemanticLogger\Stree\Exception\RuntimeException`; the dependency pin moves to `koriym/semantic-logger: ^0.9` with `LogJson` / `LogRendererInterface` as the public contract.
+
+### Fixed
+- stree compact rendering no longer leaks the full ISO `timestamp` onto every node line: `timestamp` is excluded from signal extraction alongside the other timing keys (#39).
+- `JsonSerializable` contexts whose `jsonSerialize()` returns an object (stdClass or a DTO) now record the serialized form; previously they fell back to recording the context's raw properties.
 
 ### Removed
 - **BREAKING — the exception hierarchy.** `NoLogSessionException`, `NoOpenOperationsException`, `InvalidOperationOrderException`, `UnclosedLogicException`, and the package `LogicException` / `RuntimeException` are gone. Remove `catch` blocks and throwable expectations; see [MIGRATION.md](MIGRATION.md).
