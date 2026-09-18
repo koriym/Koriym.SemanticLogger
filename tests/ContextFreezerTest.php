@@ -29,4 +29,18 @@ final class ContextFreezerTest extends TestCase
         $this->assertNull($frozen['diagnostic']);
         $this->assertSame(['serialized' => 'value'], $frozen['context']);
     }
+
+    public function testFreezePreservesWholeNumberFloat(): void
+    {
+        // json_encode() drops the fraction from a whole-number float unless
+        // JSON_PRESERVE_ZERO_FRACTION is set, so a freeze without it silently
+        // turns 0.0 / 2250.0 into int.
+        $zero = (new ContextFreezer())->freeze(new FloatContext(0.0), 'close');
+        $whole = (new ContextFreezer())->freeze(new FloatContext(2250.0), 'close');
+
+        $this->assertIsFloat($zero['context']['durationMs']);
+        $this->assertSame(0.0, $zero['context']['durationMs']);
+        $this->assertIsFloat($whole['context']['durationMs']);
+        $this->assertSame(2250.0, $whole['context']['durationMs']);
+    }
 }

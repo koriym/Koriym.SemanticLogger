@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Fixed
+- `ContextFreezer` no longer turns whole-number floats (e.g. `0.0`, `2250.0`) into `int` when freezing a context; `JSON_PRESERVE_ZERO_FRACTION` is now set on the freeze-time `json_encode()` (#44).
+
 ## [0.9.0] - 2026-08-12
 
 ### Added
