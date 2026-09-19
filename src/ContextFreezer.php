@@ -21,6 +21,7 @@ use function json_decode;
 use function json_encode;
 use function strval;
 
+use const JSON_PRESERVE_ZERO_FRACTION;
 use const JSON_THROW_ON_ERROR;
 
 /**
@@ -108,7 +109,7 @@ final class ContextFreezer
      */
     private function freezeArray(array|object $context): array
     {
-        $json = json_encode($context, JSON_THROW_ON_ERROR);
+        $json = json_encode($context, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION);
 
         return $this->contextFromDecoded(json_decode($json, false, 512, JSON_THROW_ON_ERROR));
     }
