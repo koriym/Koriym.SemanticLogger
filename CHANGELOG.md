@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [Unreleased]
+
+### Changed
+- stree compact close line now leads with the close TYPE (`└── cache_hit layer=resource`) and is shown even when no signal changed; `--full` mode labels the close branch `close <type>`.
+- **BREAKING (stree)** — `TreeNode::getCloseSignals()` is renamed to `TreeNode::getCloseLine()`. It returns the close type followed by the diff signals and is empty only when the node never closed.
 
 ### Fixed
 - `ContextFreezer` no longer turns whole-number floats (e.g. `0.0`, `2250.0`) into `int` when freezing a context; `JSON_PRESERVE_ZERO_FRACTION` is now set on the freeze-time `json_encode()` (#44).
