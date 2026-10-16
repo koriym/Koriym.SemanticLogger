@@ -10,6 +10,7 @@ use function is_string;
 use function sprintf;
 use function strlen;
 use function substr;
+use function usort;
 
 final class TreeNode
 {
@@ -33,13 +34,17 @@ final class TreeNode
     public string $status = '';
     public bool $isSynthetic = false;
 
-    /** @param array<string, mixed> $context */
+    /**
+     * @param array<string, mixed> $context
+     * @param int|null             $seq     Record-order position from the log document; null when the document predates `seq` or the node is synthetic.
+     */
     public function __construct(
         public readonly string $id,
         public readonly string $type,
         public readonly array $context,
         public readonly float $executionTime = 0.0,
         public readonly TreeNode|null $parent = null,
+        public readonly int|null $seq = null,
     ) {
     }
 
@@ -60,6 +65,31 @@ final class TreeNode
     public function addChild(TreeNode $child): void
     {
         $this->children[] = $child;
+    }
+
+    /**
+     * Put children in the order the logger recorded them.
+     *
+     * The document keeps a scope's events and its nested opens in separate
+     * arrays, so structural order shows every event before every child scope
+     * regardless of what happened. When every child carries `seq` the recorded
+     * order is knowable, and this restores it. Mixed or absent `seq` leaves the
+     * structural order alone — a partial reordering would be a third order,
+     * true to neither.
+     */
+    public function sortChildrenByRecordOrder(): void
+    {
+        foreach ($this->children as $child) {
+            $child->sortChildrenByRecordOrder();
+        }
+
+        foreach ($this->children as $child) {
+            if ($child->seq === null) {
+                return;
+            }
+        }
+
+        usort($this->children, static fn (TreeNode $a, TreeNode $b): int => $a->seq <=> $b->seq);
     }
 
     /**

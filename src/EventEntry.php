@@ -17,8 +17,9 @@ use function array_map;
 final class EventEntry implements JsonSerializable
 {
     /**
-     * @param ContextData      $context
-     * @param list<EventEntry> $close   Child closes (zero or more) — immediate nested close entries in the order their opens closed.
+     * @param ContextData       $context
+     * @param list<EventEntry>  $close   Child closes (zero or more) — immediate nested close entries in the order their opens closed.
+     * @param positive-int|null $seq     Position of this event/close in the session's single record-order sequence. Null only for entries built outside the logger (legacy documents, hand-built fixtures).
      */
     public function __construct(
         public readonly string $id,
@@ -28,6 +29,7 @@ final class EventEntry implements JsonSerializable
         public readonly string|null $openId = null,
         public readonly array $close = [],
         public readonly OperationProfile|null $profile = null,
+        public readonly int|null $seq = null,
     ) {
     }
 
@@ -41,6 +43,7 @@ final class EventEntry implements JsonSerializable
             $this->openId,
             $this->close,
             $profile,
+            $this->seq,
         );
     }
 
@@ -55,6 +58,7 @@ final class EventEntry implements JsonSerializable
             $this->openId,
             $close,
             $this->profile,
+            $this->seq,
         );
     }
 
@@ -67,6 +71,10 @@ final class EventEntry implements JsonSerializable
             'schemaUrl' => $this->schemaUrl,
             'context' => $this->context,
         ];
+
+        if ($this->seq !== null) {
+            $result['seq'] = $this->seq;
+        }
 
         if ($this->openId !== null) {
             $result['openId'] = $this->openId;

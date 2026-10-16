@@ -29,11 +29,13 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 {
     private readonly ContextMetadataChecker $metadataChecker;
     private readonly CoreDiagnostic $coreDiagnostic;
+    private readonly EntrySequenceChecker $sequenceChecker;
 
     public function __construct()
     {
         $this->metadataChecker = new ContextMetadataChecker();
         $this->coreDiagnostic = new CoreDiagnostic();
+        $this->sequenceChecker = new EntrySequenceChecker();
     }
 
     /** @SuppressWarnings("PHPMD.BooleanArgumentFlag") See the interface. */
@@ -67,6 +69,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
         $this->validateRootSchema($logData, $violations);
         $this->validateContexts($logData, $schemaDir, $violations, $diagnostics);
+        $this->validateEntrySequence($logData, $violations);
 
         $this->coreDiagnostic->report($diagnostics);
 
@@ -362,6 +365,21 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
             $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Validation failed';
             $violations[] = "[root] {$message} at '{$property}'";
         }
+    }
+
+    /**
+     * @param list<string> $violations
+     *
+     * @param-out list<string> $violations
+     */
+    private function validateEntrySequence(object $logData, array &$violations): void
+    {
+        $sequenceViolations = $this->sequenceChecker->check($logData);
+        if ($sequenceViolations === []) {
+            return;
+        }
+
+        array_push($violations, ...$sequenceViolations);
     }
 
     /**

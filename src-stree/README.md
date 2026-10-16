@@ -39,6 +39,11 @@ get uri=app://self/user?id=1
 └── cache_hit layer=resource
 ```
 
+Children appear in the order the logger recorded them. The log keeps a scope's
+events and its nested scopes in separate arrays; when every entry carries `seq`,
+stree sorts by it, so an event recorded after a nested scope renders after it.
+Documents without `seq` keep their structural order (events first, then scopes).
+
 A scope that never closed carries `: unclosed` instead of a close line. In `--full`
 mode the close entry keeps its own branch, labelled with the type, and its context
 and profile hang below it:

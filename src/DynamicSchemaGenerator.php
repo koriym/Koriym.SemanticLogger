@@ -83,6 +83,11 @@ final class DynamicSchemaGenerator
                     'pattern' => '^[a-z_]+_[0-9]+$',
                     'description' => 'References a parent operation ID',
                 ],
+                'entrySeq' => [
+                    'type' => 'integer',
+                    'minimum' => 1,
+                    'description' => 'Position of this entry in its session\'s single record-order sequence; orders a scope\'s own events against its nested child scopes',
+                ],
                 'contextType' => [
                     'type' => 'string',
                     'pattern' => '^[a-z_]+$',
@@ -139,6 +144,7 @@ final class DynamicSchemaGenerator
                 'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
+                'seq' => ['$ref' => '#/definitions/entrySeq'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
                 'events' => [
                     'type' => 'array',
@@ -176,6 +182,7 @@ final class DynamicSchemaGenerator
                 'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
+                'seq' => ['$ref' => '#/definitions/entrySeq'],
                 'openId' => ['$ref' => '#/definitions/openIdReference'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
                 'profile' => ['type' => 'object', 'additionalProperties' => true],
@@ -206,6 +213,7 @@ final class DynamicSchemaGenerator
                 'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
+                'seq' => ['$ref' => '#/definitions/entrySeq'],
                 'openId' => ['$ref' => '#/definitions/openIdReference'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
             ],

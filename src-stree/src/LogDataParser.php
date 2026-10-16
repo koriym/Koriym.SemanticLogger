@@ -13,6 +13,7 @@ use function array_map;
 use function array_values;
 use function count;
 use function is_array;
+use function is_int;
 use function is_numeric;
 use function is_scalar;
 
@@ -52,6 +53,10 @@ final class LogDataParser
             $events = $logData['events'];
             $this->attachEvents($rootNode, $events);
         }
+
+        // Events and nested opens arrive in separate arrays; `seq` is what puts
+        // them back in the order the logger recorded them.
+        $rootNode->sortChildrenByRecordOrder();
 
         return $rootNode;
     }
@@ -160,7 +165,8 @@ final class LogDataParser
      *     openId: string|null,
      *     type: string,
      *     context: array<string, mixed>,
-     *     profile: array<string, mixed>
+     *     profile: array<string, mixed>,
+     *     seq: int|null
      * }
      */
     private function extractClosePayload(array $closeEntry): array
@@ -186,6 +192,7 @@ final class LogDataParser
             'type' => self::stringifyScalar($closeEntry['type'] ?? null, 'unknown'),
             'context' => $this->normalizeMap($context),
             'profile' => $this->normalizeMap($profile),
+            'seq' => self::seqOf($closeEntry),
         ];
     }
 
@@ -194,7 +201,7 @@ final class LogDataParser
         return $openId !== null ? $this->findNodeById($rootNode, $openId) : null;
     }
 
-    /** @param array{id: string|null, openId: string|null, type: string, context: array<string, mixed>, profile: array<string, mixed>} $payload */
+    /** @param array{id: string|null, openId: string|null, type: string, context: array<string, mixed>, profile: array<string, mixed>, seq: int|null} $payload */
     private function applyClosePayload(TreeNode $rootNode, array $payload): void
     {
         $node = $this->resolveCloseTarget($rootNode, $payload['openId']);
@@ -211,6 +218,7 @@ final class LogDataParser
                 $payload['context'],
                 $payload['profile'],
                 $rootNode,
+                $payload['seq'],
             ),
         );
     }
@@ -245,7 +253,7 @@ final class LogDataParser
         /** @var array<string, mixed> $context */
         $executionTime = $this->extractExecutionTime($context);
 
-        $node = new TreeNode($id, $type, $context, $executionTime, $parent);
+        $node = new TreeNode($id, $type, $context, $executionTime, $parent, self::seqOf($openEntry));
 
         if (array_key_exists('close', $openEntry) && is_array($openEntry['close'])) {
             /** @var array<string, mixed> $closeEntry */
@@ -308,7 +316,7 @@ final class LogDataParser
 
             /** @var array<string, mixed> $eventContext */
             $executionTime = $this->extractExecutionTime($eventContext);
-            $eventNode = new TreeNode($eventId, $eventType, $eventContext, $executionTime, $node);
+            $eventNode = new TreeNode($eventId, $eventType, $eventContext, $executionTime, $node, self::seqOf($event));
             $eventNode->isEvent = true;
             $node->addChild($eventNode);
         }
@@ -324,6 +332,7 @@ final class LogDataParser
         array $context,
         array $profile,
         TreeNode $parent,
+        int|null $seq,
     ): TreeNode {
         $normalizedContext = $this->normalizeMap($context);
         $node = new TreeNode(
@@ -332,6 +341,7 @@ final class LogDataParser
             $normalizedContext,
             $this->extractExecutionTime($normalizedContext),
             $parent,
+            $seq,
         );
         $node->isOrphanClose = true;
         $node->closeProfile = $this->normalizeMap($profile);
@@ -369,7 +379,7 @@ final class LogDataParser
             /** @var array<string, mixed> $eventContext */
             $executionTime = $this->extractExecutionTime($eventContext);
 
-            $eventNode = new TreeNode($eventId, $eventType, $eventContext, $executionTime);
+            $eventNode = new TreeNode($eventId, $eventType, $eventContext, $executionTime, null, self::seqOf($event));
             $eventNode->isEvent = true;
 
             // Find the parent node by openId
@@ -433,6 +443,19 @@ final class LogDataParser
     private static function stringifyScalar(mixed $value, string $default): string
     {
         return is_scalar($value) ? (string) $value : $default;
+    }
+
+    /** Entries reach the parser unvalidated; a non-array entry simply has no position. */
+    private static function seqOf(mixed $entry): int|null
+    {
+        if (! is_array($entry)) {
+            return null;
+        }
+
+        /** @var mixed $seq */
+        $seq = $entry['seq'] ?? null;
+
+        return is_int($seq) && $seq >= 1 ? $seq : null;
     }
 
     /**

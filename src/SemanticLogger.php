@@ -47,6 +47,17 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 
     /** @var TypeCounts */
     private array $typeCounts = [];
+
+    /**
+     * Record-order counter shared by every entry kind (open, event, close, diagnostic).
+     *
+     * The per-type id counters cannot order entries of different types, and the
+     * public document keeps a scope's events and its nested opens in separate
+     * arrays — this counter is the only total order over one session.
+     *
+     * @var int<0, max>
+     */
+    private int $sequence = 0;
     private readonly ContextFreezer $contextFreezer;
     private readonly LogTreeBuilder $logTreeBuilder;
 
@@ -72,6 +83,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             $frozen['context'],
             [],
             $parentId,
+            $this->nextSeq(),
         ));
         if ($frozen['diagnostic'] !== null) {
             $frozen['diagnostic']['relatedId'] = $operationId;
@@ -93,6 +105,9 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             $frozen['schemaUrl'],
             $frozen['context'],
             $currentOpenId,
+            [],
+            null,
+            $this->nextSeq(),
         );
         if ($frozen['diagnostic'] !== null) {
             $frozen['diagnostic']['relatedId'] = $eventId;
@@ -138,6 +153,9 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             $frozen['schemaUrl'],
             $frozen['context'],
             $openId,
+            [],
+            null,
+            $this->nextSeq(),
         );
         if ($frozen['diagnostic'] !== null) {
             $frozen['diagnostic']['relatedId'] = $openId;
@@ -261,6 +279,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         $this->completedOperations = [];
         $this->events = [];
         $this->typeCounts = [];
+        $this->sequence = 0;
     }
 
     private function nextId(string $type): string
@@ -275,6 +294,26 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         return $type . '_' . (($this->typeCounts[$type] ?? 0) + 1);
     }
 
+    /**
+     * Next position in the session's record-order sequence; first entry of a session is 1.
+     *
+     * @return positive-int
+     */
+    private function nextSeq(): int
+    {
+        return ++$this->sequence;
+    }
+
+    /**
+     * The seq a preview-only entry would take, without consuming it.
+     *
+     * @return positive-int
+     */
+    private function previewSeq(): int
+    {
+        return $this->sequence + 1;
+    }
+
     /** @param DiagnosticData $diagnostic */
     private function recordDiagnostic(array $diagnostic, string|null $openId): void
     {
@@ -284,12 +323,16 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     /** @param DiagnosticData $diagnostic */
     private function diagnosticEntry(array $diagnostic, string|null $openId, string|null $id = null): EventEntry
     {
+        // The preview path ($id given) must not consume either counter.
         return new EventEntry(
             $id ?? $this->nextId(CoreSchema::DIAGNOSTIC_TYPE),
             CoreSchema::DIAGNOSTIC_TYPE,
             CoreSchema::DIAGNOSTIC_URL,
             $diagnostic,
             $openId,
+            [],
+            null,
+            $id === null ? $this->nextSeq() : $this->previewSeq(),
         );
     }
 

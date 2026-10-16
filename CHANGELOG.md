@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`seq` on every entry** — `open`, `event` and `close` entries carry their position in one record-order counter per session (first entry is `1`). The document keeps a scope's own events and its nested scopes in separate arrays, so `seq` is the only total order over them. Optional in the envelope schema: documents written before the field existed omit it and still validate.
+- The validator checks `seq` consistency (`EntrySequenceChecker`): values are unique, present on every entry or on none, children come after their enclosing open, a close comes after everything inside its scope, and siblings are listed in record order.
+
 ### Changed
+- stree orders a scope's children by `seq` when every child carries it, so an event recorded after a nested scope renders after it. Documents without `seq` keep structural order.
 - stree compact close line now leads with the close TYPE (`└── cache_hit layer=resource`) and is shown even when no signal changed; `--full` mode labels the close branch `close <type>`.
 - **BREAKING (stree)** — `TreeNode::getCloseSignals()` is renamed to `TreeNode::getCloseLine()`. It returns the close type followed by the diff signals and is empty only when the node never closed.
 

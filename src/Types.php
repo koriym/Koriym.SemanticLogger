@@ -69,11 +69,13 @@ namespace Koriym\SemanticLogger;
  * }
  *
  * Serialized log entry types
+ * @psalm-type EntrySeq = positive-int
  * @psalm-type EventEntryArray = array{
  *     type: LogType,
  *     id: OperationId,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
+ *     seq?: EntrySeq,
  *     openId?: OperationId,
  *     close?: list<JsonMap>,
  *     profile?: OperationProfileData
@@ -83,6 +85,7 @@ namespace Koriym\SemanticLogger;
  *     id: OperationId,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
+ *     seq?: EntrySeq,
  *     open?: list<JsonMap>
  * }
  * @psalm-type PublicEventEntry = array{
@@ -90,6 +93,7 @@ namespace Koriym\SemanticLogger;
  *     id: OperationId,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
+ *     seq?: EntrySeq,
  *     openId?: OperationId
  * }
  * @psalm-type PublicCloseEntry = array{
@@ -97,6 +101,7 @@ namespace Koriym\SemanticLogger;
  *     id: OperationId,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
+ *     seq?: EntrySeq,
  *     openId?: OperationId,
  *     profile?: OperationProfileData
  * }
@@ -105,6 +110,7 @@ namespace Koriym\SemanticLogger;
  *     id: OperationId,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
+ *     seq?: EntrySeq,
  *     events?: list<PublicEventEntry>,
  *     close?: PublicCloseEntry,
  *     open?: list<JsonMap>

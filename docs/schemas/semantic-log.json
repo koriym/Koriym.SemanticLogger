@@ -44,6 +44,9 @@
           "schemaUrl": {
             "$ref": "#/definitions/schemaUrl"
           },
+          "seq": {
+            "$ref": "#/definitions/entrySeq"
+          },
           "openId": {
             "$ref": "#/definitions/openIdReference"
           },
@@ -110,6 +113,7 @@
           "description": "Application-defined context type (e.g., http_request, database_query, business_logic)"
         },
         "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
+        "seq": { "$ref": "#/definitions/entrySeq" },
         "context": {
           "type": "object",
           "description": "Application-specific context data conforming to the referenced schema",
@@ -143,6 +147,7 @@
           "description": "Application-defined event type"
         },
         "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
+        "seq": { "$ref": "#/definitions/entrySeq" },
         "openId": { "$ref": "#/definitions/openIdReference" },
         "context": {
           "type": "object",
@@ -163,6 +168,7 @@
           "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
         },
         "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
+        "seq": { "$ref": "#/definitions/entrySeq" },
         "openId": { "$ref": "#/definitions/openIdReference" },
         "context": {
           "type": "object",
@@ -186,6 +192,11 @@
       "type": "string",
       "pattern": "^[a-z_]+_[0-9]+$",
       "description": "References a parent operation ID for hierarchical correlation - establishes position within operation tree. Creates parent-child relationships enabling complete request flow analysis and performance attribution"
+    },
+    "entrySeq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Position of this entry in the single record-order sequence of the log session that produced it. One counter covers opens, events and closes, so a scope's own events and its nested child scopes can be totally ordered even though the document keeps them in separate arrays. Strictly increasing in record order and unique within a document; values are not contiguous within any one array. Optional: documents produced before this field existed omit it, and a reader must then fall back to structural order."
     },
     "contextType": {
       "type": "string",

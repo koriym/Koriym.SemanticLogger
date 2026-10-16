@@ -224,6 +224,10 @@ final class LogJson implements JsonSerializable
             'context' => $close->context,
         ];
 
+        if ($close->seq !== null) {
+            $result['seq'] = $close->seq;
+        }
+
         if ($includeOpenId && $close->openId !== null) {
             $result['openId'] = $close->openId;
         }
@@ -244,6 +248,10 @@ final class LogJson implements JsonSerializable
             'schemaUrl' => $event->schemaUrl,
             'context' => $event->context,
         ];
+
+        if ($event->seq !== null) {
+            $result['seq'] = $event->seq;
+        }
 
         if ($includeOpenId && $event->openId !== null) {
             $result['openId'] = $event->openId;

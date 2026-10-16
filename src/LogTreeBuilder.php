@@ -90,6 +90,7 @@ final class LogTreeBuilder
                 $operation->context,
                 $this->buildOpenChildren($operation->id, $childrenByParent),
                 $operation->parentId,
+                $operation->seq,
             );
         }
 
@@ -129,6 +130,7 @@ final class LogTreeBuilder
                 $close->openId,
                 $childCloses,
                 $close->profile,
+                $close->seq,
             );
         }
 
