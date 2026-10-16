@@ -122,17 +122,23 @@ final class TreeNode
     }
 
     /**
-     * Return close-diff signals as a space-joined string, or empty when the
-     * node has no close or no signals differ from open. The renderer decorates
-     * this with a close branch and places it directly beneath the children.
+     * Return the close entry as one line: its type, then the close-diff signals
+     * (keys that differ from open or are new in close). Empty only when the node
+     * never closed. The renderer decorates this with a close branch and places it
+     * directly beneath the children.
      */
-    public function getCloseSignals(): string
+    public function getCloseLine(): string
     {
         if ($this->closeType === null) {
             return '';
         }
 
-        return (new SignalExtractor())->extractCloseDiff($this->context, $this->closeContext);
+        $signals = (new SignalExtractor())->extractCloseDiff($this->context, $this->closeContext);
+        if ($signals === '') {
+            return $this->closeType;
+        }
+
+        return $this->closeType . ' ' . $signals;
     }
 
     private function semanticDisplayLine(SignalExtractor $extractor): string|null

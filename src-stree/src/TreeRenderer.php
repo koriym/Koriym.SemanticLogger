@@ -98,8 +98,8 @@ final class TreeRenderer implements LogRendererInterface
             $this->renderFullModeLeaves($root, $lines, '');
         }
 
-        $closeSignals = $root->getCloseSignals();
-        $hasCloseLine = ! $config->showFullTree && $closeSignals !== '';
+        $closeLine = $root->getCloseLine();
+        $hasCloseLine = ! $config->showFullTree && $closeLine !== '';
 
         $totalChildren = count($root->children);
         for ($i = 0; $i < $totalChildren; $i++) {
@@ -111,7 +111,7 @@ final class TreeRenderer implements LogRendererInterface
         if ($config->showFullTree) {
             $this->renderFullModeClose($root, $lines, '');
         } elseif ($hasCloseLine) {
-            $lines[] = self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $closeSignals;
+            $lines[] = self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $closeLine;
         }
     }
 
@@ -133,10 +133,10 @@ final class TreeRenderer implements LogRendererInterface
             $this->renderFullModeLeaves($node, $lines, $childPrefix);
         }
 
-        $closeSignals = $node->getCloseSignals();
-        $hasCloseLine = ! $config->showFullTree && $closeSignals !== '';
+        $closeLine = $node->getCloseLine();
+        $hasCloseLine = ! $config->showFullTree && $closeLine !== '';
         $this->renderNodeChildren($node, $lines, $childPrefix, $hasCloseLine, $config);
-        $this->renderNodeClose($node, $lines, $childPrefix, $config, $closeSignals, $hasCloseLine);
+        $this->renderNodeClose($node, $lines, $childPrefix, $config, $closeLine, $hasCloseLine);
     }
 
     private function shouldSkipNode(TreeNode $node, RenderConfig $config): bool
@@ -192,7 +192,7 @@ final class TreeRenderer implements LogRendererInterface
         array &$lines,
         string $childPrefix,
         RenderConfig $config,
-        string $closeSignals,
+        string $closeLine,
         bool $hasCloseLine,
     ): void {
         if ($config->showFullTree) {
@@ -205,7 +205,7 @@ final class TreeRenderer implements LogRendererInterface
             return;
         }
 
-        $lines[] = $childPrefix . self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $closeSignals;
+        $lines[] = $childPrefix . self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $closeLine;
     }
 
     /**
@@ -242,7 +242,7 @@ final class TreeRenderer implements LogRendererInterface
         $closeLeaves = $this->extractFullModeCloseLeaves($node);
         $profileLeaves = $extractor->expandFull($node->closeProfile);
 
-        $lines[] = $prefix . self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' close';
+        $lines[] = $prefix . self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' close ' . $node->closeType;
         $closeChildPrefix = $prefix . self::TREE_SPACE . self::TREE_SPACE . self::TREE_SPACE . self::TREE_SPACE;
 
         $closeItemCount = count($closeLeaves) + ($profileLeaves !== [] ? 1 : 0);

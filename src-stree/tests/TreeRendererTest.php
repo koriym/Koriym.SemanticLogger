@@ -468,7 +468,7 @@ final class TreeRendererTest extends TestCase
 
         $this->assertStringContainsString('operation: validate', $result);
         $this->assertStringContainsString('input: data', $result);
-        $this->assertStringContainsString('└── close', $result);
+        $this->assertStringContainsString('└── close some_op_close', $result);
         $this->assertStringContainsString('result: ok', $result);
     }
 
@@ -699,8 +699,190 @@ final class TreeRendererTest extends TestCase
 
         $result = $renderer->renderTree($logData);
 
-        $this->assertStringContainsString('└── exit=success', $result);
+        $this->assertStringContainsString('└── becoming_close exit=success', $result);
         $this->assertStringNotContainsString('final=Hello', $result);
+    }
+
+    public function testCompactCloseLineLeadsWithCloseType(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'get_1',
+                    'type' => 'get',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['uri' => 'page://self/dep/parent'],
+                    'open' => [
+                        [
+                            'id' => 'get_2',
+                            'type' => 'get',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['uri' => 'page://self/dep/child-c'],
+                        ],
+                    ],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'cache_miss',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['layer' => 'resource'],
+                    'openId' => 'get_1',
+                    'close' => [
+                        [
+                            'id' => 'close_2',
+                            'type' => 'cache_hit',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['layer' => 'resource'],
+                            'openId' => 'get_2',
+                        ],
+                    ],
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(false, 0.0, 5));
+
+        $lines = explode("\n", trim($renderer->renderTree($logData)));
+
+        $this->assertSame('get uri=page://self/dep/parent', $lines[0]);
+        $this->assertSame('├── get uri=page://self/dep/child-c', $lines[1]);
+        $this->assertSame('│   └── cache_hit layer=resource', $lines[2]);
+        $this->assertSame('└── cache_miss layer=resource', $lines[3]);
+    }
+
+    public function testCompactCloseLineIsTypeOnlyWhenCloseAddsNoSignal(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'op_1',
+                    'type' => 'some_op',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['operation' => 'validate'],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'some_op_close',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['operation' => 'validate'],
+                    'openId' => 'op_1',
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(false, 0.0, 5));
+
+        $lines = explode("\n", trim($renderer->renderTree($logData)));
+
+        $this->assertSame('some_op operation=validate', $lines[0]);
+        $this->assertSame('└── some_op_close', $lines[1]);
+    }
+
+    public function testNodeWithoutCloseGetsNoCloseLine(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'op_1',
+                    'type' => 'some_op',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['operation' => 'validate'],
+                ],
+            ],
+            'close' => [],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(false, 0.0, 5));
+
+        $this->assertSame('some_op operation=validate : unclosed', trim($renderer->renderTree($logData)));
+    }
+
+    public function testTimeThresholdHidesSkippedNodeCloseType(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'slow_1',
+                    'type' => 'slow_op',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['executionTime' => 0.050],
+                    'open' => [
+                        [
+                            'id' => 'fast_1',
+                            'type' => 'fast_op',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['executionTime' => 0.001],
+                        ],
+                    ],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'cache_miss',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['layer' => 'resource'],
+                    'openId' => 'slow_1',
+                    'close' => [
+                        [
+                            'id' => 'close_2',
+                            'type' => 'cache_hit',
+                            'schemaUrl' => 'test.json',
+                            'context' => ['layer' => 'resource'],
+                            'openId' => 'fast_1',
+                        ],
+                    ],
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(false, 0.010, 5));
+
+        $result = $renderer->renderTree($logData);
+
+        $this->assertStringNotContainsString('cache_hit', $result);
+        $this->assertStringContainsString('└── cache_miss layer=resource', $result);
+    }
+
+    public function testFullModeCloseBranchCarriesCloseType(): void
+    {
+        $logData = [
+            'open' => [
+                [
+                    'id' => 'get_1',
+                    'type' => 'get',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['uri' => 'page://self/dep/child-c'],
+                ],
+            ],
+            'close' => [
+                [
+                    'id' => 'close_1',
+                    'type' => 'cache_hit',
+                    'schemaUrl' => 'test.json',
+                    'context' => ['layer' => 'resource'],
+                    'openId' => 'get_1',
+                ],
+            ],
+            'events' => [],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5));
+
+        $lines = explode("\n", trim($renderer->renderTree($logData)));
+
+        $this->assertSame('get uri=page://self/dep/child-c', $lines[0]);
+        $this->assertSame('├── uri: page://self/dep/child-c', $lines[1]);
+        $this->assertSame('└── close cache_hit', $lines[2]);
+        $this->assertSame('    └── layer: resource', $lines[3]);
     }
 
     public function testRegisteredFormatterMultilineContinuationIndentsUnderChildPrefix(): void
@@ -751,8 +933,12 @@ final class TreeRendererTest extends TestCase
         $result = $renderer->renderTree($logData);
         $lines = explode("\n", trim($result));
 
-        // Child node rendered under a tree prefix; continuation indents to child-content column.
-        $this->assertStringContainsString('└── fake open=fake_open', $lines[1]);
-        $this->assertStringContainsString('    └── close=fake_close', $lines[2]);
+        // Child is no longer last (the root's close line is), and the formatter
+        // continuation indents to the child-content column.
+        $this->assertSame('├── fake open=fake_open', $lines[1]);
+        $this->assertSame('│   └── close=fake_close', $lines[2]);
+        // Close lines carry their type: the child's first, then the root's.
+        $this->assertSame('│   └── fake_close', $lines[3]);
+        $this->assertSame('└── container_close', $lines[4]);
     }
 }

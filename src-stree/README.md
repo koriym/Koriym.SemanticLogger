@@ -25,6 +25,31 @@ vendor/bin/stree --json debug.json
 | `--json` | | Pretty-print raw JSON |
 | `--help` | `-h` | Display help |
 
+## Output
+
+A scope prints its open line first, then its events and nested scopes as children,
+then its close entry last: the close TYPE followed by the signals that changed
+since open. The close type is the outcome of the scope, so it leads the line.
+
+```text
+get uri=app://self/user?id=1
+├── save_value uri=app://self/user?id=1 tags=[_user_id=1] ttl=31536000 saved=true [event]
+└── cache_miss layer=resource
+get uri=app://self/user?id=1
+└── cache_hit layer=resource
+```
+
+A scope that never closed carries `: unclosed` instead of a close line. In `--full`
+mode the close entry keeps its own branch, labelled with the type, and its context
+and profile hang below it:
+
+```text
+get uri=app://self/user?id=1
+├── uri: app://self/user?id=1
+└── close cache_hit
+    └── layer: resource
+```
+
 ## In process
 
 `stree` is a thin CLI over the same renderer you can call directly. `TreeRenderer`

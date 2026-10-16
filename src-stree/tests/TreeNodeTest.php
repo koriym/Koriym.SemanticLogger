@@ -254,7 +254,7 @@ final class TreeNodeTest extends TestCase
         $this->assertStringNotContainsString('_open', $line);
     }
 
-    public function testCloseDiffNewKeyLivesOnCloseSignals(): void
+    public function testCloseDiffNewKeyLivesOnCloseLine(): void
     {
         $node = new TreeNode('n1', 'business_logic', ['operation' => 'checkout']);
         $node->setClose('business_logic_close', ['operation' => 'checkout', 'success' => true]);
@@ -262,8 +262,8 @@ final class TreeNodeTest extends TestCase
         // Open line no longer carries close-diff.
         $this->assertStringNotContainsString('success=true', $node->getDisplayLine());
 
-        // Close signals carry it (without leading "→").
-        $this->assertSame('success=true', $node->getCloseSignals());
+        // Close line leads with the close type, then the diff (without leading "→").
+        $this->assertSame('business_logic_close success=true', $node->getCloseLine());
     }
 
     public function testCloseDiffChangedKeyKeepsInlineArrow(): void
@@ -274,16 +274,31 @@ final class TreeNodeTest extends TestCase
         // Open line shows the open-side signal only; the change arrow is not on it.
         $this->assertStringContainsString('status=pending', $node->getDisplayLine());
         $this->assertStringNotContainsString('→done', $node->getDisplayLine());
-        // Close signals carry the full before→after.
-        $this->assertSame('status=pending→done', $node->getCloseSignals());
+        // Close line carries the type plus the full before→after.
+        $this->assertSame('some_type_close status=pending→done', $node->getCloseLine());
     }
 
-    public function testCloseDiffOmittedWhenIdentical(): void
+    public function testCloseLineKeepsTypeWhenNoSignalDiffers(): void
     {
         $node = new TreeNode('n1', 'some_type', ['operation' => 'validate']);
         $node->setClose('some_type_close', ['operation' => 'validate']);
 
-        $this->assertSame('', $node->getCloseSignals());
+        $this->assertSame('some_type_close', $node->getCloseLine());
+    }
+
+    public function testCloseLineEmptyWhenNodeNeverClosed(): void
+    {
+        $node = new TreeNode('n1', 'some_type', ['operation' => 'validate']);
+
+        $this->assertSame('', $node->getCloseLine());
+    }
+
+    public function testCloseLineShowsOutcomeTypeOfCacheScope(): void
+    {
+        $node = new TreeNode('get_1', 'get', ['uri' => 'page://self/html/blog-posting']);
+        $node->setClose('cache_hit', ['layer' => 'resource']);
+
+        $this->assertSame('cache_hit layer=resource', $node->getCloseLine());
     }
 
     public function testStatusFailedWhenSuccessFalse(): void
