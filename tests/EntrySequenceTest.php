@@ -124,6 +124,22 @@ final class EntrySequenceTest extends TestCase
         $this->assertSame(5, $this->seqOf($outerClose));
     }
 
+    /** A close-time diagnostic sits inside the scope being closed, so the close must come after it. */
+    public function testCloseTimeDiagnosticIsOrderedBeforeTheClose(): void
+    {
+        $logger = new SemanticLogger();
+        $operation = $logger->open(new FakeContext('operation'));
+        $logger->close(new UnserializableContext(), $operation);
+
+        $document = $logger->flush()->toArray();
+        $open = $this->onlyOpen($document);
+        $diagnostic = $this->entryList($open, 'events')[0];
+
+        $this->assertSame(2, $this->seqOf($diagnostic));
+        $this->assertSame(3, $this->seqOf($this->entryAt($open, 'close')));
+        $this->assertSame([], $this->check($document));
+    }
+
     public function testSequenceRestartsWithTheNextSession(): void
     {
         $logger = new SemanticLogger();

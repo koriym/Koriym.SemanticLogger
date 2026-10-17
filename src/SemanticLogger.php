@@ -147,6 +147,13 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         $closeId = $this->nextId($frozen['type']);
         $completedOpen = $this->openStack->pop();
         $this->completedOperations[] = $completedOpen;
+        // The diagnostic lands inside the scope this close ends, so it must take
+        // its seq first: a close is recorded after everything nested under its open.
+        if ($frozen['diagnostic'] !== null) {
+            $frozen['diagnostic']['relatedId'] = $openId;
+            $this->recordDiagnostic($frozen['diagnostic'], $openId);
+        }
+
         $this->closeLog[] = new EventEntry(
             $closeId,
             $frozen['type'],
@@ -157,10 +164,6 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             null,
             $this->nextSeq(),
         );
-        if ($frozen['diagnostic'] !== null) {
-            $frozen['diagnostic']['relatedId'] = $openId;
-            $this->recordDiagnostic($frozen['diagnostic'], $openId);
-        }
     }
 
     #[Override]
