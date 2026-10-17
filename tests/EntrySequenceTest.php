@@ -140,6 +140,25 @@ final class EntrySequenceTest extends TestCase
         $this->assertSame([], $this->check($document));
     }
 
+    /** Every diagnostic the logger can record must leave a sequence its own validator accepts. */
+    public function testEveryDiagnosticPathYieldsAConsistentSequence(): void
+    {
+        $logger = new SemanticLogger();
+        $outer = $logger->open(new UnserializableContext());
+        $logger->event(new UnserializableContext());
+        $inner = $logger->open(new FakeContext('inner'));
+        $logger->close(new FakeContext('wrong order'), $outer);
+        $logger->close(new FakeContext('inner done'), $inner);
+        $logger->close(new FakeContext('outer done'), $outer);
+        $logger->close(new FakeContext('nothing open'), $outer);
+
+        $this->assertSame([], $this->check($logger->flush()->toArray()));
+
+        $logger->open(new FakeContext('left open'));
+
+        $this->assertSame([], $this->check($logger->flush()->toArray()));
+    }
+
     public function testSequenceRestartsWithTheNextSession(): void
     {
         $logger = new SemanticLogger();
@@ -312,6 +331,31 @@ final class EntrySequenceTest extends TestCase
 
         $this->assertCount(1, $violations);
         $this->assertStringContainsString('seq 4 must be greater than every seq under the preceding sibling open[0].open[0] (found 6)', $violations[0]);
+    }
+
+    /** Nested orphan closes (internal shape) count toward the preceding sibling's extent. */
+    public function testCheckerSeesNestedOrphanClosesWhenOrderingSiblings(): void
+    {
+        $close = static fn (string $id, int $seq, array $nested = []): array => [
+            'id' => $id,
+            'type' => 'example',
+            'schemaUrl' => './schemas/example.json',
+            'context' => [],
+            'openId' => 'ghost',
+            'seq' => $seq,
+            ...($nested === [] ? [] : ['close' => $nested]),
+        ];
+        $document = [
+            'close' => [
+                $close('close_1', 2, [$close('close_2', 5)]),
+                $close('close_3', 4),
+            ],
+        ];
+
+        $violations = $this->check($document);
+
+        $this->assertCount(1, $violations);
+        $this->assertStringContainsString('[close[1]] seq 4 must be greater than every seq under the preceding sibling close[0] (found 5)', $violations[0]);
     }
 
     public function testCheckerRejectsCloseRecordedBeforeSomethingNestedInside(): void

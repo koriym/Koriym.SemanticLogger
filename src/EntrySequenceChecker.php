@@ -211,8 +211,11 @@ final class EntrySequenceChecker
     /** Highest seq anywhere under this open, excluding its own matched close. */
     private function maxDescendantSeq(object $open): int|null
     {
+        /** @var mixed $close */
+        $close = $open->close ?? null;
         $max = null;
-        foreach ([$open->events ?? null, $open->open ?? null] as $list) {
+        // A list-shaped close holds nested orphan closes (internal shape), not a matched close.
+        foreach ([$open->events ?? null, $open->open ?? null, is_array($close) ? $close : null] as $list) {
             if (! is_array($list)) {
                 continue;
             }

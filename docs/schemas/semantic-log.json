@@ -196,7 +196,7 @@
     "entrySeq": {
       "type": "integer",
       "minimum": 1,
-      "description": "Position of this entry in the single record-order sequence of the log session that produced it. One counter covers opens, events and closes, so a scope's own events and its nested child scopes can be totally ordered even though the document keeps them in separate arrays. Strictly increasing in record order and unique within a document; values are not contiguous within any one array. Optional: documents produced before this field existed omit it, and a reader must then fall back to structural order."
+      "description": "Position of this entry in the single record-order sequence of the log session that produced it. One counter covers opens, events and closes, so a scope's own events and its nested child scopes can be totally ordered even though the document keeps them in separate arrays. Unique within a document and increasing along every path from the root: an entry's seq is greater than its enclosing open's, a close's is greater than everything inside its scope, and siblings are listed in record order. A scope's events and nested opens interleave, so values are not contiguous within any one array. Optional: documents produced before this field existed omit it, and a reader must then fall back to structural order."
     },
     "contextType": {
       "type": "string",
