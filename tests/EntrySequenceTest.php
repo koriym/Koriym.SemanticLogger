@@ -151,12 +151,13 @@ final class EntrySequenceTest extends TestCase
         $logger->close(new FakeContext('inner done'), $inner);
         $logger->close(new FakeContext('outer done'), $outer);
         $logger->close(new FakeContext('nothing open'), $outer);
-
-        $this->assertSame([], $this->check($logger->flush()->toArray()));
+        $completed = $logger->flush()->toArray();
 
         $logger->open(new FakeContext('left open'));
+        $unclosed = $logger->flush()->toArray();
 
-        $this->assertSame([], $this->check($logger->flush()->toArray()));
+        $this->assertSame([], $this->check($completed));
+        $this->assertSame([], $this->check($unclosed));
     }
 
     public function testSequenceRestartsWithTheNextSession(): void
