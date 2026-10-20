@@ -10,7 +10,7 @@ Type-safe semantic logging for hierarchical application workflows with tree-shap
 
 Each entry carries a schema URL and typed context data, so logs stay machine-readable and can be validated, rendered, and inspected without depending on free-form log messages.
 
-The public log contract is structural: matched `close` entries and scoped `events` are nested under the `open` entry they belong to. Once serialized to JSON, normal operation results are read from paths such as `open[0].close` — not from a separate top-level close list.
+The public log contract is structural: everything that happened inside an `open` is in its `children`, in the order it was recorded, and its matching `close` is nested on it. Once serialized to JSON, normal operation results are read from paths such as `entries[0].close` — not from a separate top-level close list.
 
 ## Installation
 
@@ -150,7 +150,7 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 }
 ```
 
-`close` is absent while an open is still unclosed. A top-level `close` list appears only for orphan closes (a close whose `openId` matches no open in the log); it is diagnostic output, not part of the normal tree.
+`close` is absent while an open is still unclosed. A top-level `close` list appears only for orphan closes (a close whose `openId` matches no open in the log, or a second close for an open that is already closed); it is diagnostic output, not part of the normal tree.
 
 ### The Logger Never Throws
 

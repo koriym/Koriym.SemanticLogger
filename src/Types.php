@@ -41,7 +41,6 @@ namespace Koriym\SemanticLogger;
  *
  * Runtime collection types
  * @psalm-type EventEntryList = list<EventEntry>
- * @psalm-type OpenCloseEntryList = list<OpenCloseEntry>
  * @psalm-type LogRecord = OpenCloseEntry|EventEntry
  * @psalm-type LogRecordList = list<LogRecord>
  * @psalm-type RecordsByScope = array<string, LogRecordList>

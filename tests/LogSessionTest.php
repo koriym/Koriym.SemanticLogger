@@ -122,6 +122,25 @@ final class LogSessionTest extends TestCase
         $this->assertSame('start_1', $orphans[0]['openId'] ?? null);
     }
 
+    public function testCloseWithoutOpenIdBecomesOrphanWithoutOpenId(): void
+    {
+        $array = (new LogJson(self::SCHEMA, [$this->open('start_1')], [$this->event('stray_close_1')]))->toArray();
+
+        $orphans = $array['close'] ?? [];
+        $this->assertArrayNotHasKey('close', $array['entries'][0]);
+        $this->assertCount(1, $orphans);
+        $this->assertSame('stray_close_1', $orphans[0]['id']);
+        $this->assertArrayNotHasKey('openId', $orphans[0]);
+    }
+
+    public function testOpenNamingItselfAsParentIsPlacedAtTheRoot(): void
+    {
+        $array = (new LogJson(self::SCHEMA, [$this->open('loop_1', 'loop_1')]))->toArray();
+
+        $this->assertSame(['loop_1'], $this->ids($array['entries']));
+        $this->assertSame([], $this->children($array['entries'][0]));
+    }
+
     public function testLinksArePresentOnlyWhenNotEmpty(): void
     {
         $links = [['rel' => 'source', 'href' => 'https://example.com/source']];

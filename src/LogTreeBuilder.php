@@ -68,7 +68,8 @@ final class LogTreeBuilder
     }
 
     /**
-     * A record whose scope is not an open in this log is placed at the root.
+     * A record whose scope is not an open in this log, or an open that names
+     * itself as parent, is placed at the root.
      *
      * @param LogRecordList  $records
      * @param OperationIdSet $openIds
@@ -80,7 +81,7 @@ final class LogTreeBuilder
         $recordsByScope = [];
         foreach ($records as $record) {
             $scopeId = $record instanceof OpenCloseEntry ? $record->parentId : $record->openId;
-            $key = $scopeId !== null && isset($openIds[$scopeId]) ? $scopeId : '';
+            $key = $scopeId !== null && $scopeId !== $record->id && isset($openIds[$scopeId]) ? $scopeId : '';
             $recordsByScope[$key][] = $record;
         }
 
