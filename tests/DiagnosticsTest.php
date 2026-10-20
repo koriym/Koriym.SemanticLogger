@@ -54,7 +54,7 @@ final class DiagnosticsTest extends TestCase
         $this->assertIsArray($errors);
         $error = $errors[0] ?? null;
         $this->assertIsArray($error);
-        $this->assertSame('context_serialization_failed', $error['kind']);
+        $this->assertSame('context_serialization_failed', $error['code']);
         $this->assertSame('unserializable_context', $context['originalType']);
         $this->assertSame('https://example.com/schemas/unserializable.json', $context['originalSchemaUrl']);
 
@@ -63,7 +63,7 @@ final class DiagnosticsTest extends TestCase
         $this->assertCount(2, $children);
         $diagnostics = $this->diagnosticsIn($children);
         $this->assertCount(1, $diagnostics);
-        $this->assertSame('context_serialization_failed', $diagnostics[0]['kind']);
+        $this->assertSame('context_serialization_failed', $diagnostics[0]['code']);
         $this->assertSame($brokenId, $diagnostics[0]['relatedId'] ?? null);
         $this->assertArrayHasKey('exceptionClass', $diagnostics[0]);
 
@@ -98,7 +98,7 @@ final class DiagnosticsTest extends TestCase
 
         $diagnostics = $this->diagnosticsIn($entries);
         $this->assertCount(1, $diagnostics);
-        $this->assertSame('context_serialization_failed', $diagnostics[0]['kind']);
+        $this->assertSame('context_serialization_failed', $diagnostics[0]['code']);
         $this->assertSame($userEvents[1]['id'], $diagnostics[0]['relatedId'] ?? null);
     }
 
@@ -136,7 +136,7 @@ final class DiagnosticsTest extends TestCase
 
         $diagnostics = $this->diagnosticsIn($this->childrenOf($entries[0]));
         $this->assertCount(1, $diagnostics);
-        $this->assertSame('context_serialization_failed', $diagnostics[0]['kind']);
+        $this->assertSame('context_serialization_failed', $diagnostics[0]['code']);
         $this->assertSame($openId, $diagnostics[0]['relatedId'] ?? null);
     }
 
@@ -168,7 +168,7 @@ final class DiagnosticsTest extends TestCase
         $this->assertSame(CoreSchema::DIAGNOSTIC_TYPE, $innerChildren[1]['type']);
         $diagnostics = $this->diagnosticsIn($innerChildren);
         $this->assertCount(1, $diagnostics);
-        $this->assertSame('context_serialization_failed', $diagnostics[0]['kind']);
+        $this->assertSame('context_serialization_failed', $diagnostics[0]['code']);
         $this->assertSame($innerId, $diagnostics[0]['relatedId'] ?? null);
 
         $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $this->closeOf($inner)['type']);
@@ -188,7 +188,7 @@ final class DiagnosticsTest extends TestCase
 
         $diagnostics = $this->diagnosticsIn($entries);
         $this->assertCount(1, $diagnostics);
-        $this->assertSame('context_serialization_failed', $diagnostics[0]['kind']);
+        $this->assertSame('context_serialization_failed', $diagnostics[0]['code']);
     }
 
     public function testCloseWithoutOpenRecordsDiagnosticAndKeepsState(): void
@@ -207,7 +207,7 @@ final class DiagnosticsTest extends TestCase
         $this->assertSame('event', $entries[0]['kind']);
         $diagnostics = $this->diagnosticsIn($entries);
         $this->assertCount(1, $diagnostics);
-        $this->assertSame('close_without_open', $diagnostics[0]['kind']);
+        $this->assertSame('close_without_open', $diagnostics[0]['code']);
         $this->assertSame('missing_open_1', $diagnostics[0]['relatedId'] ?? null);
         $discarded = $diagnostics[0]['discardedContext'] ?? null;
         $this->assertIsArray($discarded);
@@ -233,7 +233,7 @@ final class DiagnosticsTest extends TestCase
         $this->assertSame('first', $this->closeOf($entries[0])['context']['message']);
         $diagnostics = $this->diagnosticsIn($entries);
         $this->assertCount(1, $diagnostics);
-        $this->assertSame('close_without_open', $diagnostics[0]['kind']);
+        $this->assertSame('close_without_open', $diagnostics[0]['code']);
         $this->assertSame($openId, $diagnostics[0]['relatedId'] ?? null);
         $this->assertArrayNotHasKey('close', $log->toArray());
     }
@@ -267,7 +267,7 @@ final class DiagnosticsTest extends TestCase
         $this->assertSame([], $this->diagnosticsIn($outerChildren));
         $diagnostics = $this->diagnosticsIn($this->childrenOf($inner));
         $this->assertCount(1, $diagnostics);
-        $this->assertSame('close_id_mismatch', $diagnostics[0]['kind']);
+        $this->assertSame('close_id_mismatch', $diagnostics[0]['code']);
         $this->assertSame($outerId, $diagnostics[0]['relatedId'] ?? null);
         $discarded = $diagnostics[0]['discardedContext'] ?? null;
         $this->assertIsArray($discarded);
@@ -294,13 +294,12 @@ final class DiagnosticsTest extends TestCase
 
         $diagnostics = $this->diagnosticsIn($entries);
         $this->assertCount(1, $diagnostics);
-        $this->assertSame('unclosed_at_flush', $diagnostics[0]['kind']);
+        $this->assertSame('unclosed_at_flush', $diagnostics[0]['code']);
         $this->assertSame([$outerId, $innerId], $diagnostics[0]['unclosedIds'] ?? null);
 
         // flush() always resets: the next session starts clean.
         $next = $this->logger->flush();
         $this->assertSame([], $next->records);
-        $this->assertSame([], $next->closes);
     }
 
     public function testEmptyFlushReturnsEmptyLog(): void
@@ -309,7 +308,6 @@ final class DiagnosticsTest extends TestCase
 
         $this->assertSame(CoreSchema::LOG_URL, $log->schemaUrl);
         $this->assertSame([], $log->records);
-        $this->assertSame([], $log->closes);
 
         $this->assertSame(['$schema' => CoreSchema::LOG_URL, 'entries' => []], $log->toArray());
     }
@@ -341,7 +339,7 @@ final class DiagnosticsTest extends TestCase
         $this->assertCount(2, $snapshot['entries']);
         $preview = $this->diagnosticsIn($snapshot['entries']);
         $this->assertCount(1, $preview);
-        $this->assertSame('unclosed_at_flush', $preview[0]['kind']);
+        $this->assertSame('unclosed_at_flush', $preview[0]['code']);
 
         // The session survives the snapshot.
         $this->logger->close(new FakeContext('work done', 2), $openId);

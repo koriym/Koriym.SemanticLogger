@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Experimental\LogDrivenTesting;
 
-use Koriym\SemanticLogger\EventEntry;
+use Koriym\SemanticLogger\CloseEntry;
 use Koriym\SemanticLogger\OpenCloseEntry;
 
 final class RequestResponsePair
 {
     public function __construct(
         public readonly OpenCloseEntry $request,
-        public readonly EventEntry $response,
+        public readonly CloseEntry $response,
     ) {
     }
 

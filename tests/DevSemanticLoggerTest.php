@@ -10,6 +10,8 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 use RuntimeException;
 
+use function array_filter;
+use function array_values;
 use function file_put_contents;
 use function is_array;
 use function is_float;
@@ -166,10 +168,13 @@ final class DevSemanticLoggerTest extends TestCase
         $this->logger->close(new FakeContext('done'), $id2);
         $second = $this->logger->flush();
 
-        $this->assertCount(1, $first->closes);
-        $this->assertCount(1, $second->closes);
-        $this->assertSame($id1, $first->closes[0]->openId);
-        $this->assertSame($id2, $second->closes[0]->openId);
+        $firstCloses = array_values(array_filter($first->records, static fn ($record): bool => $record instanceof CloseEntry));
+        $secondCloses = array_values(array_filter($second->records, static fn ($record): bool => $record instanceof CloseEntry));
+
+        $this->assertCount(1, $firstCloses);
+        $this->assertCount(1, $secondCloses);
+        $this->assertSame($id1, $firstCloses[0]->openId);
+        $this->assertSame($id2, $secondCloses[0]->openId);
     }
 
     public function testDevStateIsResetEvenWhenInnerFlushThrows(): void

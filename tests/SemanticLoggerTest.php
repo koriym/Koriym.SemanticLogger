@@ -146,6 +146,25 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame('e2', $this->messageOf($children[2]));
     }
 
+    public function testFlushRecordsKeepClosesInterleavedAtRecordPosition(): void
+    {
+        // Regression: closes sit in the record list at the position they were
+        // recorded, not collected into a separate list.
+        $a = $this->logger->open(new FakeContext('A', 1));
+        $this->logger->event(new FakeContext('e1', 2));
+        $this->logger->close(new FakeContext('A done', 3), $a);
+        $this->logger->event(new FakeContext('e2', 4));
+
+        $records = $this->logger->flush()->records;
+
+        $this->assertCount(4, $records);
+        $this->assertInstanceOf(OpenCloseEntry::class, $records[0]);
+        $this->assertInstanceOf(EventEntry::class, $records[1]);
+        $this->assertInstanceOf(CloseEntry::class, $records[2]);
+        $this->assertInstanceOf(EventEntry::class, $records[3]);
+        $this->assertSame($a, $records[2]->openId);
+    }
+
     public function testNestedOpen(): void
     {
         $outerId = $this->logger->open(new FakeContext('outer process', 1));
@@ -208,7 +227,7 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame($preview, $flushed);
         $this->assertSame(
             'unclosed_at_flush',
-            $this->contextValue($this->unclosedDiagnostic($flushed['entries']), 'kind'),
+            $this->contextValue($this->unclosedDiagnostic($flushed['entries']), 'code'),
         );
     }
 

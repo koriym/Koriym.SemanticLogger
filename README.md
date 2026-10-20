@@ -167,7 +167,7 @@ Note the layer boundary: diagnostics cover the logger's own recording operations
 
 ### Open / Close Ordering
 
-`open` and `close` must be paired in LIFO order. The logger never throws on violations — it records them as `semantic_logger_error` diagnostic entries with one of these `kind` values:
+`open` and `close` must be paired in LIFO order. The logger never throws on violations — it records them as `semantic_logger_error` diagnostic entries with one of these `code` values:
 
 - `close_id_mismatch` — `close()` called with an id other than the innermost open; the stack is left untouched (no guessing), so correct closes still work
 - `close_without_open` — `close()` called with no open operation on the stack; the context is discarded and the session continues

@@ -332,8 +332,8 @@ JSON,
       "type": "semantic_logger_error",
       "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json",
       "context": {
-        "kind": "bogus_kind",
-        "message": "Not a real diagnostic kind."
+        "code": "bogus_kind",
+        "message": "Not a real diagnostic code."
       }
     }
   ]
@@ -364,7 +364,7 @@ JSON,
         "operation": "event",
         "errors": [
           {
-            "kind": "context_serialization_failed",
+            "code": "context_serialization_failed",
             "message": "Context serialization failed."
           }
         ],
@@ -396,7 +396,7 @@ JSON,
       "type": "semantic_logger_error",
       "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-invalid-context.json",
       "context": {
-        "kind": "close_without_open",
+        "code": "close_without_open",
         "message": "Close called without a matching open.",
         "relatedId": "missing_open_1"
       }
@@ -426,7 +426,7 @@ JSON,
       "type": "semantic_logger_error",
       "schemaUrl": "https://example.com/schemas/semantic-logger-error.json",
       "context": {
-        "kind": "close_without_open",
+        "code": "close_without_open",
         "message": "Close called without a matching open.",
         "relatedId": "missing_open_1"
       }
@@ -551,7 +551,7 @@ JSON,
           "type": "semantic_logger_error",
           "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json",
           "context": {
-            "kind": "close_without_open",
+            "code": "close_without_open",
             "message": "Close called without a matching open.",
             "relatedId": "missing_open_1"
           }

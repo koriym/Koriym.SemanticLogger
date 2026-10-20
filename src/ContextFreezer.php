@@ -63,7 +63,7 @@ final class ContextFreezer
             ];
         } catch (Throwable $throwable) {
             $diagnostic = [
-                'kind' => 'context_serialization_failed',
+                'code' => 'context_serialization_failed',
                 'message' => 'Context serialization failed.',
                 'exceptionClass' => $throwable::class,
             ];
@@ -158,7 +158,7 @@ final class ContextFreezer
             'operation' => $operation,
             'errors' => [
                 [
-                    'kind' => $diagnostic['kind'],
+                    'code' => $diagnostic['code'],
                     'message' => $diagnostic['message'],
                 ],
             ],

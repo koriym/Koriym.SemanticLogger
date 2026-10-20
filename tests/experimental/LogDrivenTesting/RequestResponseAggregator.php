@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Experimental\LogDrivenTesting;
 
-use Koriym\SemanticLogger\EventEntry;
+use Koriym\SemanticLogger\CloseEntry;
 use Koriym\SemanticLogger\LogJson;
 use Koriym\SemanticLogger\OpenCloseEntry;
 
@@ -26,10 +26,11 @@ final class RequestResponseAggregator
     public function aggregate(LogJson $logJson): array
     {
         $opens = array_filter($logJson->records, static fn ($record): bool => $record instanceof OpenCloseEntry);
+        $closes = array_filter($logJson->records, static fn ($record): bool => $record instanceof CloseEntry);
 
         $pairs = [];
         foreach ($opens as $open) {
-            foreach ($logJson->closes as $close) {
+            foreach ($closes as $close) {
                 if ($this->isMatchingPair($open, $close)) {
                     $pairs[] = new RequestResponsePair($open, $close);
                     break;
@@ -43,7 +44,7 @@ final class RequestResponseAggregator
     /**
      * Check if open and close operations form a logical pair
      */
-    private function isMatchingPair(OpenCloseEntry $open, EventEntry $close): bool
+    private function isMatchingPair(OpenCloseEntry $open, CloseEntry $close): bool
     {
         // For semantic logging, we need to determine if operations are related
         // This is a simple heuristic based on type similarity

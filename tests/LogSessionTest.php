@@ -14,11 +14,10 @@ final class LogSessionTest extends TestCase
 
     public function testOpenWithItsCloseIsNestedAndRootCloseIsOmitted(): void
     {
-        $session = new LogJson(self::SCHEMA, [$this->open('test_1')], [$this->close('close_1', 'test_1')]);
+        $session = new LogJson(self::SCHEMA, [$this->open('test_1'), $this->close('close_1', 'test_1')]);
 
         $this->assertSame(self::SCHEMA, $session->schemaUrl);
-        $this->assertCount(1, $session->records);
-        $this->assertCount(1, $session->closes);
+        $this->assertCount(2, $session->records);
 
         $array = $session->toArray();
         $this->assertSame(self::SCHEMA, $array['$schema']);
@@ -64,10 +63,11 @@ final class LogSessionTest extends TestCase
             $this->event('first_1', 'outer_1'),
             $this->open('inner_1', 'outer_1'),
             $this->event('second_1', 'outer_1'),
+            $this->close('inner_end_1', 'inner_1'),
+            $this->close('outer_end_1', 'outer_1'),
         ];
-        $closes = [$this->close('inner_end_1', 'inner_1'), $this->close('outer_end_1', 'outer_1')];
 
-        $entries = (new LogJson(self::SCHEMA, $records, $closes))->toArray()['entries'];
+        $entries = (new LogJson(self::SCHEMA, $records))->toArray()['entries'];
 
         $this->assertCount(1, $entries);
         $children = $this->children($entries[0]);
@@ -87,9 +87,10 @@ final class LogSessionTest extends TestCase
             $this->event('nested_1', 'start_1'),
             $this->event('orphan_1', 'missing_1'),
             $this->event('top_1'),
+            $this->close('end_1', 'start_1'),
         ];
 
-        $entries = (new LogJson(self::SCHEMA, $records, [$this->close('end_1', 'start_1')]))->toArray()['entries'];
+        $entries = (new LogJson(self::SCHEMA, $records))->toArray()['entries'];
 
         $this->assertSame(['start_1', 'orphan_1', 'top_1'], $this->ids($entries));
         $this->assertSame(['open', 'event', 'event'], $this->kinds($entries));
@@ -98,9 +99,9 @@ final class LogSessionTest extends TestCase
 
     public function testCloseWithoutMatchingOpenBecomesRootOrphanWithOpenId(): void
     {
-        $closes = [$this->close('end_1', 'start_1'), $this->close('orphan_close_1', 'missing_1')];
+        $records = [$this->open('start_1'), $this->close('end_1', 'start_1'), $this->close('orphan_close_1', 'missing_1')];
 
-        $array = (new LogJson(self::SCHEMA, [$this->open('start_1')], $closes))->toArray();
+        $array = (new LogJson(self::SCHEMA, $records))->toArray();
 
         $orphans = $array['close'] ?? [];
         $this->assertSame('end_1', $array['entries'][0]['close']['id'] ?? null);
@@ -111,26 +112,15 @@ final class LogSessionTest extends TestCase
 
     public function testSecondCloseOfTheSameOpenBecomesOrphan(): void
     {
-        $closes = [$this->close('end_1', 'start_1'), $this->close('end_duplicate_1', 'start_1')];
+        $records = [$this->open('start_1'), $this->close('end_1', 'start_1'), $this->close('end_duplicate_1', 'start_1')];
 
-        $array = (new LogJson(self::SCHEMA, [$this->open('start_1')], $closes))->toArray();
+        $array = (new LogJson(self::SCHEMA, $records))->toArray();
 
         $orphans = $array['close'] ?? [];
         $this->assertSame('end_1', $array['entries'][0]['close']['id'] ?? null);
         $this->assertCount(1, $orphans);
         $this->assertSame('end_duplicate_1', $orphans[0]['id']);
         $this->assertSame('start_1', $orphans[0]['openId'] ?? null);
-    }
-
-    public function testCloseWithoutOpenIdBecomesOrphanWithoutOpenId(): void
-    {
-        $array = (new LogJson(self::SCHEMA, [$this->open('start_1')], [$this->event('stray_close_1')]))->toArray();
-
-        $orphans = $array['close'] ?? [];
-        $this->assertArrayNotHasKey('close', $array['entries'][0]);
-        $this->assertCount(1, $orphans);
-        $this->assertSame('stray_close_1', $orphans[0]['id']);
-        $this->assertArrayNotHasKey('openId', $orphans[0]);
     }
 
     public function testOpenNamingItselfAsParentIsPlacedAtTheRoot(): void
@@ -143,9 +133,9 @@ final class LogSessionTest extends TestCase
 
     public function testOpensInAParentCycleArePlacedAtTheRootWithTheirRecords(): void
     {
-        $records = [$this->open('a_1', 'b_1'), $this->open('b_1', 'a_1'), $this->event('note_1', 'a_1')];
+        $records = [$this->open('a_1', 'b_1'), $this->open('b_1', 'a_1'), $this->event('note_1', 'a_1'), $this->close('end_1', 'b_1')];
 
-        $array = (new LogJson(self::SCHEMA, $records, [$this->close('end_1', 'b_1')]))->toArray();
+        $array = (new LogJson(self::SCHEMA, $records))->toArray();
 
         $this->assertSame(['a_1', 'b_1'], $this->ids($array['entries']));
         $this->assertSame(['note_1'], $this->ids($this->children($array['entries'][0])));
@@ -157,8 +147,8 @@ final class LogSessionTest extends TestCase
     {
         $links = [['rel' => 'source', 'href' => 'https://example.com/source']];
 
-        $with = (new LogJson(self::SCHEMA, [], [], $links))->toArray();
-        $without = (new LogJson(self::SCHEMA, [], [], []))->toArray();
+        $with = (new LogJson(self::SCHEMA, [], $links))->toArray();
+        $without = (new LogJson(self::SCHEMA, [], []))->toArray();
 
         $this->assertSame($links, $with['links'] ?? null);
         $this->assertArrayNotHasKey('links', $without);
@@ -166,14 +156,14 @@ final class LogSessionTest extends TestCase
 
     public function testJsonSerializeMatchesToArray(): void
     {
-        $session = new LogJson(self::SCHEMA, [$this->open('test_1')], [$this->close('close_1', 'test_1')]);
+        $session = new LogJson(self::SCHEMA, [$this->open('test_1'), $this->close('close_1', 'test_1')]);
 
         $this->assertSame($session->toArray(), $session->jsonSerialize());
     }
 
     public function testRenderHandsLogToRenderer(): void
     {
-        $session = new LogJson(self::SCHEMA, [$this->open('test_1')], [$this->close('close_1', 'test_1')]);
+        $session = new LogJson(self::SCHEMA, [$this->open('test_1'), $this->close('close_1', 'test_1')]);
 
         $renderer = new class implements LogRendererInterface {
             public LogJson|null $received = null;
@@ -203,9 +193,9 @@ final class LogSessionTest extends TestCase
         return new EventEntry($id, $id . '_type', 'https://example.com/' . $id . '.json', ['data' => 'value'], $openId);
     }
 
-    private function close(string $id, string $openId): EventEntry
+    private function close(string $id, string $openId): CloseEntry
     {
-        return $this->event($id, $openId);
+        return new CloseEntry($id, $id . '_type', 'https://example.com/' . $id . '.json', ['data' => 'value'], $openId);
     }
 
     /**

@@ -22,7 +22,6 @@ final class ErrorHandlingTest extends TestCase
 
         $this->assertSame(CoreSchema::LOG_URL, $log->schemaUrl);
         $this->assertSame([], $log->records);
-        $this->assertSame([], $log->closes);
         $this->assertSame([], $log->toArray()['entries']);
     }
 
@@ -110,7 +109,6 @@ final class ErrorHandlingTest extends TestCase
         // The logger is cleared after flush: a second flush returns an empty log.
         $next = $logger->flush();
         $this->assertSame([], $next->records);
-        $this->assertSame([], $next->closes);
     }
 
     /** @param array<mixed> $entry */

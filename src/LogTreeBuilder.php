@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger;
 
 /**
- * Turns the flat record list into the public tree: every open's events and
- * nested opens become one `children` list in record order, the first close
- * recorded for an open is nested on it, and every other close is an orphan.
+ * Turns the record list into the public tree: every open's events and nested
+ * opens become one `children` list in record order, the first close recorded
+ * for an open is nested on it, and every other close is an orphan.
  *
  * @psalm-import-type CloseByOpenIdMap from Types
- * @psalm-import-type EventEntryList from Types
  * @psalm-import-type LogRecordList from Types
  * @psalm-import-type OperationIdSet from Types
  * @psalm-import-type ParentByOpenId from Types
@@ -20,33 +19,39 @@ namespace Koriym\SemanticLogger;
  * @psalm-import-type PublicLogTree from Types
  * @psalm-import-type PublicOpenEntry from Types
  * @psalm-import-type RecordsByScope from Types
+ * @psalm-import-type ScopedRecordList from Types
  */
 final class LogTreeBuilder
 {
     /**
-     * @param LogRecordList  $records
-     * @param EventEntryList $closes
+     * @param LogRecordList $records
      *
      * @return PublicLogTree
      */
-    public function build(array $records, array $closes): array
+    public function build(array $records): array
     {
         $openIds = $this->collectOpenIds($records);
+        $scoped = [];
         $closeByOpenId = [];
         $orphanCloses = [];
-        foreach ($closes as $close) {
-            $openId = $close->openId;
-            if ($openId !== null && isset($openIds[$openId]) && ! isset($closeByOpenId[$openId])) {
-                $closeByOpenId[$openId] = $close;
+        foreach ($records as $record) {
+            if (! $record instanceof CloseEntry) {
+                $scoped[] = $record;
 
                 continue;
             }
 
-            $orphanCloses[] = $this->closeToArray($close, true);
+            if (isset($openIds[$record->openId]) && ! isset($closeByOpenId[$record->openId])) {
+                $closeByOpenId[$record->openId] = $record;
+
+                continue;
+            }
+
+            $orphanCloses[] = $this->closeToArray($record, true);
         }
 
         return [
-            'entries' => $this->children('', $this->groupByScope($records, $openIds), $closeByOpenId),
+            'entries' => $this->children('', $this->groupByScope($scoped, $openIds), $closeByOpenId),
             'close' => $orphanCloses,
         ];
     }
@@ -74,8 +79,8 @@ final class LogTreeBuilder
      * the root. Every open is therefore reachable, so an event goes under its
      * scope whenever that scope is an open in this log.
      *
-     * @param LogRecordList  $records
-     * @param OperationIdSet $openIds
+     * @param ScopedRecordList $records
+     * @param OperationIdSet   $openIds
      *
      * @return RecordsByScope
      */
@@ -108,8 +113,8 @@ final class LogTreeBuilder
     }
 
     /**
-     * @param LogRecordList  $records
-     * @param OperationIdSet $openIds
+     * @param ScopedRecordList $records
+     * @param OperationIdSet   $openIds
      *
      * @return ParentByOpenId Only parents that are opens in this log, never the open itself.
      */
@@ -203,7 +208,7 @@ final class LogTreeBuilder
     }
 
     /** @return PublicCloseEntry */
-    private function closeToArray(EventEntry $close, bool $includeOpenId): array
+    private function closeToArray(CloseEntry $close, bool $includeOpenId): array
     {
         $result = [
             'id' => $close->id,
@@ -212,7 +217,7 @@ final class LogTreeBuilder
             'context' => $close->context,
         ];
 
-        if ($includeOpenId && $close->openId !== null) {
+        if ($includeOpenId) {
             $result['openId'] = $close->openId;
         }
 

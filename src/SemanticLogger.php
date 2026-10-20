@@ -23,8 +23,7 @@ use function iterator_to_array;
  * and "nothing happened" never has to be inferred from absence.
  *
  * @psalm-import-type DiagnosticData from Types
- * @psalm-import-type DiagnosticKind from Types
- * @psalm-import-type EventEntryList from Types
+ * @psalm-import-type DiagnosticCode from Types
  * @psalm-import-type LogRecordList from Types
  * @psalm-import-type LogSessionArray from Types
  * @psalm-import-type SchemaLinks from Types
@@ -32,11 +31,8 @@ use function iterator_to_array;
  */
 final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 {
-    /** @var LogRecordList Opens and events in record order. */
+    /** @var LogRecordList Opens, events and closes in record order. */
     private array $records = [];
-
-    /** @var EventEntryList Closes in record order. */
-    private array $closes = [];
 
     /** @var SplStack<OpenCloseEntry> */
     private SplStack $openStack;
@@ -131,7 +127,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             $this->recordDiagnostic($frozen['diagnostic'], $openId);
         }
 
-        $this->closes[] = new EventEntry(
+        $this->records[] = new CloseEntry(
             $closeId,
             $frozen['type'],
             $frozen['schemaUrl'],
@@ -161,7 +157,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
                 $this->recordDiagnostic($this->unclosedDiagnostic(), null);
             }
 
-            return new LogJson(CoreSchema::LOG_URL, $this->records, $this->closes, $links);
+            return new LogJson(CoreSchema::LOG_URL, $this->records, $links);
         } finally {
             $this->resetState();
         }
@@ -179,7 +175,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             );
         }
 
-        return new LogJson(CoreSchema::LOG_URL, $records, $this->closes);
+        return new LogJson(CoreSchema::LOG_URL, $records);
     }
 
     private function resetState(): void
@@ -188,7 +184,6 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         $openStack = new SplStack();
         $this->openStack = $openStack;
         $this->records = [];
-        $this->closes = [];
         $this->typeCounts = [];
     }
 
@@ -227,16 +222,16 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         );
     }
 
-    /** @param DiagnosticKind $kind */
+    /** @param DiagnosticCode $code */
     private function recordRejectedClose(
-        string $kind,
+        string $code,
         string $message,
         AbstractContext $context,
         string $attemptedId,
         string|null $currentOpenId,
     ): void {
         $diagnostic = [
-            'kind' => $kind,
+            'code' => $code,
             'message' => $message,
             'relatedId' => $attemptedId,
         ];
@@ -259,7 +254,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         );
 
         return [
-            'kind' => 'unclosed_at_flush',
+            'code' => 'unclosed_at_flush',
             'message' => 'Log session ended with unclosed operations.',
             'unclosedIds' => $ids,
         ];

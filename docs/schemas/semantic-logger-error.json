@@ -4,9 +4,9 @@
   "title": "Semantic Logger Diagnostic Context",
   "description": "Core-owned diagnostic recorded when the logger degrades or rejects a logging operation. The logger never throws; failures and protocol misuse appear in the log as data.",
   "type": "object",
-  "required": ["kind", "message"],
+  "required": ["code", "message"],
   "properties": {
-    "kind": {
+    "code": {
       "type": "string",
       "enum": [
         "context_serialization_failed",

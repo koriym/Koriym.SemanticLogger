@@ -24,7 +24,6 @@ final class NullSemanticLoggerTest extends TestCase
 
         $log = $logger->flush();
         $this->assertSame([], $log->records);
-        $this->assertSame([], $log->closes);
         $this->assertSame(
             ['$schema' => CoreSchema::LOG_URL, 'entries' => []],
             $log->toArray(),

@@ -4,6 +4,20 @@
 Failures and protocol misuse become core-owned diagnostic entries in the log
 itself, and quality gates move to the reading side (the validator and CI).
 
+## Unreleased: closes in the record list, diagnostic `code`
+
+The public JSON tree is unchanged. Two things move underneath it:
+
+| 0.10.0 | Unreleased |
+|---|---|
+| `new LogJson($schemaUrl, $records, $closes, $links)` | `new LogJson($schemaUrl, $records, $links)` — closes are records too, at the position they were recorded |
+| `$log->closes` | gone; filter `CloseEntry` instances from `$log->records` |
+| a close is an `EventEntry` with `openId` and `profile` | `CloseEntry(id, type, schemaUrl, context, openId, profile)` — `openId` is required |
+| `EventEntry(id, type, schemaUrl, context, openId, profile)` | `EventEntry(id, type, schemaUrl, context, openId)` — events never carried a profile in the output |
+| `LogTreeBuilder::build($records, $closes)` | `build($records)` |
+| diagnostic context `kind` (`close_without_open`, …) | `code` — `kind` now means only the entry kind (`open` / `event`) |
+| `semantic_logger_error.json` / `semantic_logger_invalid_context.json` require `kind` | require `code` |
+
 ## 0.10.0: one ordered `entries` tree
 
 The public document no longer splits a scope into `open` and `events` lists.
@@ -65,7 +79,7 @@ always succeed.
 
 Two core-owned context types carry what used to be exceptions:
 
-- `semantic_logger_error` — protocol and recording failures, with a `kind` of
+- `semantic_logger_error` — protocol and recording failures, with a `code` of
   `context_serialization_failed`, `close_without_open`, `close_id_mismatch`,
   or `unclosed_at_flush`.
 - `semantic_logger_invalid_context` — a placeholder that preserves an entry's

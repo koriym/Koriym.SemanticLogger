@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **BREAKING — closes are records.** `new LogJson($schemaUrl, $records, $links = [])`: the `$closes` parameter and `LogJson::$closes` are gone. A close is a `CloseEntry` (`id, type, schemaUrl, context, openId, profile`) in `$records` at the position it was recorded, so the record list is the complete timeline including closes. `EventEntry` drops `profile` / `withProfile()`; `LogTreeBuilder::build()` takes the single list. The public JSON tree is unchanged. See [MIGRATION.md](MIGRATION.md).
+- **BREAKING — diagnostic `kind` is now `code`.** `semantic_logger_error` contexts and `semantic_logger_invalid_context.errors[]` carry `code` (`close_without_open`, `unclosed_at_flush`, …) instead of `kind`, so `kind` means only the entry kind (`open` / `event`). The bundled `semantic-logger-error.json` / `semantic-logger-invalid-context.json` schemas require `code`.
+
 ## [0.10.0] - 2026-10-20
 
 ### Changed

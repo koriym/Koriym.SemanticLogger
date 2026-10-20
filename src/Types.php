@@ -40,18 +40,18 @@ namespace Koriym\SemanticLogger;
  * @psalm-type OperationProfilesById = array<OperationId, Profiler\OperationProfile>
  *
  * Runtime collection types
- * @psalm-type EventEntryList = list<EventEntry>
- * @psalm-type LogRecord = OpenCloseEntry|EventEntry
+ * @psalm-type LogRecord = OpenCloseEntry|EventEntry|CloseEntry
  * @psalm-type LogRecordList = list<LogRecord>
- * @psalm-type RecordsByScope = array<string, LogRecordList>
- * @psalm-type CloseByOpenIdMap = array<string, EventEntry>
+ * @psalm-type ScopedRecordList = list<OpenCloseEntry|EventEntry>
+ * @psalm-type RecordsByScope = array<string, ScopedRecordList>
+ * @psalm-type CloseByOpenIdMap = array<string, CloseEntry>
  * @psalm-type OperationIdSet = array<OperationId, true>
  * @psalm-type ParentByOpenId = array<OperationId, OperationId>
  * @psalm-type TypeCounts = array<LogType, int>
  * @psalm-type SchemaTypeMap = array<LogType, string>
- * @psalm-type DiagnosticKind = 'context_serialization_failed'|'close_without_open'|'close_id_mismatch'|'unclosed_at_flush'
+ * @psalm-type DiagnosticCode = 'context_serialization_failed'|'close_without_open'|'close_id_mismatch'|'unclosed_at_flush'
  * @psalm-type DiagnosticData = array{
- *     kind: DiagnosticKind,
+ *     code: DiagnosticCode,
  *     message: string,
  *     exceptionClass?: string,
  *     relatedId?: OperationId,
@@ -71,7 +71,14 @@ namespace Koriym\SemanticLogger;
  *     id: OperationId,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
- *     openId?: OperationId,
+ *     openId?: OperationId
+ * }
+ * @psalm-type CloseEntryArray = array{
+ *     type: LogType,
+ *     id: OperationId,
+ *     schemaUrl: SchemaUrl,
+ *     context: ContextData,
+ *     openId: OperationId,
  *     profile?: OperationProfileData
  * }
  * @psalm-type OpenCloseEntryArray = array{

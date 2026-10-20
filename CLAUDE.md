@@ -69,16 +69,16 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Enforces type safety with const TYPE and SCHEMA_URL
 - Context data extracted via array casting
 
-**EventEntry / OpenCloseEntry** (`src/EventEntry.php`, `src/OpenCloseEntry.php`)
+**OpenCloseEntry / EventEntry / CloseEntry** (`src/OpenCloseEntry.php`, `src/EventEntry.php`, `src/CloseEntry.php`)
 - Immutable value objects for log entries
-- Flat records as recorded: `EventEntry` is an event or a close (`openId` = the scope it was recorded in, or the open it ended; `profile` for closes), `OpenCloseEntry` is an open with the `parentId` captured at open time
+- Flat records as recorded: `OpenCloseEntry` is an open with the `parentId` captured at open time, `EventEntry` is an event (`openId` = the scope it was recorded in), `CloseEntry` is a close (`openId` = the open it ended, optional `profile`)
 
 **LogTreeBuilder** (`src/LogTreeBuilder.php`)
-- Turns the flat record list into the public tree: one `children` list per open in record order, the first close for an open nested on it, every other close an orphan
+- Turns the record list into the public tree: one `children` list per open in record order, the first close for an open nested on it, every other close an orphan
 
 **LogJson** (`src/LogJson.php`)
 - Immutable structured log output
-- Implements JsonSerializable; holds `records` (opens and events) and `closes`, and builds the public tree in `toArray()`
+- Implements JsonSerializable; holds `records` (opens, events and closes in record order) and builds the public tree in `toArray()`
 - Root `close` appears only for orphan closes
 
 **DevLogger / DevSemanticLogger** (`src/DevLogger.php`, `src/DevSemanticLogger.php`)
