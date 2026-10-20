@@ -114,7 +114,7 @@ final class TreeNodeTest extends TestCase
 
         $line = $node->getDisplayLine();
 
-        $this->assertStringContainsString('…', $line);
+        $this->assertStringContainsString('...(+19)', $line);
     }
 
     public function testBooleanPreserved(): void

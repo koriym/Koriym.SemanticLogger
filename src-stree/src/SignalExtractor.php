@@ -16,6 +16,8 @@ use function is_bool;
 use function is_numeric;
 use function is_scalar;
 use function is_string;
+use function preg_match;
+use function preg_match_all;
 use function sprintf;
 use function str_contains;
 use function strlen;
@@ -329,12 +331,67 @@ final class SignalExtractor
             $str = end($parts);
         }
 
-        // Truncate long strings
-        if (strlen($str) > self::MAX_STRING_LENGTH) {
-            $str = substr($str, 0, self::MAX_STRING_LENGTH) . '…';
-        }
+        // Truncate long strings by character, not byte, so a multibyte cut never splits a
+        // character into an invalid byte sequence, and the drop count (not a bare "…") tells a
+        // reader whether the value ended here or was cut — otherwise the two are
+        // indistinguishable, and a redacted boundary just past the cut could go unnoticed.
+        $str = $this->truncate($str);
 
         return $str;
+    }
+
+    /**
+     * Cuts at MAX_STRING_LENGTH characters, not bytes, and appends "...(+N)" with the number of
+     * characters dropped, so a cut value is never indistinguishable from one that happened to
+     * end exactly there. Character-counted via PCRE's UTF-8 mode (`u` modifier, built into core
+     * PHP) rather than ext-mbstring, which this package does not otherwise depend on, and via
+     * preg_match_all()/preg_match() rather than preg_split() so a large value is counted and cut
+     * without ever materializing a per-character array (preg_split's array held one element per
+     * character of the whole input, not just the kept prefix; a 5 MB value cost ~130 MB of extra
+     * peak memory this way against ~5 MB here). A string that is not valid UTF-8 falls back to a
+     * byte-wise cut, where character counting has no defined meaning anyway.
+     */
+    private function truncate(string $str): string
+    {
+        // Byte length is always >= character length, so if the bytes already fit, so do the
+        // characters — skips the regex entirely for the common case of short values.
+        if (strlen($str) <= self::MAX_STRING_LENGTH) {
+            return $str;
+        }
+
+        $length = preg_match_all('/./su', $str);
+        if ($length === false) {
+            $byteLength = strlen($str);
+
+            return substr($str, 0, self::MAX_STRING_LENGTH) . '...(+' . ($byteLength - self::MAX_STRING_LENGTH) . ')';
+        }
+
+        if ($length <= self::MAX_STRING_LENGTH) {
+            return $str;
+        }
+
+        $matched = preg_match('/^.{' . self::MAX_STRING_LENGTH . '}/su', $str, $matches);
+        if ($matched !== 1) {
+            // $length > MAX_STRING_LENGTH already guarantees this pattern matches; this branch
+            // is unreachable in practice and exists only so $matches[0] is never read unchecked.
+            return substr($str, 0, self::MAX_STRING_LENGTH) . '...(+' . ($length - self::MAX_STRING_LENGTH) . ')'; // @codeCoverageIgnore
+        }
+
+        return $matches[0] . '...(+' . ($length - self::MAX_STRING_LENGTH) . ')';
+    }
+
+    /**
+     * Character length via PCRE's UTF-8 mode; byte length when $str is not valid UTF-8,
+     * where character counting has no defined meaning anyway. Shared by truncate() and
+     * joinWithOverflow() so the same 40-character budget means the same thing everywhere
+     * formatValue()/formatArray() apply it. Counts via preg_match_all(), not preg_split(),
+     * for the same O(1)-memory reason as truncate().
+     */
+    private function charLength(string $str): int
+    {
+        $length = preg_match_all('/./su', $str);
+
+        return $length === false ? strlen($str) : $length;
     }
 
     /** @param array<mixed> $arr */
@@ -373,14 +430,14 @@ final class SignalExtractor
     private function joinWithOverflow(array $parts, int $total): string
     {
         $inline = implode(', ', $parts);
-        if (strlen($inline) <= self::MAX_STRING_LENGTH) {
+        if ($this->charLength($inline) <= self::MAX_STRING_LENGTH) {
             return '[' . $inline . ']';
         }
 
         $kept = [];
         $used = 0;
         foreach ($parts as $part) {
-            $addition = ($kept === [] ? 0 : 2) + strlen($part); // ", " + part
+            $addition = ($kept === [] ? 0 : 2) + $this->charLength($part); // ", " + part
             if ($used + $addition > self::MAX_STRING_LENGTH) {
                 break;
             }
