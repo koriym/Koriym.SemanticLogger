@@ -84,7 +84,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * Extract and validate all contexts from log data
+     * Walk the entry tree and the orphan closes, validating every context.
      *
      * @param list<string> $violations
      * @param list<string> $diagnostics
@@ -94,40 +94,61 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
      */
     private function validateContexts(object $data, string $schemaDir, array &$violations, array &$diagnostics): void
     {
-        if (isset($data->open) && is_array($data->open)) {
-            /** @var array<int, mixed> $opens */
-            $opens = $data->open;
-            foreach ($opens as $index => $open) {
-                if (! is_object($open)) {
-                    continue;
-                }
-
-                $this->validateOpenEntry($open, $schemaDir, "open[{$index}]", $violations, $diagnostics);
-            }
+        if (isset($data->entries) && is_array($data->entries)) {
+            $this->validateEntries($data->entries, $schemaDir, 'entries', $violations, $diagnostics);
         }
 
-        if (isset($data->close) && is_array($data->close)) {
-            /** @var array<int, mixed> $closes */
-            $closes = $data->close;
-            foreach ($closes as $index => $close) {
-                if (! is_object($close)) {
-                    continue;
-                }
-
-                $this->validateCloseEntry($close, $schemaDir, "close[{$index}]", $violations, $diagnostics);
-            }
+        if (! isset($data->close) || ! is_array($data->close)) {
+            return;
         }
 
-        if (isset($data->events) && is_array($data->events)) {
-            /** @var array<int, mixed> $events */
-            $events = $data->events;
-            foreach ($events as $index => $event) {
-                if (! is_object($event)) {
-                    continue;
-                }
-
-                $this->validateEventEntry($event, $schemaDir, "events[{$index}]", $violations, $diagnostics);
+        /** @var array<int, mixed> $closes */
+        $closes = $data->close;
+        foreach ($closes as $index => $close) {
+            if (! is_object($close)) {
+                continue;
             }
+
+            $this->validateContext($close, $schemaDir, "close[{$index}]", $violations, $diagnostics);
+        }
+    }
+
+    /**
+     * @param array<array-key, mixed> $entries
+     * @param list<string>            $violations
+     * @param list<string>            $diagnostics
+     *
+     * @param-out list<string>    $violations
+     * @param-out list<string>    $diagnostics
+     */
+    private function validateEntries(array $entries, string $schemaDir, string $path, array &$violations, array &$diagnostics): void
+    {
+        foreach ($entries as $index => $entry) {
+            if (! is_object($entry)) {
+                continue;
+            }
+
+            $this->validateEntry($entry, $schemaDir, "{$path}[{$index}]", $violations, $diagnostics);
+        }
+    }
+
+    /**
+     * @param list<string> $violations
+     * @param list<string> $diagnostics
+     *
+     * @param-out list<string>    $violations
+     * @param-out list<string>    $diagnostics
+     */
+    private function validateEntry(object $entry, string $schemaDir, string $path, array &$violations, array &$diagnostics): void
+    {
+        $this->validateContext($entry, $schemaDir, $path, $violations, $diagnostics);
+
+        if (isset($entry->children) && is_array($entry->children)) {
+            $this->validateEntries($entry->children, $schemaDir, "{$path}.children", $violations, $diagnostics);
+        }
+
+        if (isset($entry->close) && is_object($entry->close)) {
+            $this->validateContext($entry->close, $schemaDir, "{$path}.close", $violations, $diagnostics);
         }
     }
 
@@ -362,71 +383,6 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
             $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Validation failed';
             $violations[] = "[root] {$message} at '{$property}'";
         }
-    }
-
-    /**
-     * @param list<string> $violations
-     * @param list<string> $diagnostics
-     *
-     * @param-out list<string>    $violations
-     * @param-out list<string>    $diagnostics
-     */
-    private function validateOpenEntry(object $entry, string $schemaDir, string $path, array &$violations, array &$diagnostics): void
-    {
-        $this->validateContext($entry, $schemaDir, $path, $violations, $diagnostics);
-
-        if (isset($entry->events) && is_array($entry->events)) {
-            /** @var array<int, mixed> $events */
-            $events = $entry->events;
-            foreach ($events as $index => $event) {
-                if (! is_object($event)) {
-                    continue;
-                }
-
-                $this->validateEventEntry($event, $schemaDir, "{$path}.events[{$index}]", $violations, $diagnostics);
-            }
-        }
-
-        if (isset($entry->close) && is_object($entry->close)) {
-            $close = $entry->close;
-            $this->validateCloseEntry($close, $schemaDir, "{$path}.close", $violations, $diagnostics);
-        }
-
-        if (isset($entry->open) && is_array($entry->open)) {
-            /** @var array<int, mixed> $children */
-            $children = $entry->open;
-            foreach ($children as $index => $child) {
-                if (! is_object($child)) {
-                    continue;
-                }
-
-                $this->validateOpenEntry($child, $schemaDir, "{$path}.open[{$index}]", $violations, $diagnostics);
-            }
-        }
-    }
-
-    /**
-     * @param list<string> $violations
-     * @param list<string> $diagnostics
-     *
-     * @param-out list<string>    $violations
-     * @param-out list<string>    $diagnostics
-     */
-    private function validateEventEntry(object $entry, string $schemaDir, string $path, array &$violations, array &$diagnostics): void
-    {
-        $this->validateContext($entry, $schemaDir, $path, $violations, $diagnostics);
-    }
-
-    /**
-     * @param list<string> $violations
-     * @param list<string> $diagnostics
-     *
-     * @param-out list<string>    $violations
-     * @param-out list<string>    $diagnostics
-     */
-    private function validateCloseEntry(object $entry, string $schemaDir, string $path, array &$violations, array &$diagnostics): void
-    {
-        $this->validateContext($entry, $schemaDir, $path, $violations, $diagnostics);
     }
 
     /**

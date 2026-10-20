@@ -6,6 +6,7 @@ namespace Koriym\SemanticLogger;
 
 use PHPUnit\Framework\TestCase;
 
+use function array_column;
 use function assert;
 use function is_string;
 use function json_decode;
@@ -20,9 +21,9 @@ final class ErrorHandlingTest extends TestCase
         $log = $logger->flush();
 
         $this->assertSame(CoreSchema::LOG_URL, $log->schemaUrl);
-        $this->assertSame([], $log->open);
-        $this->assertSame([], $log->close);
-        $this->assertSame([], $log->events);
+        $this->assertSame([], $log->records);
+        $this->assertSame([], $log->closes);
+        $this->assertSame([], $log->toArray()['entries']);
     }
 
     public function testToArrayWithoutOpenReturnsEmptyShape(): void
@@ -32,7 +33,7 @@ final class ErrorHandlingTest extends TestCase
         $array = $logger->toArray();
 
         $this->assertSame(CoreSchema::LOG_URL, $array['$schema']);
-        $this->assertSame([], $array['open']);
+        $this->assertSame([], $array['entries']);
     }
 
     public function testJsonSerializeWithoutOpenProducesEmptyLog(): void
@@ -45,7 +46,7 @@ final class ErrorHandlingTest extends TestCase
 
         $this->assertIsArray($decoded);
         $this->assertSame(CoreSchema::LOG_URL, $decoded['$schema']);
-        $this->assertSame([], $decoded['open']);
+        $this->assertSame([], $decoded['entries']);
     }
 
     public function testCompleteLogSessionSerialization(): void
@@ -79,22 +80,45 @@ final class ErrorHandlingTest extends TestCase
         // Verify structure
         $this->assertSame(CoreSchema::LOG_URL, $logJson->schemaUrl);
 
-        // Test nested structure
-        $this->assertSame('outer', $logJson->open[0]->context['message']);
-        $this->assertCount(1, $logJson->open[0]->open);
-        $this->assertSame('inner', $logJson->open[0]->open[0]->context['message']);
+        $array = $logJson->toArray();
+        $this->assertArrayNotHasKey('close', $array);
+        $this->assertCount(1, $array['entries']);
 
-        // Test events
-        $this->assertCount(2, $logJson->events);
-        $this->assertSame('event1', $logJson->events[0]->context['message']);
-        $this->assertSame('event2', $logJson->events[1]->context['message']);
+        // Outer open: nested inner open, then closed by the outer close.
+        $outer = $array['entries'][0];
+        $this->assertSame('open', $outer['kind']);
+        $this->assertSame('outer', $this->messageOf($outer));
+        $this->assertSame('outer_finished', $this->messageOf($outer['close'] ?? []));
+        $this->assertCount(1, $outer['children']);
 
-        // Test close (should be outer close since it's the root operation)
-        $this->assertSame('outer_finished', $logJson->close[0]->context['message']);
+        // The inner open holds both events in record order, then its own close.
+        $inner = $outer['children'][0];
+        $this->assertSame('open', $inner['kind']);
+        $this->assertSame('inner', $this->messageOf($inner));
+        $innerClose = $inner['close'] ?? [];
+        $this->assertIsArray($innerClose);
+        $this->assertSame('inner_finished', $this->messageOf($innerClose));
+        $innerChildren = $inner['children'] ?? [];
+        $this->assertIsArray($innerChildren);
+        $this->assertCount(2, $innerChildren);
+        $this->assertSame(['event', 'event'], array_column($innerChildren, 'kind'));
+        $this->assertIsArray($innerChildren[0]);
+        $this->assertIsArray($innerChildren[1]);
+        $this->assertSame('event1', $this->messageOf($innerChildren[0]));
+        $this->assertSame('event2', $this->messageOf($innerChildren[1]));
 
         // The logger is cleared after flush: a second flush returns an empty log.
         $next = $logger->flush();
-        $this->assertSame([], $next->open);
-        $this->assertSame([], $next->events);
+        $this->assertSame([], $next->records);
+        $this->assertSame([], $next->closes);
+    }
+
+    /** @param array<mixed> $entry */
+    private function messageOf(array $entry): mixed
+    {
+        $context = $entry['context'] ?? null;
+        $this->assertIsArray($context);
+
+        return $context['message'] ?? null;
     }
 }

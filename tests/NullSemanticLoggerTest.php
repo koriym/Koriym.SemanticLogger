@@ -23,11 +23,24 @@ final class NullSemanticLoggerTest extends TestCase
         $logger->close(new FakeContext('close'), $firstId);
 
         $log = $logger->flush();
-        $this->assertSame([], $log->open);
-        $this->assertSame([], $log->close);
-        $this->assertSame([], $log->events);
+        $this->assertSame([], $log->records);
+        $this->assertSame([], $log->closes);
+        $this->assertSame(
+            ['$schema' => CoreSchema::LOG_URL, 'entries' => []],
+            $log->toArray(),
+        );
 
         // flush() resets the id sequence.
         $this->assertSame('noop_1', $logger->open(new FakeContext('after flush')));
+    }
+
+    public function testFlushKeepsLinks(): void
+    {
+        $links = [['rel' => 'source', 'href' => 'https://example.com/source']];
+
+        $array = (new NullSemanticLogger())->flush($links)->toArray();
+
+        $this->assertSame([], $array['entries']);
+        $this->assertSame($links, $array['links'] ?? null);
     }
 }

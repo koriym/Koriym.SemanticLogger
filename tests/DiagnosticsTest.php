@@ -6,6 +6,7 @@ namespace Koriym\SemanticLogger;
 
 use PHPUnit\Framework\TestCase;
 
+use function array_column;
 use function dirname;
 use function file_put_contents;
 use function json_encode;
@@ -20,6 +21,7 @@ use const JSON_UNESCAPED_SLASHES;
  * become core-owned diagnostic entries — the logger never throws.
  *
  * @psalm-import-type DiagnosticData from Types
+ * @psalm-import-type PublicEntry from Types
  */
 final class DiagnosticsTest extends TestCase
 {
@@ -39,31 +41,37 @@ final class DiagnosticsTest extends TestCase
         $this->logger->close(new FakeContext('child done', 2), $childId);
         $this->logger->close(new FakeContext('broken done', 3), $brokenId);
 
-        $log = $this->logger->flush();
+        $entries = $this->entriesOf($this->logger->flush());
 
-        $this->assertCount(1, $log->open);
-        $root = $log->open[0];
-        $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $root->type);
-        $this->assertSame(CoreSchema::INVALID_CONTEXT_URL, $root->schemaUrl);
-        $this->assertSame('open', $root->context['operation']);
-        $errors = $root->context['errors'] ?? null;
+        $this->assertCount(1, $entries);
+        $root = $entries[0];
+        $this->assertSame('open', $root['kind']);
+        $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $root['type']);
+        $this->assertSame(CoreSchema::INVALID_CONTEXT_URL, $root['schemaUrl']);
+        $context = $root['context'];
+        $this->assertSame('open', $context['operation']);
+        $errors = $context['errors'] ?? null;
         $this->assertIsArray($errors);
         $error = $errors[0] ?? null;
         $this->assertIsArray($error);
         $this->assertSame('context_serialization_failed', $error['kind']);
-        $this->assertSame('unserializable_context', $root->context['originalType']);
-        $this->assertSame('https://example.com/schemas/unserializable.json', $root->context['originalSchemaUrl']);
+        $this->assertSame('unserializable_context', $context['originalType']);
+        $this->assertSame('https://example.com/schemas/unserializable.json', $context['originalSchemaUrl']);
 
-        // Topology: the child is nested under the placeholder, not re-parented.
-        $this->assertCount(1, $root->open);
-        $this->assertSame($childId, $root->open[0]->id);
-
-        // The failure is also recorded as a diagnostic event.
-        $diagnostics = $this->diagnosticsOf($log);
+        // The failure is recorded as a diagnostic inside the placeholder, ahead of its child.
+        $children = $this->childrenOf($root);
+        $this->assertCount(2, $children);
+        $diagnostics = $this->diagnosticsIn($children);
         $this->assertCount(1, $diagnostics);
         $this->assertSame('context_serialization_failed', $diagnostics[0]['kind']);
         $this->assertSame($brokenId, $diagnostics[0]['relatedId'] ?? null);
         $this->assertArrayHasKey('exceptionClass', $diagnostics[0]);
+
+        // Topology: the child is nested under the placeholder, not re-parented.
+        $this->assertSame('open', $children[1]['kind']);
+        $this->assertSame($childId, $children[1]['id']);
+        $this->assertSame('child done', $this->closeOf($children[1])['context']['message']);
+        $this->assertSame('broken done', $this->closeOf($root)['context']['message']);
     }
 
     public function testSerializationFailureLosesOnlyThatEntry(): void
@@ -74,20 +82,40 @@ final class DiagnosticsTest extends TestCase
         $this->logger->event(new UnserializableContext());
         $this->logger->event(new FakeContext('after', 2));
 
-        $log = $this->logger->flush();
+        $entries = $this->entriesOf($this->logger->flush());
 
-        $userEvents = $this->userEventsOf($log);
+        // Placeholder event, then the diagnostic recorded in the same scope.
+        $this->assertCount(4, $entries);
+        $this->assertSame(['event', 'event', 'event', 'event'], array_column($entries, 'kind'));
+        $userEvents = $this->userEventsIn($entries);
         $this->assertCount(3, $userEvents);
-        $this->assertSame('example_event', $userEvents[0]->type);
-        $this->assertSame('before', $userEvents[0]->context['message']);
-        $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $userEvents[1]->type);
-        $this->assertSame('event', $userEvents[1]->context['operation']);
-        $this->assertSame('example_event', $userEvents[2]->type);
-        $this->assertSame('after', $userEvents[2]->context['message']);
+        $this->assertSame('example_event', $userEvents[0]['type']);
+        $this->assertSame('before', $userEvents[0]['context']['message']);
+        $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $userEvents[1]['type']);
+        $this->assertSame('event', $userEvents[1]['context']['operation']);
+        $this->assertSame('example_event', $userEvents[2]['type']);
+        $this->assertSame('after', $userEvents[2]['context']['message']);
 
-        $diagnostics = $this->diagnosticsOf($log);
+        $diagnostics = $this->diagnosticsIn($entries);
         $this->assertCount(1, $diagnostics);
         $this->assertSame('context_serialization_failed', $diagnostics[0]['kind']);
+        $this->assertSame($userEvents[1]['id'], $diagnostics[0]['relatedId'] ?? null);
+    }
+
+    public function testSerializationFailureOnEventIsRecordedInTheEnclosingScope(): void
+    {
+        $openId = $this->logger->open(new FakeContext('work', 1));
+        $this->logger->event(new UnserializableContext());
+        $this->logger->close(new FakeContext('work done', 2), $openId);
+
+        $entries = $this->entriesOf($this->logger->flush());
+
+        $this->assertCount(1, $entries);
+        $children = $this->childrenOf($entries[0]);
+        $this->assertCount(2, $children);
+        $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $children[0]['type']);
+        $this->assertCount(1, $this->diagnosticsIn($children));
+        $this->assertSame([], $this->diagnosticsIn($entries));
     }
 
     public function testSerializationFailureOnCloseRecordsPlaceholderClose(): void
@@ -96,17 +124,54 @@ final class DiagnosticsTest extends TestCase
         $this->logger->close(new UnserializableContext(), $openId);
 
         $log = $this->logger->flush();
+        $entries = $this->entriesOf($log);
 
-        $this->assertCount(1, $log->open);
-        $this->assertSame('example_event', $log->open[0]->type);
-        $this->assertCount(1, $log->close);
-        $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $log->close[0]->type);
-        $this->assertSame('close', $log->close[0]->context['operation']);
+        $this->assertCount(1, $entries);
+        $this->assertSame('example_event', $entries[0]['type']);
+        $close = $this->closeOf($entries[0]);
+        $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $close['type']);
+        $this->assertSame('close', $close['context']['operation']);
+        $this->assertArrayNotHasKey('openId', $close);
+        $this->assertArrayNotHasKey('close', $log->toArray());
 
-        $diagnostics = $this->diagnosticsOf($log);
+        $diagnostics = $this->diagnosticsIn($this->childrenOf($entries[0]));
         $this->assertCount(1, $diagnostics);
         $this->assertSame('context_serialization_failed', $diagnostics[0]['kind']);
         $this->assertSame($openId, $diagnostics[0]['relatedId'] ?? null);
+    }
+
+    public function testCloseTimeDiagnosticIsChildOfTheClosedOpen(): void
+    {
+        // The diagnostic is appended to children before the close is attached,
+        // so the open keeps its close and the diagnostic follows earlier children.
+        $outerId = $this->logger->open(new FakeContext('outer', 1));
+        $innerId = $this->logger->open(new FakeContext('inner', 2));
+        $this->logger->event(new FakeContext('note', 3));
+        $this->logger->close(new UnserializableContext(), $innerId);
+        $this->logger->close(new FakeContext('outer done', 4), $outerId);
+
+        $entries = $this->entriesOf($this->logger->flush());
+
+        $this->assertCount(1, $entries);
+        $outer = $entries[0];
+        $this->assertSame([], $this->diagnosticsIn($this->childrenOf($outer)));
+        $this->assertSame('outer done', $this->closeOf($outer)['context']['message']);
+
+        $outerChildren = $this->childrenOf($outer);
+        $this->assertCount(1, $outerChildren);
+        $inner = $outerChildren[0];
+        $this->assertSame($innerId, $inner['id']);
+
+        $innerChildren = $this->childrenOf($inner);
+        $this->assertSame(['event', 'event'], array_column($innerChildren, 'kind'));
+        $this->assertSame('note', $innerChildren[0]['context']['message']);
+        $this->assertSame(CoreSchema::DIAGNOSTIC_TYPE, $innerChildren[1]['type']);
+        $diagnostics = $this->diagnosticsIn($innerChildren);
+        $this->assertCount(1, $diagnostics);
+        $this->assertSame('context_serialization_failed', $diagnostics[0]['kind']);
+        $this->assertSame($innerId, $diagnostics[0]['relatedId'] ?? null);
+
+        $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $this->closeOf($inner)['type']);
     }
 
     public function testDataDependentSerializationFailure(): void
@@ -114,14 +179,14 @@ final class DiagnosticsTest extends TestCase
         // Correct code, bad runtime data: json_encode cannot represent INF.
         $this->logger->event(new InfContext());
 
-        $log = $this->logger->flush();
+        $entries = $this->entriesOf($this->logger->flush());
 
-        $userEvents = $this->userEventsOf($log);
+        $userEvents = $this->userEventsIn($entries);
         $this->assertCount(1, $userEvents);
-        $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $userEvents[0]->type);
-        $this->assertSame('inf_context', $userEvents[0]->context['originalType']);
+        $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $userEvents[0]['type']);
+        $this->assertSame('inf_context', $userEvents[0]['context']['originalType']);
 
-        $diagnostics = $this->diagnosticsOf($log);
+        $diagnostics = $this->diagnosticsIn($entries);
         $this->assertCount(1, $diagnostics);
         $this->assertSame('context_serialization_failed', $diagnostics[0]['kind']);
     }
@@ -135,8 +200,12 @@ final class DiagnosticsTest extends TestCase
         $this->logger->close(new FakeContext('work done', 3), $openId);
 
         $log = $this->logger->flush();
+        $entries = $this->entriesOf($log);
 
-        $diagnostics = $this->diagnosticsOf($log);
+        // No open existed, so the diagnostic sits at the root, before the real operation.
+        $this->assertCount(2, $entries);
+        $this->assertSame('event', $entries[0]['kind']);
+        $diagnostics = $this->diagnosticsIn($entries);
         $this->assertCount(1, $diagnostics);
         $this->assertSame('close_without_open', $diagnostics[0]['kind']);
         $this->assertSame('missing_open_1', $diagnostics[0]['relatedId'] ?? null);
@@ -144,9 +213,29 @@ final class DiagnosticsTest extends TestCase
         $this->assertIsArray($discarded);
         $this->assertSame('rejected', $discarded['message']);
 
-        // The real operation is intact.
-        $this->assertCount(1, $log->open);
-        $this->assertSame('work', $log->open[0]->context['message']);
+        // The real operation is intact and the rejected close is not an orphan close.
+        $this->assertSame('open', $entries[1]['kind']);
+        $this->assertSame('work', $entries[1]['context']['message']);
+        $this->assertSame('work done', $this->closeOf($entries[1])['context']['message']);
+        $this->assertArrayNotHasKey('close', $log->toArray());
+    }
+
+    public function testDoubleCloseRecordsDiagnosticAndKeepsFirstClose(): void
+    {
+        $openId = $this->logger->open(new FakeContext('work', 1));
+        $this->logger->close(new FakeContext('first', 2), $openId);
+        $this->logger->close(new FakeContext('second', 3), $openId);
+
+        $log = $this->logger->flush();
+        $entries = $this->entriesOf($log);
+
+        $this->assertCount(2, $entries);
+        $this->assertSame('first', $this->closeOf($entries[0])['context']['message']);
+        $diagnostics = $this->diagnosticsIn($entries);
+        $this->assertCount(1, $diagnostics);
+        $this->assertSame('close_without_open', $diagnostics[0]['kind']);
+        $this->assertSame($openId, $diagnostics[0]['relatedId'] ?? null);
+        $this->assertArrayNotHasKey('close', $log->toArray());
     }
 
     public function testCloseIdMismatchRecordsDiagnosticAndKeepsStack(): void
@@ -161,21 +250,28 @@ final class DiagnosticsTest extends TestCase
         $this->logger->close(new FakeContext('inner done', 4), $innerId);
         $this->logger->close(new FakeContext('outer done', 5), $outerId);
 
-        $log = $this->logger->flush();
+        $entries = $this->entriesOf($this->logger->flush());
 
-        $diagnostics = $this->diagnosticsOf($log);
+        // The tree is the real one: inner nested under outer, both closed.
+        $this->assertCount(1, $entries);
+        $outer = $entries[0];
+        $this->assertSame($outerId, $outer['id']);
+        $this->assertSame('outer done', $this->closeOf($outer)['context']['message']);
+        $outerChildren = $this->childrenOf($outer);
+        $this->assertCount(1, $outerChildren);
+        $inner = $outerChildren[0];
+        $this->assertSame($innerId, $inner['id']);
+        $this->assertSame('inner done', $this->closeOf($inner)['context']['message']);
+
+        // The rejection is recorded in the scope that was current: the inner open.
+        $this->assertSame([], $this->diagnosticsIn($outerChildren));
+        $diagnostics = $this->diagnosticsIn($this->childrenOf($inner));
         $this->assertCount(1, $diagnostics);
         $this->assertSame('close_id_mismatch', $diagnostics[0]['kind']);
         $this->assertSame($outerId, $diagnostics[0]['relatedId'] ?? null);
         $discarded = $diagnostics[0]['discardedContext'] ?? null;
         $this->assertIsArray($discarded);
         $this->assertSame('rejected', $discarded['message']);
-
-        // The tree is the real one: inner nested under outer, both closed.
-        $this->assertCount(1, $log->open);
-        $this->assertSame($outerId, $log->open[0]->id);
-        $this->assertCount(1, $log->open[0]->open);
-        $this->assertSame($innerId, $log->open[0]->open[0]->id);
     }
 
     public function testUnclosedAtFlushRecordsDiagnosticAndReturnsLiveLog(): void
@@ -184,23 +280,27 @@ final class DiagnosticsTest extends TestCase
         $innerId = $this->logger->open(new FakeContext('inner', 2));
         $this->logger->event(new FakeContext('note', 3));
 
-        $log = $this->logger->flush();
+        $entries = $this->entriesOf($this->logger->flush());
 
-        // Live log: the unclosed operations are still in the tree.
-        $this->assertCount(1, $log->open);
-        $this->assertSame($outerId, $log->open[0]->id);
-        $this->assertCount(1, $log->open[0]->open);
-        $this->assertSame($innerId, $log->open[0]->open[0]->id);
+        // Live log: the unclosed operations are still in the tree, without a close.
+        $this->assertCount(2, $entries);
+        $outer = $entries[0];
+        $this->assertSame($outerId, $outer['id']);
+        $this->assertArrayNotHasKey('close', $outer);
+        $outerChildren = $this->childrenOf($outer);
+        $this->assertCount(1, $outerChildren);
+        $this->assertSame($innerId, $outerChildren[0]['id']);
+        $this->assertArrayNotHasKey('close', $outerChildren[0]);
 
-        $diagnostics = $this->diagnosticsOf($log);
+        $diagnostics = $this->diagnosticsIn($entries);
         $this->assertCount(1, $diagnostics);
         $this->assertSame('unclosed_at_flush', $diagnostics[0]['kind']);
         $this->assertSame([$outerId, $innerId], $diagnostics[0]['unclosedIds'] ?? null);
 
         // flush() always resets: the next session starts clean.
         $next = $this->logger->flush();
-        $this->assertSame([], $next->open);
-        $this->assertSame([], $next->events);
+        $this->assertSame([], $next->records);
+        $this->assertSame([], $next->closes);
     }
 
     public function testEmptyFlushReturnsEmptyLog(): void
@@ -208,13 +308,10 @@ final class DiagnosticsTest extends TestCase
         $log = $this->logger->flush();
 
         $this->assertSame(CoreSchema::LOG_URL, $log->schemaUrl);
-        $this->assertSame([], $log->open);
-        $this->assertSame([], $log->close);
-        $this->assertSame([], $log->events);
+        $this->assertSame([], $log->records);
+        $this->assertSame([], $log->closes);
 
-        $array = $log->toArray();
-        $this->assertSame(CoreSchema::LOG_URL, $array['$schema']);
-        $this->assertSame([], $array['open']);
+        $this->assertSame(['$schema' => CoreSchema::LOG_URL, 'entries' => []], $log->toArray());
     }
 
     public function testEmptyLogValidatesAgainstSchema(): void
@@ -241,13 +338,16 @@ final class DiagnosticsTest extends TestCase
         // Snapshot of a live session includes the unclosed diagnostic preview.
         $snapshot = $this->logger->toArray();
         $this->assertSame(CoreSchema::LOG_URL, $snapshot['$schema']);
-        $this->assertCount(1, $snapshot['open']);
+        $this->assertCount(2, $snapshot['entries']);
+        $preview = $this->diagnosticsIn($snapshot['entries']);
+        $this->assertCount(1, $preview);
+        $this->assertSame('unclosed_at_flush', $preview[0]['kind']);
 
         // The session survives the snapshot.
         $this->logger->close(new FakeContext('work done', 2), $openId);
-        $log = $this->logger->flush();
-        $this->assertCount(1, $log->open);
-        $this->assertSame([], $this->diagnosticsOf($log));
+        $entries = $this->entriesOf($this->logger->flush());
+        $this->assertCount(1, $entries);
+        $this->assertSame([], $this->diagnosticsIn($entries));
     }
 
     public function testToArrayWithoutSessionReturnsEmptyShape(): void
@@ -255,17 +355,57 @@ final class DiagnosticsTest extends TestCase
         $snapshot = $this->logger->toArray();
 
         $this->assertSame(CoreSchema::LOG_URL, $snapshot['$schema']);
-        $this->assertSame([], $snapshot['open']);
+        $this->assertSame([], $snapshot['entries']);
     }
 
-    /** @return list<DiagnosticData> */
-    private function diagnosticsOf(LogJson $log): array
+    /** @return list<PublicEntry> */
+    private function entriesOf(LogJson $log): array
+    {
+        return $log->toArray()['entries'];
+    }
+
+    /**
+     * @param array<mixed> $open
+     *
+     * @return list<PublicEntry>
+     */
+    private function childrenOf(array $open): array
+    {
+        $children = $open['children'] ?? null;
+        $this->assertIsArray($children);
+        /** @var list<PublicEntry> $children */
+
+        return $children;
+    }
+
+    /**
+     * @param array<mixed> $open
+     *
+     * @return array{id: string, type: string, schemaUrl: string, context: array<string, mixed>, openId?: string}
+     */
+    private function closeOf(array $open): array
+    {
+        $close = $open['close'] ?? null;
+        $this->assertIsArray($close);
+        /** @var array{id: string, type: string, schemaUrl: string, context: array<string, mixed>, openId?: string} $close */
+
+        return $close;
+    }
+
+    /**
+     * Diagnostics among the given sibling entries (not descendants).
+     *
+     * @param list<PublicEntry> $entries
+     *
+     * @return list<DiagnosticData>
+     */
+    private function diagnosticsIn(array $entries): array
     {
         $diagnostics = [];
-        foreach ($log->events as $event) {
-            if ($event->type === CoreSchema::DIAGNOSTIC_TYPE) {
+        foreach ($entries as $entry) {
+            if ($entry['kind'] === 'event' && $entry['type'] === CoreSchema::DIAGNOSTIC_TYPE) {
                 /** @var DiagnosticData $context */
-                $context = $event->context;
+                $context = $entry['context'];
                 $diagnostics[] = $context;
             }
         }
@@ -273,13 +413,19 @@ final class DiagnosticsTest extends TestCase
         return $diagnostics;
     }
 
-    /** @return list<EventEntry> */
-    private function userEventsOf(LogJson $log): array
+    /**
+     * Non-diagnostic events among the given sibling entries.
+     *
+     * @param list<PublicEntry> $entries
+     *
+     * @return list<PublicEntry>
+     */
+    private function userEventsIn(array $entries): array
     {
         $events = [];
-        foreach ($log->events as $event) {
-            if ($event->type !== CoreSchema::DIAGNOSTIC_TYPE) {
-                $events[] = $event;
+        foreach ($entries as $entry) {
+            if ($entry['kind'] === 'event' && $entry['type'] !== CoreSchema::DIAGNOSTIC_TYPE) {
+                $events[] = $entry;
             }
         }
 

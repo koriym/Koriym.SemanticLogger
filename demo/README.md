@@ -52,16 +52,14 @@ The generated `semantic-log.json` follows the Universal Semantic Logger Schema w
 Abbreviated example:
 ```json
 {
-  "open": [
+  "entries": [
     {
+      "kind": "open",
       "id": "http_request_1",
       "type": "http_request",
-      "open": [
-        {
-          "id": "auth_1",
-          "type": "auth",
-          "...": "..."
-        }
+      "children": [
+        {"kind": "event", "id": "cache_operation_1", "type": "cache_operation", "...": "..."},
+        {"kind": "open", "id": "auth_1", "type": "auth", "children": [], "close": {"...": "..."}}
       ],
       "close": {"id": "http_response_1", "type": "http_response", "...": "..."}
     }
@@ -70,9 +68,9 @@ Abbreviated example:
 ```
 
 ### Structural Correlation
+- `children` is the timeline of a scope: events and nested opens in the order they were recorded
 - Matched `close` entries live directly under their `open`
-- Nested `open` nodes capture parent-child relationships explicitly
-- Top-level `events` and `close` are reserved for root-scope or orphan diagnostics
+- A top-level `close` list appears only for orphan closes
 
 ## Schema Validation
 

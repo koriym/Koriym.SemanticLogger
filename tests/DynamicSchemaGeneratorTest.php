@@ -6,6 +6,7 @@ namespace Koriym\SemanticLogger;
 
 use PHPUnit\Framework\TestCase;
 
+use function array_keys;
 use function dirname;
 use function file_get_contents;
 use function file_put_contents;
@@ -44,34 +45,37 @@ final class DynamicSchemaGeneratorTest extends TestCase
         rmdir($this->schemaDirectory);
     }
 
-    public function testGenerateCombinedSchemaUsesTreeOnlyPublicShape(): void
+    public function testGenerateCombinedSchemaUsesOrderedEntriesShape(): void
     {
         $generator = new DynamicSchemaGenerator($this->schemaDirectory);
         $schema = $generator->generateCombinedSchema();
         $properties = $this->expectArray($schema['properties'] ?? null);
         $definitions = $this->expectArray($schema['definitions'] ?? null);
-        $openProperty = $this->expectArray($properties['open'] ?? null);
-        $eventsProperty = $this->expectArray($properties['events'] ?? null);
+        $entriesProperty = $this->expectArray($properties['entries'] ?? null);
         $closeProperty = $this->expectArray($properties['close'] ?? null);
         $contextType = $this->expectArray($definitions['contextType'] ?? null);
 
-        $this->assertSame(['$schema', 'open'], $schema['required']);
-        $this->assertArrayHasKey('$schema', $properties);
-        $this->assertArrayNotHasKey('schemaUrl', $properties);
-        $this->assertSame('array', $openProperty['type']);
-        $this->assertArrayNotHasKey('minItems', $openProperty);
-        $this->assertSame('array', $eventsProperty['type']);
+        $this->assertSame(['$schema', 'entries'], $schema['required']);
+        $this->assertSame(['$schema', 'entries', 'close', 'links'], array_keys($properties));
+        $this->assertSame('array', $entriesProperty['type']);
+        $this->assertSame('#/definitions/entry', $this->expectArray($entriesProperty['items'] ?? null)['$ref']);
         $this->assertSame('array', $closeProperty['type']);
+        $this->assertSame('#/definitions/closeEntry', $this->expectArray($closeProperty['items'] ?? null)['$ref']);
         $this->assertSame('^[a-z_]+$', $contextType['pattern']);
+        $this->assertSame(
+            ['schemaUrl', 'operationId', 'openIdReference', 'contextType', 'entry', 'openEntry', 'eventEntry', 'closeEntry'],
+            array_keys($definitions),
+        );
+
+        $entry = $this->expectArray($definitions['entry'] ?? null);
+        $this->assertSame(
+            [['$ref' => '#/definitions/openEntry'], ['$ref' => '#/definitions/eventEntry']],
+            $entry['oneOf'],
+        );
 
         $this->assertOpenEntryDefinition($definitions['openEntry'] ?? null);
-        $this->assertLeafEntryDefinition($definitions['eventEntry'] ?? null);
-        $this->assertLeafEntryDefinition($definitions['closeEntry'] ?? null, true);
-
-        $this->assertSame(
-            '#/definitions/openEntry',
-            $this->expectArray($openProperty['items'] ?? null)['$ref'],
-        );
+        $this->assertEventEntryDefinition($definitions['eventEntry'] ?? null);
+        $this->assertCloseEntryDefinition($definitions['closeEntry'] ?? null);
     }
 
     public function testGenerateCombinedSchemaReusesPublicSchemaUrlRule(): void
@@ -94,59 +98,54 @@ final class DynamicSchemaGeneratorTest extends TestCase
     {
         $definition = $this->expectArray($definition);
         $properties = $this->expectArray($definition['properties'] ?? null);
-        $allOf = $this->expectArray($definition['allOf'] ?? null);
+        $children = $this->expectArray($properties['children'] ?? null);
 
         $this->assertSame('object', $definition['type']);
-        $this->assertSame(['id', 'type', 'schemaUrl', 'context'], $definition['required']);
-        $this->assertArrayHasKey('schemaUrl', $properties);
-        $this->assertArrayHasKey('context', $properties);
-        $this->assertArrayHasKey('open', $properties);
-        $this->assertArrayHasKey('events', $properties);
-        $this->assertArrayHasKey('close', $properties);
-        $this->assertSame('#/definitions/contextType', $this->expectArray($properties['type'] ?? null)['$ref']);
-
-        $this->assertCount(2, $allOf);
-
-        $refs = [];
-        foreach ($allOf as $condition) {
-            $condition = $this->expectArray($condition);
-            $then = $this->expectArray($condition['then'] ?? null);
-            $conditionProperties = $this->expectArray($then['properties'] ?? null);
-            $context = $this->expectArray($conditionProperties['context'] ?? null);
-            $ref = $context['$ref'] ?? null;
-            if (is_string($ref)) {
-                $refs[] = $ref;
-            }
-        }
-
-        $this->assertSame(
-            ['./schemas/cache-operation.json', './schemas/http-request.json'],
-            $this->sortRefs($refs),
-        );
+        $this->assertSame(['kind', 'id', 'type', 'schemaUrl', 'context', 'children'], $definition['required']);
+        $this->assertSame(['const' => 'open'], $properties['kind']);
+        $this->assertSame('array', $children['type']);
+        $this->assertSame('#/definitions/entry', $this->expectArray($children['items'] ?? null)['$ref']);
+        $this->assertSame('#/definitions/closeEntry', $this->expectArray($properties['close'] ?? null)['$ref']);
+        $this->assertArrayNotHasKey('openId', $properties);
+        $this->assertTypeConditions($definition);
     }
 
-    private function assertLeafEntryDefinition(mixed $definition, bool $allowsProfile = false): void
+    private function assertEventEntryDefinition(mixed $definition): void
     {
         $definition = $this->expectArray($definition);
         $properties = $this->expectArray($definition['properties'] ?? null);
-        $allOf = $this->expectArray($definition['allOf'] ?? null);
+
+        $this->assertSame('object', $definition['type']);
+        $this->assertSame(['kind', 'id', 'type', 'schemaUrl', 'context'], $definition['required']);
+        $this->assertSame(['const' => 'event'], $properties['kind']);
+        $this->assertArrayNotHasKey('openId', $properties);
+        $this->assertArrayNotHasKey('children', $properties);
+        $this->assertArrayNotHasKey('close', $properties);
+        $this->assertTypeConditions($definition);
+    }
+
+    private function assertCloseEntryDefinition(mixed $definition): void
+    {
+        $definition = $this->expectArray($definition);
+        $properties = $this->expectArray($definition['properties'] ?? null);
 
         $this->assertSame('object', $definition['type']);
         $this->assertSame(['id', 'type', 'schemaUrl', 'context'], $definition['required']);
+        $this->assertArrayNotHasKey('kind', $properties);
+        $this->assertArrayHasKey('openId', $properties);
+        $this->assertArrayHasKey('profile', $properties);
+        $this->assertTypeConditions($definition);
+    }
+
+    /** @param array<mixed> $definition */
+    private function assertTypeConditions(array $definition): void
+    {
+        $properties = $this->expectArray($definition['properties'] ?? null);
+        $allOf = $this->expectArray($definition['allOf'] ?? null);
+
         $this->assertArrayHasKey('schemaUrl', $properties);
         $this->assertArrayHasKey('context', $properties);
-        $this->assertArrayNotHasKey('open', $properties);
-        $this->assertArrayNotHasKey('events', $properties);
-        $this->assertArrayNotHasKey('close', $properties);
-        $this->assertArrayHasKey('openId', $properties);
         $this->assertSame('#/definitions/contextType', $this->expectArray($properties['type'] ?? null)['$ref']);
-
-        if ($allowsProfile) {
-            $this->assertArrayHasKey('profile', $properties);
-        } else {
-            $this->assertArrayNotHasKey('profile', $properties);
-        }
-
         $this->assertCount(2, $allOf);
 
         $refs = [];

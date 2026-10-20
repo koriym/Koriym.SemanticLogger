@@ -4,6 +4,27 @@
 Failures and protocol misuse become core-owned diagnostic entries in the log
 itself, and quality gates move to the reading side (the validator and CI).
 
+## Unreleased: one ordered `entries` tree
+
+The public document no longer splits a scope into `open` and `events` lists.
+Each scope is one `children` list in record order, every entry says what it is
+with `kind`, and the root list is `entries`.
+
+| 0.9 | Unreleased |
+|---|---|
+| root `open` + root `events` | root `entries`, each item `kind: "open"` or `kind: "event"` |
+| `open[].open` + `open[].events` | `entries[].children` — events and nested opens interleaved as recorded |
+| `open[].close` (object) | unchanged, `close` on the open; absent while unclosed |
+| root `close` (orphans) | unchanged; the only place an `openId` still appears |
+| `openId` on nested events / closes | removed — the nesting is the scope |
+| `new LogJson($schemaUrl, $open, $events, $close, $links)` | `new LogJson($schemaUrl, $records, $closes, $links)` — `$records` is the flat list of opens and events, `$closes` the flat list of closes |
+| `$log->open` / `$log->events` / `$log->close` / `toTreeArray()` | `$log->records` / `$log->closes`; read the tree from `toArray()` |
+| `$log->open === []` emptiness check | `$log->records === []` |
+| `OpenCloseEntry` carrying child opens | `OpenCloseEntry(id, type, schemaUrl, context, parentId)` — a flat record |
+| `EventEntry` carrying nested closes | `EventEntry(id, type, schemaUrl, context, openId, profile)` — a flat record |
+| envelope `required: ["$schema"]`, `open`/`events` properties | `required: ["$schema", "entries"]`; `entry` is `oneOf(openEntry, eventEntry)` keyed on `kind` |
+| stree: missing `open` section throws | missing `entries` section throws |
+
 ## The exception hierarchy is gone
 
 Removed classes — delete every `catch` and throwable expectation against them:
@@ -22,8 +43,8 @@ always succeed.
 
 | 1.x / 0.8 | 0.9 |
 |---|---|
-| `flush()` with no session → `NoLogSessionException` | valid empty log (`"open": []`), always resets |
-| `catch (NoLogSessionException)` to skip persisting an empty session | flush never fails — check emptiness yourself instead: `$log->open === []` (top-level `events`/`close` may still exist, e.g. diagnostics) |
+| `flush()` with no session → `NoLogSessionException` | valid empty log (`"entries": []`), always resets |
+| `catch (NoLogSessionException)` to skip persisting an empty session | flush never fails — check emptiness yourself instead: `$log->records === []` |
 | `flush()` with unclosed opens → `UnclosedLogicException` | live tree + `unclosed_at_flush` diagnostic carrying the unclosed ids, always resets |
 | `close()` with empty stack → `NoOpenOperationsException` | `close_without_open` diagnostic; context discarded; session unaffected |
 | `close()` with non-innermost id → `InvalidOperationOrderException` | `close_id_mismatch` diagnostic; the stack is never guess-mutated, so correct closes still work |

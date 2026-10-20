@@ -8,25 +8,22 @@ use JsonSerializable;
 use Koriym\SemanticLogger\Profiler\OperationProfile;
 use Override;
 
-use function array_map;
-
 /**
+ * An event or a close, as recorded. `openId` is the scope the event was
+ * recorded in, or the open this close ended.
+ *
  * @psalm-import-type ContextData from Types
  * @psalm-import-type EventEntryArray from Types
  */
 final class EventEntry implements JsonSerializable
 {
-    /**
-     * @param ContextData      $context
-     * @param list<EventEntry> $close   Child closes (zero or more) — immediate nested close entries in the order their opens closed.
-     */
+    /** @param ContextData $context */
     public function __construct(
         public readonly string $id,
         public readonly string $type,
         public readonly string $schemaUrl,
         public readonly array $context,
         public readonly string|null $openId = null,
-        public readonly array $close = [],
         public readonly OperationProfile|null $profile = null,
     ) {
     }
@@ -39,22 +36,7 @@ final class EventEntry implements JsonSerializable
             $this->schemaUrl,
             $this->context,
             $this->openId,
-            $this->close,
             $profile,
-        );
-    }
-
-    /** @param list<EventEntry> $close */
-    public function withClose(array $close): self
-    {
-        return new self(
-            $this->id,
-            $this->type,
-            $this->schemaUrl,
-            $this->context,
-            $this->openId,
-            $close,
-            $this->profile,
         );
     }
 
@@ -74,10 +56,6 @@ final class EventEntry implements JsonSerializable
 
         if ($this->profile !== null) {
             $result['profile'] = $this->profile->jsonSerialize();
-        }
-
-        if ($this->close !== []) {
-            $result['close'] = array_map(static fn (EventEntry $e) => $e->toArray(), $this->close);
         }
 
         return $result;

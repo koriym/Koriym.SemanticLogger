@@ -10,7 +10,7 @@ Type-safe semantic logging for hierarchical application workflows with tree-shap
 
 Each entry carries a schema URL and typed context data, so logs stay machine-readable and can be validated, rendered, and inspected without depending on free-form log messages.
 
-The public log contract is structural: matched `close` entries and scoped `events` are nested under the `open` entry they belong to. Once serialized to JSON, normal operation results are read from paths such as `open[0].close` — not from a separate top-level close list.
+The public log contract is structural: everything that happened inside an `open` is in its `children`, in the order it was recorded, and its matching `close` is nested on it. Once serialized to JSON, normal operation results are read from paths such as `entries[0].close` — not from a separate top-level close list.
 
 ## Installation
 
@@ -105,21 +105,23 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
 ### 3. Output Shape
 
-`flush()` returns a `LogJson` object. Its public JSON shape is tree-oriented: each `open` node contains nested child `open`s, scoped `events`, and its matching `close` object. Top-level `events` and `close` are reserved for root-scope or orphan diagnostics when structural placement is not possible, so normal consumers should treat the tree as the source of truth.
+`flush()` returns a `LogJson` object. Its public JSON is a tree in record order: `entries` lists what happened at the root, each entry has a `kind` of `open` or `event`, and every `open` carries its own `children` (events and nested opens, in the order they were recorded) plus its matching `close`. Reading the document top to bottom is reading the timeline.
 
 ```json
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "open": [
+  "entries": [
     {
+      "kind": "open",
       "id": "process_1",
       "type": "process",
       "schemaUrl": "https://example.com/schemas/process.json",
       "context": {
         "name": "data import"
       },
-      "events": [
+      "children": [
         {
+          "kind": "event",
           "id": "process_event_1",
           "type": "process_event",
           "schemaUrl": "https://example.com/schemas/process-event.json",
@@ -148,13 +150,15 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 }
 ```
 
+`close` is absent while an open is still unclosed. A top-level `close` list appears only for orphan closes (a close whose `openId` matches no open in the log, or a second close for an open that is already closed); it is diagnostic output, not part of the normal tree.
+
 ### The Logger Never Throws
 
 `SemanticLogger` never throws — not on serialization failures, not on protocol misuse, not on empty sessions. Failures become data: core-owned diagnostic entries in the log itself.
 
 - A context that cannot be serialized is replaced by a `semantic_logger_invalid_context` placeholder that keeps the entry's position in the tree; children still attach to it. The loss radius of one bad context is that entry — never the session.
 - Protocol misuse is recorded as `semantic_logger_error` entries (see below).
-- `flush()` always returns a log and always resets: an empty session is a valid empty document (`"open": []`), and an unclosed session returns its live tree with an `unclosed_at_flush` diagnostic.
+- `flush()` always returns a log and always resets: an empty session is a valid empty document (`"entries": []`), and an unclosed session returns its live tree with an `unclosed_at_flush` diagnostic.
 - `toArray()` / `jsonSerialize()` are total, non-destructive snapshots.
 
 Quality gates live on the reading side: the validator lists diagnostics with their own severity, and `--fail-on-diagnostics` lets CI turn their presence into a failing build.
@@ -195,7 +199,7 @@ $devLogger->log($semanticLogger);
 
 Each call writes a file named `semantic-dev-<timestamp>-<pid>-<uniqid>.json` (microsecond timestamp, PID, and `uniqid()` suffix) to the given directory, or to `sys_get_temp_dir()` when no directory is passed.
 
-`DevLogger` writes the same public tree JSON shape returned by `flush()`, which works naturally with `stree`. Top-level `events` and `close` are reserved for root-scope or orphan diagnostics when structural placement is not possible.
+`DevLogger` writes the same public tree JSON shape returned by `flush()`, which works naturally with `stree`.
 
 ## Profiling (XHProf / Xdebug)
 

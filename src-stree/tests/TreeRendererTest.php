@@ -13,27 +13,67 @@ use function trim;
 
 final class TreeRendererTest extends TestCase
 {
+    /**
+     * @param array<string, mixed>       $context
+     * @param list<array<string, mixed>> $children
+     * @param array<string, mixed>|null  $close
+     *
+     * @return array<string, mixed>
+     */
+    private static function openEntry(string $id, string $type, array $context = [], array $children = [], array|null $close = null): array
+    {
+        $entry = [
+            'kind' => 'open',
+            'id' => $id,
+            'type' => $type,
+            'schemaUrl' => 'test.json',
+            'context' => $context,
+            'children' => $children,
+        ];
+
+        return $close === null ? $entry : $entry + ['close' => $close];
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     *
+     * @return array<string, mixed>
+     */
+    private static function eventEntry(string $id, string $type, array $context = []): array
+    {
+        return [
+            'kind' => 'event',
+            'id' => $id,
+            'type' => $type,
+            'schemaUrl' => 'test.json',
+            'context' => $context,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $profile
+     *
+     * @return array<string, mixed>
+     */
+    private static function closeEntry(string $id, string $type, array $context = [], array $profile = []): array
+    {
+        $close = [
+            'id' => $id,
+            'type' => $type,
+            'schemaUrl' => 'test.json',
+            'context' => $context,
+        ];
+
+        return $profile === [] ? $close : $close + ['profile' => $profile];
+    }
+
     public function testBasicRendering(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'test_1',
-                    'type' => 'test_operation',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['executionTime' => 0.005],
-                ],
+            'entries' => [
+                self::openEntry('test_1', 'test_operation', ['executionTime' => 0.005], [], self::closeEntry('close_1', 'close')),
             ],
-            'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'openId' => 'test_1',
-                ],
-            ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(false, 0.0, 5);
@@ -49,24 +89,9 @@ final class TreeRendererTest extends TestCase
     public function testRootNodeRendersFlushLeft(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'op_1',
-                    'type' => 'some_op',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['executionTime' => 0.010],
-                ],
+            'entries' => [
+                self::openEntry('op_1', 'some_op', ['executionTime' => 0.010], [], self::closeEntry('close_1', 'close')),
             ],
-            'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'openId' => 'op_1',
-                ],
-            ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(false, 0.0, 5);
@@ -83,22 +108,10 @@ final class TreeRendererTest extends TestCase
     public function testMultipleRootsRenderAsFlushLeftSiblings(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'a_1',
-                    'type' => 'first_op',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                ],
-                [
-                    'id' => 'b_1',
-                    'type' => 'second_op',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                ],
+            'entries' => [
+                self::openEntry('a_1', 'first_op'),
+                self::openEntry('b_1', 'second_op'),
             ],
-            'close' => [],
-            'events' => [],
         ];
 
         $config = new RenderConfig(false, 0.0, 5);
@@ -119,41 +132,38 @@ final class TreeRendererTest extends TestCase
         $renderer = new TreeRenderer($config);
 
         $result = $renderer->renderTree([
-            'open' => [],
-            'events' => [
-                [
-                    'id' => 'notice_1',
-                    'type' => 'notice',
-                    'schemaUrl' => 'notice.json',
-                    'context' => ['message' => 'event only'],
-                ],
-            ],
+            'entries' => [self::eventEntry('notice_1', 'notice', ['message' => 'event only'])],
         ]);
 
         $this->assertSame('notice message=event only [event]', trim($result));
     }
 
+    public function testRootEventsAndOpensKeepRecordOrder(): void
+    {
+        $renderer = new TreeRenderer(new RenderConfig(false, 0.0, 5));
+
+        $result = $renderer->renderTree([
+            'entries' => [
+                self::eventEntry('notice_1', 'notice'),
+                self::openEntry('op_1', 'some_op'),
+                self::eventEntry('notice_2', 'late_notice'),
+            ],
+        ]);
+
+        $this->assertSame(
+            ['notice [event]', 'some_op : unclosed', 'late_notice [event]'],
+            explode("\n", trim($result)),
+        );
+    }
+
     public function testOrphanCloseRendersAsTopLevelDiagnosticInSingleRootLog(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'op_1',
-                    'type' => 'some_open',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                ],
-            ],
+            'entries' => [self::openEntry('op_1', 'some_open')],
             'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'some_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['result' => 'ok'],
-                    'openId' => 'missing_1',
-                ],
+                self::closeEntry('close_1', 'some_close', ['result' => 'ok']) +
+        ['openId' => 'missing_1'],
             ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(false, 0.0, 5);
@@ -170,23 +180,8 @@ final class TreeRendererTest extends TestCase
     public function testTopLevelCloseWithoutOpenIdRemainsTopLevelDiagnosticInSingleRootLog(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'op_1',
-                    'type' => 'some_open',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                ],
-            ],
-            'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'some_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['result' => 'ok'],
-                ],
-            ],
-            'events' => [],
+            'entries' => [self::openEntry('op_1', 'some_open')],
+            'close' => [self::closeEntry('close_1', 'some_close', ['result' => 'ok'])],
         ];
 
         $config = new RenderConfig(false, 0.0, 5);
@@ -203,31 +198,15 @@ final class TreeRendererTest extends TestCase
     public function testNestedRendering(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'parent_1',
-                    'type' => 'parent_operation',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'open' => [
-                        [
-                            'id' => 'child_1',
-                            'type' => 'child_operation',
-                            'schemaUrl' => 'test.json',
-                            'context' => [],
-                        ],
-                    ],
-                ],
+            'entries' => [
+                self::openEntry(
+                    'parent_1',
+                    'parent_operation',
+                    [],
+                    [self::openEntry('child_1', 'child_operation')],
+                    self::closeEntry('close_1', 'close'),
+                ),
             ],
-            'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                ],
-            ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(true, 0.0, 5);
@@ -243,31 +222,14 @@ final class TreeRendererTest extends TestCase
     public function testEventsRendering(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'operation_1',
-                    'type' => 'test_operation',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                ],
-            ],
-            'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'openId' => 'operation_1',
-                ],
-            ],
-            'events' => [
-                [
-                    'id' => 'event_1',
-                    'type' => 'test_event',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['duration' => 0.003],
-                    'openId' => 'operation_1',
-                ],
+            'entries' => [
+                self::openEntry(
+                    'operation_1',
+                    'test_operation',
+                    [],
+                    [self::eventEntry('event_1', 'test_event', ['duration' => 0.003])],
+                    self::closeEntry('close_1', 'close'),
+                ),
             ],
         ];
 
@@ -282,41 +244,42 @@ final class TreeRendererTest extends TestCase
         $this->assertStringContainsString('[event]', $result);
     }
 
+    public function testChildrenRenderInRecordOrder(): void
+    {
+        $logData = [
+            'entries' => [
+                self::openEntry('parent_1', 'parent_op', [], [
+                    self::eventEntry('event_1', 'first_event'),
+                    self::openEntry('child_1', 'middle_op'),
+                    self::eventEntry('event_2', 'last_event'),
+                ]),
+            ],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(false, 0.0, 5));
+
+        $lines = explode("\n", trim($renderer->renderTree($logData)));
+
+        $this->assertSame('parent_op : unclosed', $lines[0]);
+        $this->assertSame('├── first_event [event]', $lines[1]);
+        $this->assertSame('├── middle_op : unclosed', $lines[2]);
+        $this->assertSame('└── last_event [event]', $lines[3]);
+    }
+
     public function testTimeThreshold(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'parent_1',
-                    'type' => 'parent_operation',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['executionTime' => 0.050], // 50ms - above threshold
-                    'open' => [
-                        [
-                            'id' => 'fast_1',
-                            'type' => 'fast_operation',
-                            'schemaUrl' => 'test.json',
-                            'context' => ['executionTime' => 0.001], // 1ms - below threshold
-                        ],
+            'entries' => [
+                self::openEntry(
+                    'parent_1',
+                    'parent_operation',
+                    ['executionTime' => 0.050], // 50ms - above threshold
+                    [
+                        self::openEntry('fast_1', 'fast_operation', ['executionTime' => 0.001]), // 1ms - below threshold
+                        self::eventEntry('slow_event', 'slow_operation', ['duration' => 0.020]), // 20ms - above threshold
                     ],
-                ],
-            ],
-            'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                ],
-            ],
-            'events' => [
-                [
-                    'id' => 'slow_event',
-                    'type' => 'slow_operation',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['duration' => 0.020], // 20ms - above threshold
-                    'openId' => 'parent_1',
-                ],
+                    self::closeEntry('close_1', 'close'),
+                ),
             ],
         ];
 
@@ -336,16 +299,7 @@ final class TreeRendererTest extends TestCase
     public function testUnclosedStatusAnnotation(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'op_1',
-                    'type' => 'some_operation',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                ],
-            ],
-            'close' => [],
-            'events' => [],
+            'entries' => [self::openEntry('op_1', 'some_operation')],
         ];
 
         $config = new RenderConfig(false, 0.0, 5);
@@ -359,24 +313,15 @@ final class TreeRendererTest extends TestCase
     public function testFailedStatusAnnotation(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'op_1',
-                    'type' => 'payment',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['amount' => 100],
-                ],
+            'entries' => [
+                self::openEntry(
+                    'op_1',
+                    'payment',
+                    ['amount' => 100],
+                    [],
+                    self::closeEntry('close_1', 'payment_close', ['success' => false]),
+                ),
             ],
-            'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'payment_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['success' => false],
-                    'openId' => 'op_1',
-                ],
-            ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(false, 0.0, 5);
@@ -390,41 +335,23 @@ final class TreeRendererTest extends TestCase
     public function testStatusPropagatesUpward(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'parent_1',
-                    'type' => 'checkout',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'open' => [
-                        [
-                            'id' => 'child_1',
-                            'type' => 'charge',
-                            'schemaUrl' => 'test.json',
-                            'context' => ['amount' => 100],
-                        ],
+            'entries' => [
+                self::openEntry(
+                    'parent_1',
+                    'checkout',
+                    [],
+                    [
+                        self::openEntry(
+                            'child_1',
+                            'charge',
+                            ['amount' => 100],
+                            [],
+                            self::closeEntry('child_close', 'charge_close', ['success' => false]),
+                        ),
                     ],
-                ],
+                    self::closeEntry('parent_close', 'checkout_close'),
+                ),
             ],
-            'close' => [
-                [
-                    'id' => 'parent_close',
-                    'type' => 'checkout_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'openId' => 'parent_1',
-                    'close' => [
-                        [
-                            'id' => 'child_close',
-                            'type' => 'charge_close',
-                            'schemaUrl' => 'test.json',
-                            'context' => ['success' => false],
-                            'openId' => 'child_1',
-                        ],
-                    ],
-                ],
-            ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(false, 0.0, 5);
@@ -441,24 +368,15 @@ final class TreeRendererTest extends TestCase
     public function testFullModeShowsContextLeaves(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'op_1',
-                    'type' => 'some_op',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['operation' => 'validate', 'input' => 'data'],
-                ],
+            'entries' => [
+                self::openEntry(
+                    'op_1',
+                    'some_op',
+                    ['operation' => 'validate', 'input' => 'data'],
+                    [],
+                    self::closeEntry('close_1', 'some_op_close', ['result' => 'ok']),
+                ),
             ],
-            'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'some_op_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['result' => 'ok'],
-                    'openId' => 'op_1',
-                ],
-            ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(true, 0.0, 5);
@@ -468,44 +386,39 @@ final class TreeRendererTest extends TestCase
 
         $this->assertStringContainsString('operation: validate', $result);
         $this->assertStringContainsString('input: data', $result);
-        $this->assertStringContainsString('└── close', $result);
+        $this->assertStringContainsString('└── close some_op_close', $result);
         $this->assertStringContainsString('result: ok', $result);
     }
 
     public function testFullModeShowsProfileUnderCloseBranch(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'op_1',
-                    'type' => 'becoming_open',
-                    'schemaUrl' => 'test.json',
-                    'context' => [
+            'entries' => [
+                self::openEntry(
+                    'op_1',
+                    'becoming_open',
+                    [
                         'input' => 'Be\\Skeleton\\Input\\HelloInput',
                         'prop' => ['name' => 'World'],
                     ],
-                ],
-            ],
-            'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'becoming_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [
-                        'exit' => 'success',
-                        'final' => 'Be\\Skeleton\\Final\\Hello',
-                    ],
-                    'profile' => [
-                        'wallTime' => 0.012,
-                        'xdebugTrace' => [
-                            ['path' => '/tmp/profile_a.xt'],
-                            ['path' => '/tmp/profile_b.xt'],
+                    [],
+                    self::closeEntry(
+                        'close_1',
+                        'becoming_close',
+                        [
+                            'exit' => 'success',
+                            'final' => 'Be\\Skeleton\\Final\\Hello',
                         ],
-                    ],
-                    'openId' => 'op_1',
-                ],
+                        [
+                            'wallTime' => 0.012,
+                            'xdebugTrace' => [
+                                ['path' => '/tmp/profile_a.xt'],
+                                ['path' => '/tmp/profile_b.xt'],
+                            ],
+                        ],
+                    ),
+                ),
             ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(true, 0.0, 5);
@@ -527,53 +440,37 @@ final class TreeRendererTest extends TestCase
     public function testFullModeSemanticTreeSuppressesInputSourcesAndFlattensProps(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'becoming_1',
-                    'type' => 'becoming_open',
-                    'schemaUrl' => 'test.json',
-                    'context' => [
+            'entries' => [
+                self::openEntry(
+                    'becoming_1',
+                    'becoming_open',
+                    [
                         'input' => 'Be\\Skeleton\\Input\\HelloInput',
                         'prop' => ['name' => 'World'],
                     ],
-                    'open' => [
-                        [
-                            'id' => 'being_final_1',
-                            'type' => 'being_final_open',
-                            'schemaUrl' => 'test.json',
-                            'context' => [
+                    [
+                        self::openEntry(
+                            'being_final_1',
+                            'being_final_open',
+                            [
                                 'from' => 'Be\\Skeleton\\Input\\HelloInput',
                                 'final' => 'Be\\Skeleton\\Final\\Hello',
                                 'input' => ['name' => 'Be\\Skeleton\\Input\\HelloInput::name'],
                                 'inject' => ['greeting' => 'Be\\Skeleton\\Reason\\Greeting'],
                             ],
-                            'close' => [
-                                'id' => 'being_final_close_1',
-                                'type' => 'being_final_close',
-                                'schemaUrl' => 'test.json',
-                                'context' => [
-                                    'final' => 'Be\\Skeleton\\Final\\Hello',
-                                    'prop' => ['greeting' => 'Hello World'],
-                                ],
-                                'openId' => 'being_final_1',
-                            ],
-                        ],
+                            [],
+                            self::closeEntry('being_final_close_1', 'being_final_close', [
+                                'final' => 'Be\\Skeleton\\Final\\Hello',
+                                'prop' => ['greeting' => 'Hello World'],
+                            ]),
+                        ),
                     ],
-                ],
-            ],
-            'close' => [
-                [
-                    'id' => 'becoming_close_1',
-                    'type' => 'becoming_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [
+                    self::closeEntry('becoming_close_1', 'becoming_close', [
                         'exit' => 'success',
                         'final' => 'Be\\Skeleton\\Final\\Hello',
-                    ],
-                    'openId' => 'becoming_1',
-                ],
+                    ]),
+                ),
             ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(true, 0.0, 5);
@@ -595,27 +492,18 @@ final class TreeRendererTest extends TestCase
     public function testGenericUnknownTypeRenders(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'meta_1',
-                    'type' => 'metamorphosis_open',
-                    'schemaUrl' => 'test.json',
-                    'context' => [
+            'entries' => [
+                self::openEntry(
+                    'meta_1',
+                    'metamorphosis_open',
+                    [
                         'fromClass' => 'Be\\Skeleton\\Input\\HelloInput',
                         'beAttribute' => '#[Be(Be\\Skeleton\\Final\\Hello::class)]',
                     ],
-                ],
+                    [],
+                    self::closeEntry('meta_close_1', 'metamorphosis_close', ['finalClass' => 'Be\\Skeleton\\Final\\Hello']),
+                ),
             ],
-            'close' => [
-                [
-                    'id' => 'meta_close_1',
-                    'type' => 'metamorphosis_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['finalClass' => 'Be\\Skeleton\\Final\\Hello'],
-                    'openId' => 'meta_1',
-                ],
-            ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(false, 0.0, 5);
@@ -634,24 +522,9 @@ final class TreeRendererTest extends TestCase
     public function testRegisteredFormatterRendersAtRootFlushLeft(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'op_1',
-                    'type' => 'fake_open',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                ],
+            'entries' => [
+                self::openEntry('op_1', 'fake_open', [], [], self::closeEntry('close_1', 'fake_close')),
             ],
-            'close' => [
-                [
-                    'id' => 'close_1',
-                    'type' => 'fake_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'openId' => 'op_1',
-                ],
-            ],
-            'events' => [],
         ];
 
         $registry = new FormatterRegistry();
@@ -671,27 +544,18 @@ final class TreeRendererTest extends TestCase
     public function testCompactClosePrefersExitOverFinal(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'becoming_1',
-                    'type' => 'becoming',
-                    'schemaUrl' => 'test.json',
-                    'context' => ['input' => 'App\\Input\\HelloInput'],
-                ],
-            ],
-            'close' => [
-                [
-                    'id' => 'becoming_close_1',
-                    'type' => 'becoming_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [
+            'entries' => [
+                self::openEntry(
+                    'becoming_1',
+                    'becoming',
+                    ['input' => 'App\\Input\\HelloInput'],
+                    [],
+                    self::closeEntry('becoming_close_1', 'becoming_close', [
                         'exit' => 'success',
                         'final' => 'App\\Final\\Hello',
-                    ],
-                    'openId' => 'becoming_1',
-                ],
+                    ]),
+                ),
             ],
-            'events' => [],
         ];
 
         $config = new RenderConfig(false, 0.0, 5);
@@ -699,48 +563,141 @@ final class TreeRendererTest extends TestCase
 
         $result = $renderer->renderTree($logData);
 
-        $this->assertStringContainsString('└── exit=success', $result);
+        $this->assertStringContainsString('└── becoming_close exit=success', $result);
         $this->assertStringNotContainsString('final=Hello', $result);
+    }
+
+    public function testCompactCloseLineLeadsWithCloseType(): void
+    {
+        $logData = [
+            'entries' => [
+                self::openEntry(
+                    'get_1',
+                    'get',
+                    ['uri' => 'page://self/dep/parent'],
+                    [
+                        self::openEntry(
+                            'get_2',
+                            'get',
+                            ['uri' => 'page://self/dep/child-c'],
+                            [],
+                            self::closeEntry('close_2', 'cache_hit', ['layer' => 'resource']),
+                        ),
+                    ],
+                    self::closeEntry('close_1', 'cache_miss', ['layer' => 'resource']),
+                ),
+            ],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(false, 0.0, 5));
+
+        $lines = explode("\n", trim($renderer->renderTree($logData)));
+
+        $this->assertSame('get uri=page://self/dep/parent', $lines[0]);
+        $this->assertSame('├── get uri=page://self/dep/child-c', $lines[1]);
+        $this->assertSame('│   └── cache_hit layer=resource', $lines[2]);
+        $this->assertSame('└── cache_miss layer=resource', $lines[3]);
+    }
+
+    public function testCompactCloseLineIsTypeOnlyWhenCloseAddsNoSignal(): void
+    {
+        $logData = [
+            'entries' => [
+                self::openEntry(
+                    'op_1',
+                    'some_op',
+                    ['operation' => 'validate'],
+                    [],
+                    self::closeEntry('close_1', 'some_op_close', ['operation' => 'validate']),
+                ),
+            ],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(false, 0.0, 5));
+
+        $lines = explode("\n", trim($renderer->renderTree($logData)));
+
+        $this->assertSame('some_op operation=validate', $lines[0]);
+        $this->assertSame('└── some_op_close', $lines[1]);
+    }
+
+    public function testNodeWithoutCloseGetsNoCloseLine(): void
+    {
+        $logData = [
+            'entries' => [self::openEntry('op_1', 'some_op', ['operation' => 'validate'])],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(false, 0.0, 5));
+
+        $this->assertSame('some_op operation=validate : unclosed', trim($renderer->renderTree($logData)));
+    }
+
+    public function testTimeThresholdHidesSkippedNodeCloseType(): void
+    {
+        $logData = [
+            'entries' => [
+                self::openEntry(
+                    'slow_1',
+                    'slow_op',
+                    ['executionTime' => 0.050],
+                    [
+                        self::openEntry(
+                            'fast_1',
+                            'fast_op',
+                            ['executionTime' => 0.001],
+                            [],
+                            self::closeEntry('close_2', 'cache_hit', ['layer' => 'resource']),
+                        ),
+                    ],
+                    self::closeEntry('close_1', 'cache_miss', ['layer' => 'resource']),
+                ),
+            ],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(false, 0.010, 5));
+
+        $result = $renderer->renderTree($logData);
+
+        $this->assertStringNotContainsString('cache_hit', $result);
+        $this->assertStringContainsString('└── cache_miss layer=resource', $result);
+    }
+
+    public function testFullModeCloseBranchCarriesCloseType(): void
+    {
+        $logData = [
+            'entries' => [
+                self::openEntry(
+                    'get_1',
+                    'get',
+                    ['uri' => 'page://self/dep/child-c'],
+                    [],
+                    self::closeEntry('close_1', 'cache_hit', ['layer' => 'resource']),
+                ),
+            ],
+        ];
+
+        $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5));
+
+        $lines = explode("\n", trim($renderer->renderTree($logData)));
+
+        $this->assertSame('get uri=page://self/dep/child-c', $lines[0]);
+        $this->assertSame('├── uri: page://self/dep/child-c', $lines[1]);
+        $this->assertSame('└── close cache_hit', $lines[2]);
+        $this->assertSame('    └── layer: resource', $lines[3]);
     }
 
     public function testRegisteredFormatterMultilineContinuationIndentsUnderChildPrefix(): void
     {
         $logData = [
-            'open' => [
-                [
-                    'id' => 'root_1',
-                    'type' => 'container',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'open' => [
-                        [
-                            'id' => 'child_1',
-                            'type' => 'fake_open',
-                            'schemaUrl' => 'test.json',
-                            'context' => [],
-                        ],
-                    ],
-                ],
+            'entries' => [
+                self::openEntry(
+                    'root_1',
+                    'container',
+                    [],
+                    [self::openEntry('child_1', 'fake_open', [], [], self::closeEntry('child_close', 'fake_close'))],
+                    self::closeEntry('root_close', 'container_close'),
+                ),
             ],
-            'close' => [
-                [
-                    'id' => 'root_close',
-                    'type' => 'container_close',
-                    'schemaUrl' => 'test.json',
-                    'context' => [],
-                    'openId' => 'root_1',
-                    'close' => [
-                        [
-                            'id' => 'child_close',
-                            'type' => 'fake_close',
-                            'schemaUrl' => 'test.json',
-                            'context' => [],
-                            'openId' => 'child_1',
-                        ],
-                    ],
-                ],
-            ],
-            'events' => [],
         ];
 
         $registry = new FormatterRegistry();
@@ -751,8 +708,12 @@ final class TreeRendererTest extends TestCase
         $result = $renderer->renderTree($logData);
         $lines = explode("\n", trim($result));
 
-        // Child node rendered under a tree prefix; continuation indents to child-content column.
-        $this->assertStringContainsString('└── fake open=fake_open', $lines[1]);
-        $this->assertStringContainsString('    └── close=fake_close', $lines[2]);
+        // Child is no longer last (the root's close line is), and the formatter
+        // continuation indents to the child-content column.
+        $this->assertSame('├── fake open=fake_open', $lines[1]);
+        $this->assertSame('│   └── close=fake_close', $lines[2]);
+        // Close lines carry their type: the child's first, then the root's.
+        $this->assertSame('│   └── fake_close', $lines[3]);
+        $this->assertSame('└── container_close', $lines[4]);
     }
 }

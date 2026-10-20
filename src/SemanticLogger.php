@@ -25,30 +25,25 @@ use function iterator_to_array;
  * @psalm-import-type DiagnosticData from Types
  * @psalm-import-type DiagnosticKind from Types
  * @psalm-import-type EventEntryList from Types
+ * @psalm-import-type LogRecordList from Types
  * @psalm-import-type LogSessionArray from Types
- * @psalm-import-type LogTree from Types
- * @psalm-import-type OpenCloseEntryList from Types
  * @psalm-import-type SchemaLinks from Types
  * @psalm-import-type TypeCounts from Types
  */
 final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 {
-    /** @var EventEntryList */
-    private array $events = [];
+    /** @var LogRecordList Opens and events in record order. */
+    private array $records = [];
+
+    /** @var EventEntryList Closes in record order. */
+    private array $closes = [];
 
     /** @var SplStack<OpenCloseEntry> */
     private SplStack $openStack;
 
-    /** @var EventEntryList Close entries in chronological close order. */
-    private array $closeLog = [];
-
-    /** @var OpenCloseEntryList Completed opens in chronological close order; each carries the parentId captured at open time. */
-    private array $completedOperations = [];
-
     /** @var TypeCounts */
     private array $typeCounts = [];
     private readonly ContextFreezer $contextFreezer;
-    private readonly LogTreeBuilder $logTreeBuilder;
 
     public function __construct()
     {
@@ -56,7 +51,6 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         $openStack = new SplStack();
         $this->openStack = $openStack;
         $this->contextFreezer = new ContextFreezer();
-        $this->logTreeBuilder = new LogTreeBuilder();
     }
 
     #[Override]
@@ -64,15 +58,15 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     {
         $frozen = $this->contextFreezer->freeze($context, 'open');
         $operationId = $this->nextId($frozen['type']);
-        $parentId = $this->openStack->isEmpty() ? null : $this->openStack->top()->id;
-        $this->openStack->push(new OpenCloseEntry(
+        $open = new OpenCloseEntry(
             $operationId,
             $frozen['type'],
             $frozen['schemaUrl'],
             $frozen['context'],
-            [],
-            $parentId,
-        ));
+            $this->currentOpenId(),
+        );
+        $this->openStack->push($open);
+        $this->records[] = $open;
         if ($frozen['diagnostic'] !== null) {
             $frozen['diagnostic']['relatedId'] = $operationId;
             $this->recordDiagnostic($frozen['diagnostic'], $operationId);
@@ -86,8 +80,8 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     {
         $frozen = $this->contextFreezer->freeze($context, 'event');
         $eventId = $this->nextId($frozen['type']);
-        $currentOpenId = $this->openStack->isEmpty() ? null : $this->openStack->top()->id;
-        $this->events[] = new EventEntry(
+        $currentOpenId = $this->currentOpenId();
+        $this->records[] = new EventEntry(
             $eventId,
             $frozen['type'],
             $frozen['schemaUrl'],
@@ -130,31 +124,32 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 
         $frozen = $this->contextFreezer->freeze($context, 'close');
         $closeId = $this->nextId($frozen['type']);
-        $completedOpen = $this->openStack->pop();
-        $this->completedOperations[] = $completedOpen;
-        $this->closeLog[] = new EventEntry(
+        $this->openStack->pop();
+        // A close-time diagnostic belongs inside the scope the close ends.
+        if ($frozen['diagnostic'] !== null) {
+            $frozen['diagnostic']['relatedId'] = $openId;
+            $this->recordDiagnostic($frozen['diagnostic'], $openId);
+        }
+
+        $this->closes[] = new EventEntry(
             $closeId,
             $frozen['type'],
             $frozen['schemaUrl'],
             $frozen['context'],
             $openId,
         );
-        if ($frozen['diagnostic'] !== null) {
-            $frozen['diagnostic']['relatedId'] = $openId;
-            $this->recordDiagnostic($frozen['diagnostic'], $openId);
-        }
     }
 
     #[Override]
     public function jsonSerialize(): mixed
     {
-        return $this->createLogJson()->toArray();
+        return $this->snapshot()->toArray();
     }
 
     /** @return LogSessionArray */
     public function toArray(): array
     {
-        return $this->createLogJson()->toArray();
+        return $this->snapshot()->toArray();
     }
 
     /** @param SchemaLinks $links */
@@ -162,94 +157,29 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     public function flush(array $links = []): LogJson
     {
         try {
-            if (! $this->hasSession()) {
-                return $this->emptyLog($links);
+            if (! $this->openStack->isEmpty()) {
+                $this->recordDiagnostic($this->unclosedDiagnostic(), null);
             }
 
-            if ($this->openStack->isEmpty()) {
-                return $this->buildCompletedLog($links);
-            }
-
-            $this->recordDiagnostic($this->unclosedDiagnostic(), null);
-
-            return $this->buildLiveLog($links);
+            return new LogJson(CoreSchema::LOG_URL, $this->records, $this->closes, $links);
         } finally {
             $this->resetState();
         }
     }
 
-    private function createLogJson(): LogJson
+    /** Non-destructive view of the session; an unclosed session gets a preview of the flush-time diagnostic. */
+    private function snapshot(): LogJson
     {
-        if (! $this->hasSession()) {
-            return $this->emptyLog();
+        $records = $this->records;
+        if (! $this->openStack->isEmpty()) {
+            $records[] = $this->diagnosticEntry(
+                $this->unclosedDiagnostic(),
+                null,
+                $this->previewId(CoreSchema::DIAGNOSTIC_TYPE),
+            );
         }
 
-        if ($this->openStack->isEmpty()) {
-            return $this->buildCompletedLog();
-        }
-
-        // Non-destructive preview of the unclosed diagnostic for snapshots.
-        $diagnostic = $this->diagnosticEntry(
-            $this->unclosedDiagnostic(),
-            null,
-            $this->previewId(CoreSchema::DIAGNOSTIC_TYPE),
-        );
-        $events = $this->events;
-        $events[] = $diagnostic;
-
-        return $this->buildLiveLog([], $events);
-    }
-
-    /**
-     * @param SchemaLinks    $links
-     * @param EventEntryList $events
-     */
-    private function buildCompletedLog(array $links = [], array|null $events = null): LogJson
-    {
-        $tree = $this->logTreeBuilder->completed($this->completedOperations, $this->closeLog);
-
-        return $this->logFromTree($tree, $links, $events);
-    }
-
-    /**
-     * @param SchemaLinks    $links
-     * @param EventEntryList $events
-     */
-    private function buildLiveLog(array $links = [], array|null $events = null): LogJson
-    {
-        $tree = $this->logTreeBuilder->includingLive($this->completedOperations, $this->openStack, $this->closeLog);
-
-        return $this->logFromTree($tree, $links, $events);
-    }
-
-    /**
-     * @param LogTree        $tree
-     * @param SchemaLinks    $links
-     * @param EventEntryList $events
-     */
-    private function logFromTree(array $tree, array $links, array|null $events): LogJson
-    {
-        return new LogJson(
-            CoreSchema::LOG_URL,
-            $tree['open'],
-            $tree['close'],
-            $events ?? $this->events,
-            $links,
-        );
-    }
-
-    /** @param SchemaLinks $links */
-    private function emptyLog(array $links = []): LogJson
-    {
-        return new LogJson(CoreSchema::LOG_URL, [], [], [], $links);
-    }
-
-    private function hasSession(): bool
-    {
-        return $this->completedOperations !== []
-            || ! $this->openStack->isEmpty()
-            || $this->events !== []
-            || $this->closeLog !== [];
+        return new LogJson(CoreSchema::LOG_URL, $records, $this->closes);
     }
 
     private function resetState(): void
@@ -257,10 +187,14 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         /** @var SplStack<OpenCloseEntry> $openStack */
         $openStack = new SplStack();
         $this->openStack = $openStack;
-        $this->closeLog = [];
-        $this->completedOperations = [];
-        $this->events = [];
+        $this->records = [];
+        $this->closes = [];
         $this->typeCounts = [];
+    }
+
+    private function currentOpenId(): string|null
+    {
+        return $this->openStack->isEmpty() ? null : $this->openStack->top()->id;
     }
 
     private function nextId(string $type): string
@@ -278,7 +212,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     /** @param DiagnosticData $diagnostic */
     private function recordDiagnostic(array $diagnostic, string|null $openId): void
     {
-        $this->events[] = $this->diagnosticEntry($diagnostic, $openId);
+        $this->records[] = $this->diagnosticEntry($diagnostic, $openId);
     }
 
     /** @param DiagnosticData $diagnostic */

@@ -41,11 +41,12 @@ namespace Koriym\SemanticLogger;
  *
  * Runtime collection types
  * @psalm-type EventEntryList = list<EventEntry>
- * @psalm-type OpenCloseEntryList = list<OpenCloseEntry>
- * @psalm-type OpenChildrenByParent = array<string, list<OpenCloseEntry>>
+ * @psalm-type LogRecord = OpenCloseEntry|EventEntry
+ * @psalm-type LogRecordList = list<LogRecord>
+ * @psalm-type RecordsByScope = array<string, LogRecordList>
  * @psalm-type CloseByOpenIdMap = array<string, EventEntry>
- * @psalm-type EventsByOpenIdMap = array<string, list<EventEntry>>
  * @psalm-type OperationIdSet = array<OperationId, true>
+ * @psalm-type ParentByOpenId = array<OperationId, OperationId>
  * @psalm-type TypeCounts = array<LogType, int>
  * @psalm-type SchemaTypeMap = array<LogType, string>
  * @psalm-type DiagnosticKind = 'context_serialization_failed'|'close_without_open'|'close_id_mismatch'|'unclosed_at_flush'
@@ -63,10 +64,6 @@ namespace Koriym\SemanticLogger;
  *     context: ContextData,
  *     diagnostic: DiagnosticData|null
  * }
- * @psalm-type LogTree = array{
- *     open: OpenCloseEntryList,
- *     close: EventEntryList
- * }
  *
  * Serialized log entry types
  * @psalm-type EventEntryArray = array{
@@ -75,7 +72,6 @@ namespace Koriym\SemanticLogger;
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
  *     openId?: OperationId,
- *     close?: list<JsonMap>,
  *     profile?: OperationProfileData
  * }
  * @psalm-type OpenCloseEntryArray = array{
@@ -83,38 +79,41 @@ namespace Koriym\SemanticLogger;
  *     id: OperationId,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
- *     open?: list<JsonMap>
+ *     parentId?: OperationId
  * }
  * @psalm-type PublicEventEntry = array{
- *     type: LogType,
+ *     kind: 'event',
  *     id: OperationId,
+ *     type: LogType,
  *     schemaUrl: SchemaUrl,
- *     context: ContextData,
- *     openId?: OperationId
+ *     context: ContextData
  * }
  * @psalm-type PublicCloseEntry = array{
- *     type: LogType,
  *     id: OperationId,
+ *     type: LogType,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
  *     openId?: OperationId,
  *     profile?: OperationProfileData
  * }
  * @psalm-type PublicOpenEntry = array{
- *     type: LogType,
+ *     kind: 'open',
  *     id: OperationId,
+ *     type: LogType,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
- *     events?: list<PublicEventEntry>,
- *     close?: PublicCloseEntry,
- *     open?: list<JsonMap>
+ *     children: list<JsonMap>,
+ *     close?: PublicCloseEntry
  * }
- * @psalm-type CloseEntryArray = PublicCloseEntry
+ * @psalm-type PublicEntry = PublicOpenEntry|PublicEventEntry
+ * @psalm-type PublicLogTree = array{
+ *     entries: list<PublicEntry>,
+ *     close: list<PublicCloseEntry>
+ * }
  * @psalm-type LogSessionArray = array{
  *     '$schema': SchemaUrl,
- *     open: list<PublicOpenEntry>,
- *     events?: list<PublicEventEntry>,
- *     close?: array<array-key, PublicCloseEntry>,
+ *     entries: list<PublicEntry>,
+ *     close?: list<PublicCloseEntry>,
  *     links?: SchemaLinks
  * }
  *

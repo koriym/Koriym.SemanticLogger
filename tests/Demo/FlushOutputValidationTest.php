@@ -68,4 +68,25 @@ final class FlushOutputValidationTest extends TestCase
 
         $this->assertTrue($validator->isValid(), 'Flush output should validate against semantic-log.json');
     }
+
+    public function testFlushNestsEventAndCloseUnderOpenInRecordOrder(): void
+    {
+        $logger = new SemanticLogger();
+        $openId = $logger->open(new FakeContext('open', 1));
+        $logger->event(new FakeContext('event', 2));
+        $logger->close(new FakeContext('close', 3), $openId);
+
+        $log = $logger->flush()->toArray();
+
+        $this->assertArrayNotHasKey('close', $log);
+        $this->assertCount(1, $log['entries']);
+        $open = $log['entries'][0];
+        $this->assertSame('open', $open['kind']);
+        $this->assertCount(1, $open['children']);
+        $this->assertSame('event', $open['children'][0]['kind']);
+        $this->assertArrayNotHasKey('openId', $open['children'][0]);
+        $close = $open['close'] ?? null;
+        $this->assertIsArray($close);
+        $this->assertArrayNotHasKey('openId', $close);
+    }
 }

@@ -8,12 +8,13 @@ use Koriym\SemanticLogger\EventEntry;
 use Koriym\SemanticLogger\LogJson;
 use Koriym\SemanticLogger\OpenCloseEntry;
 
+use function array_filter;
 use function str_ends_with;
 use function strlen;
 use function substr;
 
 /**
- * Aggregates LogJson tree structure into flat request/response pairs
+ * Aggregates the recorded opens and closes into flat request/response pairs
  */
 final class RequestResponseAggregator
 {
@@ -24,25 +25,11 @@ final class RequestResponseAggregator
      */
     public function aggregate(LogJson $logJson): array
     {
+        $opens = array_filter($logJson->records, static fn ($record): bool => $record instanceof OpenCloseEntry);
+
         $pairs = [];
-
-        // Extract all open operations from nested structure
-        $openOperations = [];
-        foreach ($logJson->open as $rootOpen) {
-            $this->extractOpenOperations($rootOpen, $openOperations);
-        }
-
-        // Extract all close operations from nested structure
-        $closeOperations = [];
-        foreach ($logJson->close as $rootClose) {
-            $this->extractCloseOperations($rootClose, $closeOperations);
-        }
-
-        // Match open and close operations by base operation ID
-        // For type-based IDs like "validation_1" and "validation_complete_1",
-        // we need to find logical pairs
-        foreach ($openOperations as $open) {
-            foreach ($closeOperations as $close) {
+        foreach ($opens as $open) {
+            foreach ($logJson->closes as $close) {
                 if ($this->isMatchingPair($open, $close)) {
                     $pairs[] = new RequestResponsePair($open, $close);
                     break;
@@ -51,34 +38,6 @@ final class RequestResponseAggregator
         }
 
         return $pairs;
-    }
-
-    /**
-     * Recursively extract all open operations from nested structure
-     *
-     * @param array<int, OpenCloseEntry> $operations
-     */
-    private function extractOpenOperations(OpenCloseEntry $open, array &$operations): void
-    {
-        $operations[] = $open;
-
-        foreach ($open->open as $child) {
-            $this->extractOpenOperations($child, $operations);
-        }
-    }
-
-    /**
-     * Recursively extract all close operations from nested structure
-     *
-     * @param array<int, EventEntry> $operations
-     */
-    private function extractCloseOperations(EventEntry $close, array &$operations): void
-    {
-        $operations[] = $close;
-
-        foreach ($close->close as $child) {
-            $this->extractCloseOperations($child, $operations);
-        }
     }
 
     /**

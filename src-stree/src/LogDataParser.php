@@ -16,6 +16,11 @@ use function is_array;
 use function is_numeric;
 use function is_scalar;
 
+/**
+ * Builds the render tree from the public log shape. A log with exactly one
+ * root open and no orphan close renders from that open; anything else gets a
+ * synthetic forest root so every root entry sits flush-left.
+ */
 final class LogDataParser
 {
     private int $orphanCloseSequence = 0;
@@ -25,324 +30,126 @@ final class LogDataParser
     {
         $this->orphanCloseSequence = 0;
 
-        if (! array_key_exists('open', $logData) || ! is_array($logData['open'])) {
-            throw new RuntimeException('Invalid log data: missing open section');
+        if (! array_key_exists('entries', $logData) || ! is_array($logData['entries'])) {
+            throw new RuntimeException('Invalid log data: missing entries section');
         }
 
-        /** @var list<array<string, mixed>> $openList */
-        $openList = $logData['open'];
+        $entries = $this->arrayItems($logData['entries']);
+        $orphanCloses = isset($logData['close']) && is_array($logData['close']) ? $this->arrayItems($logData['close']) : [];
 
-        $rootNode = count($openList) === 1
-            ? $this->parseOpenEntry($openList[0])
-            : $this->createForestRoot($openList);
-        $rootNode = $this->wrapSingleRootWithForestRootWhenDiagnosticsExist($rootNode, $logData);
-
-        // Merge close entries into their matching open nodes by openId.
-        if (array_key_exists('close', $logData) && is_array($logData['close'])) {
-            /** @var list<array<string, mixed>> $closeList */
-            $closeList = $logData['close'];
-            foreach ($closeList as $closeEntry) {
-                $this->attachSingleClose($rootNode, $closeEntry);
-            }
+        if (count($entries) === 1 && $orphanCloses === [] && $this->isOpen($entries[0])) {
+            return $this->parseOpen($entries[0], null);
         }
 
-        // Add events as leaf nodes
-        if (array_key_exists('events', $logData) && is_array($logData['events'])) {
-            /** @var array<string, mixed>[] $events */
-            $events = $logData['events'];
-            $this->attachEvents($rootNode, $events);
-        }
-
-        return $rootNode;
-    }
-
-    /** @param list<array<string, mixed>> $openList */
-    private function createForestRoot(array $openList): TreeNode
-    {
         $forestRoot = TreeNode::synthetic('__forest__', '__forest__', []);
-        foreach ($openList as $openEntry) {
-            $forestRoot->addChild($this->parseOpenEntry($openEntry, $forestRoot));
+        $this->attachChildren($forestRoot, $entries);
+        foreach ($orphanCloses as $closeEntry) {
+            $forestRoot->addChild($this->createOrphanCloseNode($closeEntry, $forestRoot));
         }
 
         return $forestRoot;
     }
 
-    /** @param array<string, mixed> $logData */
-    private function wrapSingleRootWithForestRootWhenDiagnosticsExist(TreeNode $rootNode, array $logData): TreeNode
-    {
-        if ($rootNode->isSynthetic || ! $this->hasDetachedTopLevelDiagnostics($rootNode, $logData)) {
-            return $rootNode;
-        }
-
-        $forestRoot = TreeNode::synthetic('__forest__', '__forest__', []);
-        $forestRoot->addChild($rootNode);
-
-        return $forestRoot;
-    }
-
-    /** @param array<string, mixed> $logData */
-    private function hasDetachedTopLevelDiagnostics(TreeNode $rootNode, array $logData): bool
-    {
-        return $this->hasDetachedTopLevelCloses($rootNode, $logData)
-            || $this->hasDetachedTopLevelEvents($rootNode, $logData);
-    }
-
-    /** @param array<string, mixed> $logData */
-    private function hasDetachedTopLevelCloses(TreeNode $rootNode, array $logData): bool
-    {
-        if (! array_key_exists('close', $logData) || ! is_array($logData['close'])) {
-            return false;
-        }
-
-        $matchedCloseOpenIds = [];
-        foreach ($logData['close'] as $closeEntry) {
-            if (! is_array($closeEntry)) {
-                return true;
-            }
-
-            $closeEntry = $this->normalizeMap($closeEntry);
-            $payload = $this->extractClosePayload($closeEntry);
-            $openId = $payload['openId'];
-            if ($openId === null || $this->findNodeById($rootNode, $openId) === null) {
-                return true;
-            }
-
-            if (array_key_exists($openId, $matchedCloseOpenIds)) {
-                return true;
-            }
-
-            $matchedCloseOpenIds[$openId] = true;
-        }
-
-        return false;
-    }
-
-    /** @param array<string, mixed> $logData */
-    private function hasDetachedTopLevelEvents(TreeNode $rootNode, array $logData): bool
-    {
-        if (! array_key_exists('events', $logData) || ! is_array($logData['events'])) {
-            return false;
-        }
-
-        foreach ($logData['events'] as $event) {
-            if (! is_array($event)) {
-                return true;
-            }
-
-            $event = $this->normalizeMap($event);
-            /** @var mixed $rawOpenId */
-            $rawOpenId = $event['openId'] ?? null;
-            $openId = is_scalar($rawOpenId) ? (string) $rawOpenId : null;
-            if ($openId === null || $this->findNodeById($rootNode, $openId) === null) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     /**
-     * @param array<string, mixed> $closeEntry
+     * @param array<array-key, mixed> $items
      *
-     * @SuppressWarnings("PHPMD.NPathComplexity")
+     * @return list<array<string, mixed>>
      */
-    private function attachSingleClose(TreeNode $rootNode, array $closeEntry): void
+    private function arrayItems(array $items): array
     {
-        $this->applyClosePayload($rootNode, $this->extractClosePayload($closeEntry));
-        $this->attachNestedCloseEntries($rootNode, $closeEntry);
-    }
+        $result = [];
+        /** @var mixed $item */
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
 
-    /**
-     * @param array<string, mixed> $closeEntry
-     *
-     * @return array{
-     *     id: string|null,
-     *     openId: string|null,
-     *     type: string,
-     *     context: array<string, mixed>,
-     *     profile: array<string, mixed>
-     * }
-     */
-    private function extractClosePayload(array $closeEntry): array
-    {
-        /** @var mixed $rawOpenId */
-        $rawOpenId = $closeEntry['openId'] ?? null;
-        /** @var mixed $context */
-        $context = $closeEntry['context'] ?? [];
-        /** @var mixed $profile */
-        $profile = $closeEntry['profile'] ?? [];
-
-        if (! is_array($context)) {
-            $context = [];
+            $result[] = $this->normalizeMap($item);
         }
 
-        if (! is_array($profile)) {
-            $profile = [];
-        }
-
-        return [
-            'id' => is_scalar($closeEntry['id'] ?? null) ? (string) $closeEntry['id'] : null,
-            'openId' => is_scalar($rawOpenId) ? (string) $rawOpenId : null,
-            'type' => self::stringifyScalar($closeEntry['type'] ?? null, 'unknown'),
-            'context' => $this->normalizeMap($context),
-            'profile' => $this->normalizeMap($profile),
-        ];
+        return $result;
     }
 
-    private function resolveCloseTarget(TreeNode $rootNode, string|null $openId): TreeNode|null
+    /** @param array<string, mixed> $entry */
+    private function isOpen(array $entry): bool
     {
-        return $openId !== null ? $this->findNodeById($rootNode, $openId) : null;
+        return ($entry['kind'] ?? null) === 'open';
     }
 
-    /** @param array{id: string|null, openId: string|null, type: string, context: array<string, mixed>, profile: array<string, mixed>} $payload */
-    private function applyClosePayload(TreeNode $rootNode, array $payload): void
+    /** @param list<array<string, mixed>> $entries */
+    private function attachChildren(TreeNode $node, array $entries): void
     {
-        $node = $this->resolveCloseTarget($rootNode, $payload['openId']);
-        if ($node !== null) {
-            $node->setClose($payload['type'], $payload['context'], $payload['profile']);
-
-            return;
+        foreach ($entries as $entry) {
+            $node->addChild($this->isOpen($entry) ? $this->parseOpen($entry, $node) : $this->parseEvent($entry, $node));
         }
+    }
 
-        $rootNode->addChild(
-            $this->createOrphanCloseNode(
-                $payload['id'],
-                $payload['type'],
-                $payload['context'],
-                $payload['profile'],
-                $rootNode,
-            ),
+    /** @param array<string, mixed> $entry */
+    private function parseOpen(array $entry, TreeNode|null $parent): TreeNode
+    {
+        $context = $this->contextOf($entry);
+        $node = new TreeNode(
+            self::stringifyScalar($entry['id'] ?? null, 'unknown'),
+            self::stringifyScalar($entry['type'] ?? null, 'unknown'),
+            $context,
+            $this->extractExecutionTime($context),
+            $parent,
         );
-    }
 
-    /** @param array<string, mixed> $closeEntry */
-    private function attachNestedCloseEntries(TreeNode $rootNode, array $closeEntry): void
-    {
-        if (! array_key_exists('close', $closeEntry) || ! is_array($closeEntry['close'])) {
-            return;
+        if (array_key_exists('children', $entry) && is_array($entry['children'])) {
+            $this->attachChildren($node, $this->arrayItems($entry['children']));
         }
 
-        /** @var list<array<string, mixed>> $nested */
-        $nested = $closeEntry['close'];
-        foreach ($nested as $child) {
-            $this->attachSingleClose($rootNode, $child);
-        }
-    }
-
-    /** @param array<string, mixed> $openEntry */
-    private function parseOpenEntry(array $openEntry, TreeNode|null $parent = null): TreeNode
-    {
-        $id = self::stringifyScalar($openEntry['id'] ?? null, 'unknown');
-        $type = self::stringifyScalar($openEntry['type'] ?? null, 'unknown');
-        /** @var mixed $context */
-        $context = $openEntry['context'] ?? [];
-
-        if (! is_array($context)) {
-            $context = [];
-        }
-
-        // Extract execution time from context
-        /** @var array<string, mixed> $context */
-        $executionTime = $this->extractExecutionTime($context);
-
-        $node = new TreeNode($id, $type, $context, $executionTime, $parent);
-
-        if (array_key_exists('close', $openEntry) && is_array($openEntry['close'])) {
+        if (array_key_exists('close', $entry) && is_array($entry['close'])) {
             /** @var array<string, mixed> $closeEntry */
-            $closeEntry = $openEntry['close'];
-            $this->attachNestedCloseToNode($node, $closeEntry);
-        }
-
-        if (array_key_exists('events', $openEntry) && is_array($openEntry['events'])) {
-            /** @var list<array<string, mixed>> $events */
-            $events = $openEntry['events'];
-            $this->attachNestedEventsToNode($node, $events);
-        }
-
-        // Walk nested sibling children (list shape).
-        if (array_key_exists('open', $openEntry) && is_array($openEntry['open'])) {
-            /** @var list<array<string, mixed>> $children */
-            $children = $openEntry['open'];
-            foreach ($children as $childEntry) {
-                $node->addChild($this->parseOpenEntry($childEntry, $node));
-            }
+            $closeEntry = $entry['close'];
+            $node->setClose(
+                self::stringifyScalar($closeEntry['type'] ?? null, 'unknown'),
+                $this->contextOf($closeEntry),
+                $this->profileOf($closeEntry),
+            );
         }
 
         return $node;
     }
 
-    /** @param array<string, mixed> $closeEntry */
-    private function attachNestedCloseToNode(TreeNode $node, array $closeEntry): void
+    /** @param array<string, mixed> $entry */
+    private function parseEvent(array $entry, TreeNode $parent): TreeNode
     {
-        $type = self::stringifyScalar($closeEntry['type'] ?? null, 'unknown');
-        /** @var mixed $rawContext */
-        $rawContext = $closeEntry['context'] ?? [];
-        /** @var mixed $rawProfile */
-        $rawProfile = $closeEntry['profile'] ?? [];
-        if (! is_array($rawContext)) {
-            $rawContext = [];
-        }
-
-        if (! is_array($rawProfile)) {
-            $rawProfile = [];
-        }
-
-        /** @var array<string, mixed> $context */
-        $context = $rawContext;
-        /** @var array<string, mixed> $profile */
-        $profile = $rawProfile;
-        $node->setClose($type, $context, $profile);
-    }
-
-    /** @param list<array<string, mixed>> $events */
-    private function attachNestedEventsToNode(TreeNode $node, array $events): void
-    {
-        foreach ($events as $event) {
-            $eventId = self::stringifyScalar($event['id'] ?? null, 'unknown');
-            $eventType = self::stringifyScalar($event['type'] ?? null, 'unknown');
-            /** @var mixed $eventContext */
-            $eventContext = $event['context'] ?? [];
-            if (! is_array($eventContext)) {
-                $eventContext = [];
-            }
-
-            /** @var array<string, mixed> $eventContext */
-            $executionTime = $this->extractExecutionTime($eventContext);
-            $eventNode = new TreeNode($eventId, $eventType, $eventContext, $executionTime, $node);
-            $eventNode->isEvent = true;
-            $node->addChild($eventNode);
-        }
-    }
-
-    /**
-     * @param array<mixed> $context
-     * @param array<mixed> $profile
-     */
-    private function createOrphanCloseNode(
-        string|null $id,
-        string $type,
-        array $context,
-        array $profile,
-        TreeNode $parent,
-    ): TreeNode {
-        $normalizedContext = $this->normalizeMap($context);
+        $context = $this->contextOf($entry);
         $node = new TreeNode(
-            $this->orphanCloseId($id),
-            $type,
-            $normalizedContext,
-            $this->extractExecutionTime($normalizedContext),
+            self::stringifyScalar($entry['id'] ?? null, 'unknown'),
+            self::stringifyScalar($entry['type'] ?? null, 'unknown'),
+            $context,
+            $this->extractExecutionTime($context),
+            $parent,
+        );
+        $node->isEvent = true;
+
+        return $node;
+    }
+
+    /** @param array<string, mixed> $closeEntry */
+    private function createOrphanCloseNode(array $closeEntry, TreeNode $parent): TreeNode
+    {
+        $context = $this->contextOf($closeEntry);
+        $node = new TreeNode(
+            $this->orphanCloseId($closeEntry['id'] ?? null),
+            self::stringifyScalar($closeEntry['type'] ?? null, 'unknown'),
+            $context,
+            $this->extractExecutionTime($context),
             $parent,
         );
         $node->isOrphanClose = true;
-        $node->closeProfile = $this->normalizeMap($profile);
+        $node->closeProfile = $this->profileOf($closeEntry);
 
         return $node;
     }
 
-    private function orphanCloseId(string|null $id): string
+    private function orphanCloseId(mixed $id): string
     {
-        if ($id !== null && $id !== '') {
-            return $id;
+        if (is_scalar($id) && (string) $id !== '') {
+            return (string) $id;
         }
 
         $this->orphanCloseSequence++;
@@ -350,59 +157,30 @@ final class LogDataParser
         return 'orphan_close_' . (string) $this->orphanCloseSequence;
     }
 
-    /** @param array<string, mixed>[] $events */
-    private function attachEvents(TreeNode $rootNode, array $events): void
+    /**
+     * @param array<string, mixed> $entry
+     *
+     * @return array<string, mixed>
+     */
+    private function contextOf(array $entry): array
     {
-        foreach ($events as $event) {
-            $eventId = self::stringifyScalar($event['id'] ?? null, 'unknown');
-            $eventType = self::stringifyScalar($event['type'] ?? null, 'unknown');
-            /** @var mixed $eventContext */
-            $eventContext = $event['context'] ?? [];
-            /** @var mixed $rawOpenId */
-            $rawOpenId = $event['openId'] ?? null;
-            $openId = is_scalar($rawOpenId) ? (string) $rawOpenId : null;
+        /** @var mixed $context */
+        $context = $entry['context'] ?? [];
 
-            if (! is_array($eventContext)) {
-                $eventContext = [];
-            }
-
-            /** @var array<string, mixed> $eventContext */
-            $executionTime = $this->extractExecutionTime($eventContext);
-
-            $eventNode = new TreeNode($eventId, $eventType, $eventContext, $executionTime);
-            $eventNode->isEvent = true;
-
-            // Find the parent node by openId
-            $parentNode = $this->findNodeById($rootNode, $openId);
-            if ($parentNode !== null) {
-                $parentNode->addChild($eventNode);
-
-                continue;
-            }
-
-            // If no parent found, attach to root
-            $rootNode->addChild($eventNode);
-        }
+        return is_array($context) ? $this->normalizeMap($context) : [];
     }
 
-    private function findNodeById(TreeNode $node, string|null $id): TreeNode|null
+    /**
+     * @param array<string, mixed> $entry
+     *
+     * @return array<string, mixed>
+     */
+    private function profileOf(array $entry): array
     {
-        if ($id === null) {
-            return null;
-        }
+        /** @var mixed $profile */
+        $profile = $entry['profile'] ?? [];
 
-        if ($node->id === $id) {
-            return $node;
-        }
-
-        foreach ($node->children as $child) {
-            $found = $this->findNodeById($child, $id);
-            if ($found !== null) {
-                return $found;
-            }
-        }
-
-        return null;
+        return is_array($profile) ? $this->normalizeMap($profile) : [];
     }
 
     /** @param array<string, mixed> $context */

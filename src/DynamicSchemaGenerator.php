@@ -40,20 +40,16 @@ final class DynamicSchemaGenerator
             'title' => 'Dynamic Semantic Logger Schema',
             'description' => 'Auto-generated tree-oriented semantic log schema with type-based context validation',
             'type' => 'object',
-            'required' => ['$schema', 'open'],
+            'required' => ['$schema', 'entries'],
             'properties' => [
                 '$schema' => ['$ref' => '#/definitions/schemaUrl'],
-                'open' => [
+                'entries' => [
                     'type' => 'array',
-                    'items' => ['$ref' => '#/definitions/openEntry'],
+                    'items' => ['$ref' => '#/definitions/entry'],
                 ],
                 'close' => [
                     'type' => 'array',
                     'items' => ['$ref' => '#/definitions/closeEntry'],
-                ],
-                'events' => [
-                    'type' => 'array',
-                    'items' => ['$ref' => '#/definitions/eventEntry'],
                 ],
                 'links' => [
                     'type' => 'array',
@@ -81,16 +77,22 @@ final class DynamicSchemaGenerator
                 'openIdReference' => [
                     'type' => 'string',
                     'pattern' => '^[a-z_]+_[0-9]+$',
-                    'description' => 'References a parent operation ID',
+                    'description' => 'The id of the open an orphan close attempted to close',
                 ],
                 'contextType' => [
                     'type' => 'string',
                     'pattern' => '^[a-z_]+$',
                     'description' => 'Context type identifier; semantic_logger_* is reserved for core entries',
                 ],
+                'entry' => [
+                    'oneOf' => [
+                        ['$ref' => '#/definitions/openEntry'],
+                        ['$ref' => '#/definitions/eventEntry'],
+                    ],
+                ],
                 'openEntry' => $this->generateOpenEntrySchema($contextTypes),
-                'closeEntry' => $this->generateCloseEntrySchema($contextTypes),
                 'eventEntry' => $this->generateEventEntrySchema($contextTypes),
+                'closeEntry' => $this->generateCloseEntrySchema($contextTypes),
             ],
         ];
     }
@@ -134,21 +136,18 @@ final class DynamicSchemaGenerator
     {
         $schema = [
             'type' => 'object',
-            'required' => ['id', 'type', 'schemaUrl', 'context'],
+            'required' => ['kind', 'id', 'type', 'schemaUrl', 'context', 'children'],
             'properties' => [
+                'kind' => ['const' => 'open'],
                 'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
-                'events' => [
+                'children' => [
                     'type' => 'array',
-                    'items' => ['$ref' => '#/definitions/eventEntry'],
+                    'items' => ['$ref' => '#/definitions/entry'],
                 ],
                 'close' => ['$ref' => '#/definitions/closeEntry'],
-                'open' => [
-                    'type' => 'array',
-                    'items' => ['$ref' => '#/definitions/openEntry'],
-                ],
             ],
             'additionalProperties' => true,
         ];
@@ -201,12 +200,12 @@ final class DynamicSchemaGenerator
     {
         $schema = [
             'type' => 'object',
-            'required' => ['id', 'type', 'schemaUrl', 'context'],
+            'required' => ['kind', 'id', 'type', 'schemaUrl', 'context'],
             'properties' => [
+                'kind' => ['const' => 'event'],
                 'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
-                'openId' => ['$ref' => '#/definitions/openIdReference'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
             ],
             'additionalProperties' => true,
