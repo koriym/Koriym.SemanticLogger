@@ -7,6 +7,7 @@ namespace Koriym\SemanticLogger\Stree;
 use Koriym\SemanticLogger\Stree\Exception\RuntimeException;
 use PHPUnit\Framework\TestCase;
 
+use function array_map;
 use function json_encode;
 
 final class LogDataParserTest extends TestCase
@@ -292,6 +293,32 @@ final class LogDataParserTest extends TestCase
         $this->expectExceptionMessage('Invalid log data: missing entries section');
 
         (new LogDataParser())->parseLogData(['entries' => 'invalid']);
+    }
+
+    public function testNonArrayItemsAreSkipped(): void
+    {
+        $open = self::open('test_1', 'test_operation');
+        $open['children'] = ['x', self::event('event_1', 'test_event')];
+        $tree = (new LogDataParser())->parseLogData([
+            'entries' => [null, $open, 'invalid'],
+            'close' => [42, self::close('close_1')],
+        ]);
+
+        $this->assertTrue($tree->isSynthetic);
+        $this->assertCount(2, $tree->children);
+        $this->assertSame('test_1', $tree->children[0]->id);
+        $this->assertSame(['event_1'], array_map(static fn (TreeNode $node): string => $node->id, $tree->children[0]->children));
+        $this->assertTrue($tree->children[1]->isOrphanClose);
+    }
+
+    public function testEntriesKeyedByStringParseAsAList(): void
+    {
+        $tree = (new LogDataParser())->parseLogData([
+            'entries' => ['only' => self::open('test_1', 'test_operation')],
+        ]);
+
+        $this->assertFalse($tree->isSynthetic);
+        $this->assertSame('test_1', $tree->id);
     }
 
     public function testEventWithNonArrayContext(): void

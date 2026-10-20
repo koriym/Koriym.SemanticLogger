@@ -34,10 +34,8 @@ final class LogDataParser
             throw new RuntimeException('Invalid log data: missing entries section');
         }
 
-        /** @var list<array<string, mixed>> $entries */
-        $entries = $logData['entries'];
-        /** @var list<array<string, mixed>> $orphanCloses */
-        $orphanCloses = isset($logData['close']) && is_array($logData['close']) ? $logData['close'] : [];
+        $entries = $this->arrayItems($logData['entries']);
+        $orphanCloses = isset($logData['close']) && is_array($logData['close']) ? $this->arrayItems($logData['close']) : [];
 
         if (count($entries) === 1 && $orphanCloses === [] && $this->isOpen($entries[0])) {
             return $this->parseOpen($entries[0], null);
@@ -50,6 +48,26 @@ final class LogDataParser
         }
 
         return $forestRoot;
+    }
+
+    /**
+     * @param array<array-key, mixed> $items
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function arrayItems(array $items): array
+    {
+        $result = [];
+        /** @var mixed $item */
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $result[] = $this->normalizeMap($item);
+        }
+
+        return $result;
     }
 
     /** @param array<string, mixed> $entry */
@@ -79,9 +97,7 @@ final class LogDataParser
         );
 
         if (array_key_exists('children', $entry) && is_array($entry['children'])) {
-            /** @var list<array<string, mixed>> $children */
-            $children = $entry['children'];
-            $this->attachChildren($node, $children);
+            $this->attachChildren($node, $this->arrayItems($entry['children']));
         }
 
         if (array_key_exists('close', $entry) && is_array($entry['close'])) {
