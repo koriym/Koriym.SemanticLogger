@@ -177,7 +177,7 @@ final class DevLoggerTest extends TestCase
         $this->assertNotEquals($jsonFiles[0], $jsonFiles[1]);
     }
 
-    /** @return array{open: list<array<string, mixed>>} */
+    /** @return array{entries: list<array<string, mixed>>} */
     private function readLogData(string $file): array
     {
         $content = file_get_contents($file);
@@ -185,29 +185,30 @@ final class DevLoggerTest extends TestCase
         $data = json_decode($content, true);
         $this->assertIsArray($data);
         $this->assertArrayHasKey('$schema', $data);
-        $this->assertArrayHasKey('open', $data);
-        $openEntries = $data['open'];
-        $this->assertIsArray($openEntries);
+        $this->assertArrayHasKey('entries', $data);
+        $entries = $data['entries'];
+        $this->assertIsArray($entries);
 
-        $validatedOpenEntries = [];
-        foreach ($openEntries as $openEntry) {
-            $this->assertIsArray($openEntry);
-            $validatedOpenEntries[] = $this->normalizeEntry($openEntry);
+        $validatedEntries = [];
+        foreach ($entries as $entry) {
+            $this->assertIsArray($entry);
+            $validatedEntries[] = $this->normalizeEntry($entry);
         }
 
-        return ['open' => $validatedOpenEntries];
+        return ['entries' => $validatedEntries];
     }
 
     /**
-     * @param array{open: list<array<string, mixed>>} $data
+     * @param array{entries: list<array<string, mixed>>} $data
      *
      * @return array<string, mixed>
      */
     private function firstOpenEntry(array $data): array
     {
-        $this->assertNotEmpty($data['open']);
+        $this->assertNotEmpty($data['entries']);
+        $this->assertSame('open', $data['entries'][0]['kind']);
 
-        return $data['open'][0];
+        return $data['entries'][0];
     }
 
     /**
@@ -217,19 +218,18 @@ final class DevLoggerTest extends TestCase
      */
     private function firstChildOpenEntry(array $entry): array
     {
-        $this->assertArrayHasKey('open', $entry);
-        $children = $entry['open'];
+        $this->assertArrayHasKey('children', $entry);
+        $children = $entry['children'];
         $this->assertIsArray($children);
 
-        $validatedChildren = [];
         foreach ($children as $child) {
             $this->assertIsArray($child);
-            $validatedChildren[] = $this->normalizeEntry($child);
+            if (($child['kind'] ?? null) === 'open') {
+                return $this->normalizeEntry($child);
+            }
         }
 
-        $this->assertNotEmpty($validatedChildren);
-
-        return $validatedChildren[0];
+        $this->fail('Expected a nested open entry.');
     }
 
     /**

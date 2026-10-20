@@ -1,7 +1,8 @@
 {
     "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-    "open": [
+    "entries": [
         {
+            "kind": "open",
             "id": "http_request_1",
             "type": "http_request",
             "schemaUrl": "./schemas/http_request.json",
@@ -15,8 +16,9 @@
                 "userAgent": "SimpleApp/1.0.0",
                 "clientIp": "127.0.0.1"
             },
-            "open": [
+            "children": [
                 {
+                    "kind": "open",
                     "id": "business_logic_1",
                     "type": "business_logic",
                     "schemaUrl": "./schemas/business_logic.json",
@@ -34,34 +36,9 @@
                         },
                         "success": true
                     },
-                    "open": [
+                    "children": [
                         {
-                            "id": "database_connection_1",
-                            "type": "database_connection",
-                            "schemaUrl": "./schemas/database_connection.json",
-                            "context": {
-                                "driver": "postgresql",
-                                "host": "db.example.com",
-                                "database": "users_db",
-                                "connectionTime": 0.005
-                            },
-                            "open": [
-                                {
-                                    "id": "database_query_1",
-                                    "type": "complex_query",
-                                    "schemaUrl": "./schemas/complex_query.json",
-                                    "context": {
-                                        "queryType": "INSERT",
-                                        "table": "users",
-                                        "executionTime": 0.015,
-                                        "affectedRows": 1
-                                    }
-                                }
-                            ]
-                        }
-                    ],
-                    "events": [
-                        {
+                            "kind": "event",
                             "id": "cache_operation_1",
                             "type": "cache_operation",
                             "schemaUrl": "./schemas/cache_operation.json",
@@ -73,6 +50,7 @@
                             }
                         },
                         {
+                            "kind": "event",
                             "id": "external_api_1",
                             "type": "external_api_request",
                             "schemaUrl": "./schemas/external_api_request.json",
@@ -83,6 +61,33 @@
                                 "statusCode": 200,
                                 "responseTime": 0.045
                             }
+                        },
+                        {
+                            "kind": "open",
+                            "id": "database_connection_1",
+                            "type": "database_connection",
+                            "schemaUrl": "./schemas/database_connection.json",
+                            "context": {
+                                "driver": "postgresql",
+                                "host": "db.example.com",
+                                "database": "users_db",
+                                "connectionTime": 0.005
+                            },
+                            "children": [
+                                {
+                                    "kind": "open",
+                                    "id": "database_query_1",
+                                    "type": "complex_query",
+                                    "schemaUrl": "./schemas/complex_query.json",
+                                    "context": {
+                                        "queryType": "INSERT",
+                                        "table": "users",
+                                        "executionTime": 0.015,
+                                        "affectedRows": 1
+                                    },
+                                    "children": []
+                                }
+                            ]
                         }
                     ]
                 }

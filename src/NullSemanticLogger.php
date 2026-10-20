@@ -43,6 +43,6 @@ final class NullSemanticLogger implements SemanticLoggerInterface
     {
         $this->sequence = 0;
 
-        return new LogJson(CoreSchema::LOG_URL, [], [], [], $links);
+        return new LogJson(CoreSchema::LOG_URL, [], [], $links);
     }
 }

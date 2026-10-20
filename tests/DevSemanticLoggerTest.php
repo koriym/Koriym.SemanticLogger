@@ -70,7 +70,7 @@ final class DevSemanticLoggerTest extends TestCase
         $close = $this->firstSerializedClose($array);
 
         $this->assertArrayNotHasKey('profile', $array, 'top-level profile must not exist');
-        $this->assertArrayHasKey('open', $array);
+        $this->assertArrayHasKey('entries', $array);
         $this->assertArrayNotHasKey('profile', $close);
     }
 
@@ -143,9 +143,17 @@ final class DevSemanticLoggerTest extends TestCase
         $this->logger->event(new FakeContext('mid'));
         $this->logger->close(new FakeContext('end'), $openId);
 
-        $logJson = $this->logger->flush();
+        $entries = $this->logger->flush()->toArray()['entries'];
 
-        $this->assertCount(1, $logJson->events);
+        $this->assertCount(1, $entries);
+        $open = $entries[0];
+        if ($open['kind'] !== 'open') {
+            $this->fail('Expected an open entry.');
+        }
+
+        $this->assertCount(1, $open['children']);
+        $this->assertSame('event', $open['children'][0]['kind']);
+        $this->assertSame('mid', $this->messageOf($open['children'][0]));
     }
 
     public function testFlushResetsState(): void
@@ -158,10 +166,10 @@ final class DevSemanticLoggerTest extends TestCase
         $this->logger->close(new FakeContext('done'), $id2);
         $second = $this->logger->flush();
 
-        $this->assertCount(1, $first->close);
-        $this->assertCount(1, $second->close);
-        $this->assertSame($id1, $first->close[0]->openId);
-        $this->assertSame($id2, $second->close[0]->openId);
+        $this->assertCount(1, $first->closes);
+        $this->assertCount(1, $second->closes);
+        $this->assertSame($id1, $first->closes[0]->openId);
+        $this->assertSame($id2, $second->closes[0]->openId);
     }
 
     public function testDevStateIsResetEvenWhenInnerFlushThrows(): void
@@ -312,9 +320,9 @@ final class DevSemanticLoggerTest extends TestCase
      */
     private function firstSerializedClose(array $serializedLog): array
     {
-        $openEntries = $serializedLog['open'] ?? null;
-        if (is_array($openEntries)) {
-            foreach ($openEntries as $entry) {
+        $entries = $serializedLog['entries'] ?? null;
+        if (is_array($entries)) {
+            foreach ($entries as $entry) {
                 if (! is_array($entry)) {
                     continue;
                 }
@@ -323,17 +331,6 @@ final class DevSemanticLoggerTest extends TestCase
                 if ($close !== null) {
                     return $close;
                 }
-            }
-        }
-
-        $closeEntries = $serializedLog['close'] ?? null;
-        if (is_array($closeEntries)) {
-            foreach ($closeEntries as $entry) {
-                if (! is_array($entry)) {
-                    continue;
-                }
-
-                return $this->normalizeSerializedEntry($entry);
             }
         }
 
@@ -352,7 +349,7 @@ final class DevSemanticLoggerTest extends TestCase
             return $this->normalizeSerializedEntry($close);
         }
 
-        $children = $entry['open'] ?? null;
+        $children = $entry['children'] ?? null;
         if (! is_array($children)) {
             return null;
         }
@@ -388,6 +385,15 @@ final class DevSemanticLoggerTest extends TestCase
         }
 
         return $normalized;
+    }
+
+    /** @param array<string, mixed> $entry */
+    private function messageOf(array $entry): mixed
+    {
+        $context = $entry['context'] ?? null;
+        $this->assertIsArray($context);
+
+        return $context['message'] ?? null;
     }
 
     /**

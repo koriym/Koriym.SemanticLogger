@@ -12,48 +12,26 @@
     }
   ],
   "type": "object",
-  "required": ["$schema"],
+  "required": [
+    "$schema",
+    "entries"
+  ],
   "properties": {
     "$schema": {
       "$ref": "#/definitions/schemaUrl"
     },
-    "open": {
+    "entries": {
       "type": "array",
-      "description": "Top-level root operations in chronological order. Each entry may carry nested child opens, nested events, and its matching close. An empty array is a valid empty session.",
-      "items": { "$ref": "#/definitions/openEntry" }
+      "description": "Root-scope entries in record order: opens (each carrying its own children and matching close) and events. An empty array is a valid empty session.",
+      "items": {
+        "$ref": "#/definitions/entry"
+      }
     },
     "close": {
       "type": "array",
-      "description": "Top-level orphan close entries that could not be nested under a matching open entry.",
-      "items": { "$ref": "#/definitions/closeEntry" }
-    },
-    "events": {
-      "type": "array",
-      "description": "Top-level root-scope or orphan events that could not be nested under a matching open entry.",
+      "description": "Orphan close entries: closes whose open is not in this document, or duplicate closes of an open that was already closed. Each keeps its openId.",
       "items": {
-        "type": "object",
-        "required": ["id", "type", "schemaUrl", "context"],
-        "properties": {
-          "id": {
-            "$ref": "#/definitions/operationId"
-          },
-          "type": {
-            "type": "string", 
-            "description": "Application-defined event type (e.g., cache_operation, database_query, external_api)"
-          },
-          "schemaUrl": {
-            "$ref": "#/definitions/schemaUrl"
-          },
-          "openId": {
-            "$ref": "#/definitions/openIdReference"
-          },
-          "context": {
-            "type": "object",
-            "description": "Application-specific event data conforming to the referenced schema",
-            "additionalProperties": true
-          }
-        },
-        "additionalProperties": true
+        "$ref": "#/definitions/closeEntry"
       }
     },
     "links": {
@@ -80,13 +58,16 @@
             "description": "Media type hint for the linked resource"
           }
         },
-        "required": ["rel", "href"],
+        "required": [
+          "rel",
+          "href"
+        ],
         "additionalProperties": true
       },
       "examples": [
         {
           "rel": "related",
-          "href": "#/events/0", 
+          "href": "#/entries/0/children/0",
           "title": "Cache operation within this request"
         },
         {
@@ -99,51 +80,85 @@
   },
   "additionalProperties": false,
   "definitions": {
+    "entry": {
+      "description": "One child of a scope, in record order. `kind` tells an open (which carries its own children and close) from an event.",
+      "oneOf": [
+        {
+          "$ref": "#/definitions/openEntry"
+        },
+        {
+          "$ref": "#/definitions/eventEntry"
+        }
+      ]
+    },
     "openEntry": {
       "type": "object",
-      "description": "Application-defined open context with optional nested child opens, nested events, and its matching close.",
-      "required": ["id", "type", "schemaUrl", "context"],
+      "description": "Application-defined open context. Its events and nested opens are listed together in `children` in the order they were recorded; its matching close, if any, is nested in `close`.",
+      "required": [
+        "kind",
+        "id",
+        "type",
+        "schemaUrl",
+        "context",
+        "children"
+      ],
       "properties": {
-        "id": { "$ref": "#/definitions/operationId" },
+        "kind": {
+          "const": "open"
+        },
+        "id": {
+          "$ref": "#/definitions/operationId"
+        },
         "type": {
           "type": "string",
           "description": "Application-defined context type (e.g., http_request, database_query, business_logic)"
         },
-        "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
+        "schemaUrl": {
+          "$ref": "#/definitions/schemaUrl"
+        },
         "context": {
           "type": "object",
           "description": "Application-specific context data conforming to the referenced schema",
           "additionalProperties": true
         },
-        "events": {
+        "children": {
           "type": "array",
-          "description": "Events that occurred while this operation was active.",
-          "items": { "$ref": "#/definitions/eventEntry" }
+          "description": "Events and nested opens recorded while this operation was active, in record order.",
+          "items": {
+            "$ref": "#/definitions/entry"
+          }
         },
         "close": {
           "$ref": "#/definitions/closeEntry",
-          "description": "The matching close entry for this open operation. Omitted when the operation is unclosed."
-        },
-        "open": {
-          "type": "array",
-          "description": "Nested child operations in chronological order.",
-          "items": { "$ref": "#/definitions/openEntry" }
+          "description": "The close that ended this operation. Omitted when the operation is unclosed."
         }
       },
       "additionalProperties": true
     },
     "eventEntry": {
       "type": "object",
-      "description": "Application-defined event context. Nested events omit openId because scope is implied by structural placement; top-level orphan/root events may still carry openId for diagnostics.",
-      "required": ["id", "type", "schemaUrl", "context"],
+      "description": "Application-defined event context. Its scope is the open it is listed under; root-scope events are listed in the top-level entries.",
+      "required": [
+        "kind",
+        "id",
+        "type",
+        "schemaUrl",
+        "context"
+      ],
       "properties": {
-        "id": { "$ref": "#/definitions/operationId" },
+        "kind": {
+          "const": "event"
+        },
+        "id": {
+          "$ref": "#/definitions/operationId"
+        },
         "type": {
           "type": "string",
-          "description": "Application-defined event type"
+          "description": "Application-defined event type (e.g., cache_operation, database_query, external_api)"
         },
-        "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
-        "openId": { "$ref": "#/definitions/openIdReference" },
+        "schemaUrl": {
+          "$ref": "#/definitions/schemaUrl"
+        },
         "context": {
           "type": "object",
           "description": "Application-specific event data conforming to the referenced schema",
@@ -154,16 +169,27 @@
     },
     "closeEntry": {
       "type": "object",
-      "description": "Application-defined close context. Nested matched closes omit openId because the matching open is implied by structural placement; orphan closes may still carry openId for diagnostics.",
-      "required": ["id", "type", "schemaUrl", "context"],
+      "description": "Application-defined close context. A matched close is nested on its open and omits openId; an orphan close in the top-level close list keeps openId.",
+      "required": [
+        "id",
+        "type",
+        "schemaUrl",
+        "context"
+      ],
       "properties": {
-        "id": { "$ref": "#/definitions/operationId" },
+        "id": {
+          "$ref": "#/definitions/operationId"
+        },
         "type": {
           "type": "string",
           "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
         },
-        "schemaUrl": { "$ref": "#/definitions/schemaUrl" },
-        "openId": { "$ref": "#/definitions/openIdReference" },
+        "schemaUrl": {
+          "$ref": "#/definitions/schemaUrl"
+        },
+        "openId": {
+          "$ref": "#/definitions/openIdReference"
+        },
         "context": {
           "type": "object",
           "description": "Application-specific context data conforming to the referenced schema",
@@ -180,12 +206,16 @@
       "type": "string",
       "pattern": "^[a-z_]+_[0-9]+$",
       "description": "Unique operation identifier following semantic naming convention: {type}_{sequence_number}",
-      "examples": ["http_request_1", "database_query_3", "business_logic_2"]
+      "examples": [
+        "http_request_1",
+        "database_query_3",
+        "business_logic_2"
+      ]
     },
     "openIdReference": {
       "type": "string",
       "pattern": "^[a-z_]+_[0-9]+$",
-      "description": "References a parent operation ID for hierarchical correlation - establishes position within operation tree. Creates parent-child relationships enabling complete request flow analysis and performance attribution"
+      "description": "The id of the open an orphan close attempted to close."
     },
     "contextType": {
       "type": "string",
@@ -194,7 +224,9 @@
     "operationProfile": {
       "type": "object",
       "description": "Observed profiling data for a single operation (open/close pair). The profile object is emitted only when external profiler output was captured.",
-      "required": ["wallTime"],
+      "required": [
+        "wallTime"
+      ],
       "properties": {
         "wallTime": {
           "type": "number",
@@ -206,7 +238,9 @@
           "description": "Per-segment Xdebug trace file references captured while this operation was active. Omitted when no Xdebug trace output was captured.",
           "items": {
             "type": "object",
-            "required": ["path"],
+            "required": [
+              "path"
+            ],
             "properties": {
               "path": {
                 "type": "string",
@@ -221,7 +255,9 @@
           "description": "Per-segment XHProf snapshot file references captured while this operation was active. Omitted when no XHProf output was captured.",
           "items": {
             "type": "object",
-            "required": ["path"],
+            "required": [
+              "path"
+            ],
             "properties": {
               "path": {
                 "type": "string",

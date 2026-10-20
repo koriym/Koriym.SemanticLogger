@@ -123,13 +123,10 @@ final class DevSemanticLogger implements SemanticLoggerInterface
                 $operations[$id] = $profile;
             }
 
-            $closeWithProfile = $this->attachProfilesToCloses($logJson->close, $operations);
-
             return new LogJson(
                 $logJson->schemaUrl,
-                $logJson->open,
-                $closeWithProfile,
-                $logJson->events,
+                $logJson->records,
+                $this->attachProfilesToCloses($logJson->closes, $operations),
                 $logJson->links,
             );
         } finally {
@@ -156,9 +153,6 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     }
 
     /**
-     * Walk the close tree and, at each node, attach the matching OperationProfile
-     * directly to that close entry when external profiler output was captured.
-     *
      * @param EventEntryList        $closes
      * @param OperationProfilesById $operations
      *
@@ -168,15 +162,8 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     {
         $result = [];
         foreach ($closes as $close) {
-            $withNested = $close->withClose($this->attachProfilesToCloses($close->close, $operations));
-
-            if ($close->openId !== null && isset($operations[$close->openId])) {
-                $result[] = $withNested->withProfile($operations[$close->openId]);
-
-                continue;
-            }
-
-            $result[] = $withNested;
+            $profile = $close->openId !== null ? $operations[$close->openId] ?? null : null;
+            $result[] = $profile === null ? $close : $close->withProfile($profile);
         }
 
         return $result;
