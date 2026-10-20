@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `ContextFreezer` no longer turns whole-number floats (e.g. `0.0`, `2250.0`) into `int` when freezing a context; `JSON_PRESERVE_ZERO_FRACTION` is now set on the freeze-time `json_encode()` (#44).
+- stree's default (non-`--full`) rendering truncated long context values with a bare `…` and no indication of how much was cut, and cut byte-wise rather than character-wise — a multibyte string (e.g. Japanese text) could be truncated into an invalid UTF-8 sequence, or truncated well short of the intended 40-character limit since byte length overcounts a multibyte string's length. `SignalExtractor::formatValue()` now cuts by character (`preg_match_all('/./su', ...)` to count, `preg_match()` to cut — PCRE's built-in UTF-8 mode, no new `ext-mbstring` dependency, and O(1) extra memory regardless of input size, unlike an earlier `preg_split()`-based version that materialized the whole string as a per-character array) and appends `...(+N)` with the exact count of characters dropped, matching the precedent already set elsewhere for this same class of bug (#52).
+- `SignalExtractor::formatArray()`'s partial-overflow budget (`joinWithOverflow()`) measured the same 40-character limit with `strlen()`, so a list/assoc array of multibyte values hit the overflow cutoff — and rendered "+N items" — far earlier than the character limit implies, same overcount class as the truncation bug above. Now shares the character-counted `charLength()` helper (#52).
 
 ### Removed
 - `LogJson::toTreeArray()`, `LogJson::$open` / `$events` / `$close`, and the `OpenChildrenByParent` / `EventsByOpenIdMap` / `LogTree` type aliases.

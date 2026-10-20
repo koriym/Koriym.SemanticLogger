@@ -8,6 +8,8 @@ use PHPUnit\Framework\TestCase;
 
 use function array_map;
 use function explode;
+use function preg_match;
+use function str_repeat;
 use function strlen;
 
 final class SignalExtractorTest extends TestCase
@@ -139,8 +141,31 @@ final class SignalExtractorTest extends TestCase
         $result = $this->extractor->formatValue($longString);
 
         $this->assertIsString($result);
-        $this->assertStringContainsString('…', $result);
-        $this->assertLessThanOrEqual(41 + 3, strlen($result));
+        // The count of dropped characters, not a bare ellipsis: a cut value must be
+        // distinguishable from one that happened to end exactly at the limit.
+        $this->assertStringContainsString('...(+' . (strlen($longString) - 40) . ')', $result);
+        $this->assertLessThanOrEqual(40 + strlen('...(+99)'), strlen($result));
+    }
+
+    public function testStringTruncationCutsByCharacterNotByte(): void
+    {
+        // A byte-wise cut can split a multibyte character into an invalid UTF-8 sequence.
+        $longString = str_repeat('あ', 50); // 50 characters, 150 bytes
+        $result = $this->extractor->formatValue($longString);
+
+        $this->assertIsString($result);
+        $this->assertNotFalse(preg_match('//u', $result), 'truncation must not produce invalid UTF-8');
+        $this->assertStringContainsString('...(+10)', $result);
+    }
+
+    public function testShortMultibyteStringIsNotTruncated(): void
+    {
+        // Byte length can exceed MAX_STRING_LENGTH while character length does not — a
+        // byte-wise length check would wrongly truncate this 23-character, 63-byte string.
+        $str = str_repeat('あ', 20) . 'END';
+        $result = $this->extractor->formatValue($str);
+
+        $this->assertSame($str, $result);
     }
 
     public function testScalarArrayInline(): void
@@ -168,6 +193,27 @@ final class SignalExtractorTest extends TestCase
         $this->assertIsString($result);
         $this->assertStringStartsWith('[alpha', $result);
         $this->assertStringContainsString(' items]', $result);
+    }
+
+    public function testArrayPartialOverflowBudgetIsCharWiseNotByteWise(): void
+    {
+        // Twelve 2-character Japanese words, 6 bytes each: a byte-wise budget keeps only
+        // 5 before the 40-byte cap trips, where the 40-character budget keeps 10.
+        $arr = ['日本', '中国', '韓国', '米国', '英国', '仏国', '独国', '露国', '豪州', '蘭国', '伊国', '西国'];
+        $result = $this->extractor->formatValue($arr);
+
+        $this->assertSame('[日本, 中国, 韓国, 米国, 英国, 仏国, 独国, 露国, 豪州, 蘭国 +2 items]', $result);
+    }
+
+    public function testArrayUnderCharBudgetStaysFullyInlineDespiteByteOverflow(): void
+    {
+        // Four 3-character Japanese words: 18 characters, under the 40-character budget,
+        // but 42 bytes joined — over a byte-wise 40 budget. A byte-wise check would wrongly
+        // send this to the overflow branch; the fix renders it fully inline.
+        $arr = ['東京都', '大阪府', '愛知県', '福岡県'];
+        $result = $this->extractor->formatValue($arr);
+
+        $this->assertSame('[東京都, 大阪府, 愛知県, 福岡県]', $result);
     }
 
     public function testAssocArrayPartialOverflowShowsKeys(): void
