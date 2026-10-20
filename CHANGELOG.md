@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.10.0] - 2026-10-20
 
 ### Changed
 - **BREAKING — one ordered `entries` tree.** The public document replaces root `open` / `events` with `entries`, and each open's `open` / `events` lists with a single `children` list in record order. Every entry carries `kind` (`open` | `event`); `close` stays nested on its open and is absent while unclosed; root `close` holds orphan closes only. Nested events and closes no longer carry `openId`. The envelope schema requires `["$schema", "entries"]` and defines `entry` as `oneOf(openEntry, eventEntry)` keyed on `kind`. See [MIGRATION.md](MIGRATION.md).
