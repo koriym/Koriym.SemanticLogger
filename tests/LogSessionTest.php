@@ -141,6 +141,18 @@ final class LogSessionTest extends TestCase
         $this->assertSame([], $this->children($array['entries'][0]));
     }
 
+    public function testOpensInAParentCycleArePlacedAtTheRootWithTheirRecords(): void
+    {
+        $records = [$this->open('a_1', 'b_1'), $this->open('b_1', 'a_1'), $this->event('note_1', 'a_1')];
+
+        $array = (new LogJson(self::SCHEMA, $records, [$this->close('end_1', 'b_1')]))->toArray();
+
+        $this->assertSame(['a_1', 'b_1'], $this->ids($array['entries']));
+        $this->assertSame(['note_1'], $this->ids($this->children($array['entries'][0])));
+        $this->assertSame('end_1', $array['entries'][1]['close']['id'] ?? null);
+        $this->assertArrayNotHasKey('close', $array);
+    }
+
     public function testLinksArePresentOnlyWhenNotEmpty(): void
     {
         $links = [['rel' => 'source', 'href' => 'https://example.com/source']];

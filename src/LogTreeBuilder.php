@@ -13,6 +13,7 @@ namespace Koriym\SemanticLogger;
  * @psalm-import-type EventEntryList from Types
  * @psalm-import-type LogRecordList from Types
  * @psalm-import-type OperationIdSet from Types
+ * @psalm-import-type ParentByOpenId from Types
  * @psalm-import-type PublicCloseEntry from Types
  * @psalm-import-type PublicEntry from Types
  * @psalm-import-type PublicEventEntry from Types
@@ -68,8 +69,10 @@ final class LogTreeBuilder
     }
 
     /**
-     * A record whose scope is not an open in this log, or an open that names
-     * itself as parent, is placed at the root.
+     * An open goes under its parent only when the parent chain reaches the
+     * root; otherwise (unknown parent, self-parent, parent cycle) it goes to
+     * the root. Every open is therefore reachable, so an event goes under its
+     * scope whenever that scope is an open in this log.
      *
      * @param LogRecordList  $records
      * @param OperationIdSet $openIds
@@ -78,14 +81,71 @@ final class LogTreeBuilder
      */
     private function groupByScope(array $records, array $openIds): array
     {
+        $parentOf = $this->parentOf($records, $openIds);
         $recordsByScope = [];
         foreach ($records as $record) {
-            $scopeId = $record instanceof OpenCloseEntry ? $record->parentId : $record->openId;
-            $key = $scopeId !== null && $scopeId !== $record->id && isset($openIds[$scopeId]) ? $scopeId : '';
-            $recordsByScope[$key][] = $record;
+            $recordsByScope[$this->scopeKey($record, $openIds, $parentOf)][] = $record;
         }
 
         return $recordsByScope;
+    }
+
+    /**
+     * @param OperationIdSet $openIds
+     * @param ParentByOpenId $parentOf
+     */
+    private function scopeKey(OpenCloseEntry|EventEntry $record, array $openIds, array $parentOf): string
+    {
+        if ($record instanceof OpenCloseEntry) {
+            $parentId = $parentOf[$record->id] ?? null;
+
+            return $parentId !== null && $this->reachesRoot($parentId, $parentOf) ? $parentId : '';
+        }
+
+        $openId = $record->openId;
+
+        return $openId !== null && isset($openIds[$openId]) ? $openId : '';
+    }
+
+    /**
+     * @param LogRecordList  $records
+     * @param OperationIdSet $openIds
+     *
+     * @return ParentByOpenId Only parents that are opens in this log, never the open itself.
+     */
+    private function parentOf(array $records, array $openIds): array
+    {
+        $parentOf = [];
+        foreach ($records as $record) {
+            if (! $record instanceof OpenCloseEntry) {
+                continue;
+            }
+
+            $parentId = $record->parentId;
+            if ($parentId === null || $parentId === $record->id || ! isset($openIds[$parentId])) {
+                continue;
+            }
+
+            $parentOf[$record->id] = $parentId;
+        }
+
+        return $parentOf;
+    }
+
+    /** @param ParentByOpenId $parentOf */
+    private function reachesRoot(string $id, array $parentOf): bool
+    {
+        $seen = [];
+        while (isset($parentOf[$id])) {
+            if (isset($seen[$id])) {
+                return false;
+            }
+
+            $seen[$id] = true;
+            $id = $parentOf[$id];
+        }
+
+        return true;
     }
 
     /**
