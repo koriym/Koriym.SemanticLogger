@@ -4,13 +4,13 @@
 Failures and protocol misuse become core-owned diagnostic entries in the log
 itself, and quality gates move to the reading side (the validator and CI).
 
-## Unreleased: one ordered `entries` tree
+## 0.10.0: one ordered `entries` tree
 
 The public document no longer splits a scope into `open` and `events` lists.
 Each scope is one `children` list in record order, every entry says what it is
 with `kind`, and the root list is `entries`.
 
-| 0.9 | Unreleased |
+| 0.9 | 0.10.0 |
 |---|---|
 | root `open` + root `events` | root `entries`, each item `kind: "open"` or `kind: "event"` |
 | `open[].open` + `open[].events` | `entries[].children` — events and nested opens interleaved as recorded |
