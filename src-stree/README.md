@@ -67,7 +67,7 @@ echo $log->render(new TreeRenderer());                              // compact t
 echo $log->render(new TreeRenderer(new RenderConfig(true, 0.0, 5))); // full tree
 ```
 
-You can also render a plain `{open, close, events}` array directly, without a `LogJson`:
+You can also render a plain `{entries, close}` array directly, without a `LogJson`:
 
 ```php
 echo (new TreeRenderer())->renderTree($logData);

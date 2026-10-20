@@ -23,7 +23,7 @@ final class TreeNode
     public array $closeProfile = [];
     public string|null $closeType = null;
 
-    /** Whether this node was produced from the events section */
+    /** Whether this node is an event (a leaf in its scope's children) */
     public bool $isEvent = false;
 
     /** Whether this node was produced from a top-level or unmatched close entry */
