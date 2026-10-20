@@ -71,13 +71,15 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 
 **EventEntry / OpenCloseEntry** (`src/EventEntry.php`, `src/OpenCloseEntry.php`)
 - Immutable value objects for log entries
-- `EventEntry` represents events and matched `close` nodes (including nested close children and attached profile data)
-- `OpenCloseEntry` represents `open` operations and carries its child opens plus the `parentId` captured at open time
+- Flat records as recorded: `EventEntry` is an event or a close (`openId` = the scope it was recorded in, or the open it ended; `profile` for closes), `OpenCloseEntry` is an open with the `parentId` captured at open time
+
+**LogTreeBuilder** (`src/LogTreeBuilder.php`)
+- Turns the flat record list into the public tree: one `children` list per open in record order, the first close for an open nested on it, every other close an orphan
 
 **LogJson** (`src/LogJson.php`)
 - Immutable structured log output
-- Implements JsonSerializable; public tree shape nests child opens, scoped events, and matching `close` under each `open`
-- Top-level `events` / `close` arrays are reserved for root-scope or orphan diagnostics
+- Implements JsonSerializable; holds `records` (opens and events) and `closes`, and builds the public tree in `toArray()`
+- Root `close` appears only for orphan closes
 
 **DevLogger / DevSemanticLogger** (`src/DevLogger.php`, `src/DevSemanticLogger.php`)
 - Development-time helpers that flush the logger and write `semantic-dev-*.json` to disk
@@ -130,9 +132,9 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Returns immutable LogJson object
 
 **Tree-shaped Public JSON**
-- `flush()` returns a tree: each `open` node carries its own nested child opens, scoped events, and its matching `close`
-- Normal results are read from paths like `$log['open'][0]['close']`, not a separate top-level close list
-- Top-level `events` / `close` arrays exist only for root-scope or orphan diagnostics; consumers should treat the tree as the source of truth
+- `flush()` returns a tree: root `entries`, each entry with `kind` (`open` | `event`); each `open` carries `children` (events and nested opens in record order) and its matching `close`
+- Normal results are read from paths like `$log['entries'][0]['close']`; nested entries carry no `openId`
+- Root `close` exists only for orphan closes; consumers should treat the tree as the source of truth
 
 **Profiler Integration Pattern**
 - Profiler output is modeled as immutable value objects under `src/Profiler/` (`OperationProfile`, `XdebugTrace`, `XHProfResult`, `PhpProfile`)

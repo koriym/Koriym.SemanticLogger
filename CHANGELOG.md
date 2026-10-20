@@ -8,11 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **BREAKING — one ordered `entries` tree.** The public document replaces root `open` / `events` with `entries`, and each open's `open` / `events` lists with a single `children` list in record order. Every entry carries `kind` (`open` | `event`); `close` stays nested on its open and is absent while unclosed; root `close` holds orphan closes only. Nested events and closes no longer carry `openId`. The envelope schema requires `["$schema", "entries"]` and defines `entry` as `oneOf(openEntry, eventEntry)` keyed on `kind`. See [MIGRATION.md](MIGRATION.md).
+- **BREAKING — flat records in `LogJson`.** `new LogJson($schemaUrl, $records, $closes = [], $links = [])`: `$records` is the list of `OpenCloseEntry` / `EventEntry` in record order, `$closes` the list of closes. `OpenCloseEntry` (`id, type, schemaUrl, context, parentId`) and `EventEntry` (`id, type, schemaUrl, context, openId, profile`) are flat value objects; `LogTreeBuilder` builds the public tree from them.
+- **BREAKING (stree)** — `LogDataParser` reads `entries` / `children` / `kind`; a document without `entries` throws `RuntimeException('Invalid log data: missing entries section')`.
 - stree compact close line now leads with the close TYPE (`└── cache_hit layer=resource`) and is shown even when no signal changed; `--full` mode labels the close branch `close <type>`.
 - **BREAKING (stree)** — `TreeNode::getCloseSignals()` is renamed to `TreeNode::getCloseLine()`. It returns the close type followed by the diff signals and is empty only when the node never closed.
 
 ### Fixed
 - `ContextFreezer` no longer turns whole-number floats (e.g. `0.0`, `2250.0`) into `int` when freezing a context; `JSON_PRESERVE_ZERO_FRACTION` is now set on the freeze-time `json_encode()` (#44).
+
+### Removed
+- `LogJson::toTreeArray()`, `LogJson::$open` / `$events` / `$close`, and the `OpenChildrenByParent` / `EventsByOpenIdMap` / `LogTree` type aliases.
 
 ## [0.9.0] - 2026-08-12
 
