@@ -11,9 +11,9 @@ use Override;
  * An open, as recorded. `parentId` is the open that was innermost at the time.
  *
  * @psalm-import-type ContextData from Types
- * @psalm-import-type OpenCloseEntryArray from Types
+ * @psalm-import-type OpenEntryArray from Types
  */
-final class OpenCloseEntry implements JsonSerializable
+final class OpenEntry implements JsonSerializable
 {
     /** @param ContextData $context */
     public function __construct(
@@ -25,7 +25,7 @@ final class OpenCloseEntry implements JsonSerializable
     ) {
     }
 
-    /** @return OpenCloseEntryArray */
+    /** @return OpenEntryArray */
     public function toArray(): array
     {
         $result = [

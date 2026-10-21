@@ -177,7 +177,7 @@ final class DevLoggerTest extends TestCase
         $this->assertNotEquals($jsonFiles[0], $jsonFiles[1]);
     }
 
-    /** @return array{entries: list<array<string, mixed>>} */
+    /** @return array{log: list<array<string, mixed>>} */
     private function readLogData(string $file): array
     {
         $content = file_get_contents($file);
@@ -185,30 +185,31 @@ final class DevLoggerTest extends TestCase
         $data = json_decode($content, true);
         $this->assertIsArray($data);
         $this->assertArrayHasKey('$schema', $data);
-        $this->assertArrayHasKey('entries', $data);
-        $entries = $data['entries'];
-        $this->assertIsArray($entries);
+        $this->assertArrayHasKey('log', $data);
+        $log = $data['log'];
+        $this->assertIsArray($log);
 
         $validatedEntries = [];
-        foreach ($entries as $entry) {
+        foreach ($log as $entry) {
             $this->assertIsArray($entry);
             $validatedEntries[] = $this->normalizeEntry($entry);
         }
 
-        return ['entries' => $validatedEntries];
+        return ['log' => $validatedEntries];
     }
 
     /**
-     * @param array{entries: list<array<string, mixed>>} $data
+     * @param array{log: list<array<string, mixed>>} $data
      *
      * @return array<string, mixed>
      */
     private function firstOpenEntry(array $data): array
     {
-        $this->assertNotEmpty($data['entries']);
-        $this->assertSame('open', $data['entries'][0]['kind']);
+        $this->assertNotEmpty($data['log']);
+        $root = $data['log'][0];
+        $this->assertTrue(isset($root['close']) || isset($root['log']));
 
-        return $data['entries'][0];
+        return $root;
     }
 
     /**
@@ -218,13 +219,13 @@ final class DevLoggerTest extends TestCase
      */
     private function firstChildOpenEntry(array $entry): array
     {
-        $this->assertArrayHasKey('children', $entry);
-        $children = $entry['children'];
+        $this->assertArrayHasKey('log', $entry);
+        $children = $entry['log'];
         $this->assertIsArray($children);
 
         foreach ($children as $child) {
             $this->assertIsArray($child);
-            if (($child['kind'] ?? null) === 'open') {
+            if (isset($child['close']) || isset($child['log'])) {
                 return $this->normalizeEntry($child);
             }
         }

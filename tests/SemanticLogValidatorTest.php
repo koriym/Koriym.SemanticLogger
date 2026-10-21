@@ -90,9 +90,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "open",
       "id": "being_final_open_1",
       "type": "being_final_open",
       "schemaUrl": "https://be-framework.org/schemas/being-final-open.json",
@@ -102,7 +101,7 @@ JSON,
         "input": {},
         "inject": {}
       },
-      "children": []
+      "log": []
     }
   ]
 }
@@ -120,9 +119,8 @@ JSON,
             $this->logFile,
             <<<'JSON'
 {
-  "entries": [
+  "log": [
     {
-      "kind": "open",
       "id": "being_final_open_1",
       "type": "being_final_open",
       "schemaUrl": "https://be-framework.org/schemas/being-final-open.json",
@@ -132,7 +130,7 @@ JSON,
         "input": {},
         "inject": {}
       },
-      "children": []
+      "log": []
     }
   ]
 }
@@ -152,9 +150,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "open",
       "id": "bad-id",
       "type": "being_final_open",
       "schemaUrl": "https://be-framework.org/schemas/being-final-open.json",
@@ -164,7 +161,7 @@ JSON,
         "input": {},
         "inject": {}
       },
-      "children": []
+      "log": []
     }
   ]
 }
@@ -172,7 +169,7 @@ JSON,
         );
 
         $this->expectException(RuntimeException::class);
-        $this->expectOutputRegex('/entries\[0\]\.id|regex pattern/');
+        $this->expectOutputRegex('/log\[0\]\.id|regex pattern/');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
@@ -184,9 +181,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "open",
       "id": "being_final_open_1",
       "type": "InvalidType",
       "schemaUrl": "https://be-framework.org/schemas/being-final-open.json",
@@ -196,7 +192,7 @@ JSON,
         "input": {},
         "inject": {}
       },
-      "children": []
+      "log": []
     }
   ]
 }
@@ -216,9 +212,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "event",
       "id": "semantic_logger_fake_1",
       "type": "semantic_logger_fake",
       "schemaUrl": "https://example.com/schemas/fake.json",
@@ -242,9 +237,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "open",
       "id": "being_final_open_1",
       "type": "being_final_open",
       "schemaUrl": "not-a-url",
@@ -254,7 +248,7 @@ JSON,
         "input": {},
         "inject": {}
       },
-      "children": []
+      "log": []
     }
   ]
 }
@@ -274,9 +268,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "open",
       "id": "being_final_open_1",
       "type": "being_final_open",
       "schemaUrl": "./schemas/being-final-open.json",
@@ -286,7 +279,7 @@ JSON,
         "input": {},
         "inject": {}
       },
-      "children": []
+      "log": []
     }
   ]
 }
@@ -294,6 +287,202 @@ JSON,
         );
 
         $this->expectOutputRegex('/All contexts validate successfully/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateAcceptsCompactFormWithTypesIndex(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "types": {
+    "being_final_open": "https://be-framework.org/schemas/being-final-open.json",
+    "being_final_close": "https://be-framework.org/schemas/being-final-close.json"
+  },
+  "log": [
+    {
+      "id": "being_final_open_1",
+      "type": "being_final_open",
+      "context": {
+        "from": "App\\Input\\OrderInput",
+        "final": "App\\Final\\OrderConfirmed",
+        "input": {},
+        "inject": {}
+      },
+      "close": {
+        "id": "being_final_close_2",
+        "type": "being_final_close",
+        "context": { "status": "done" }
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectOutputRegex('/All contexts validate successfully/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsSchemaUrlDisagreeingWithTypesIndex(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "types": {
+    "being_final_open": "https://be-framework.org/schemas/being-final-open.json"
+  },
+  "log": [
+    {
+      "id": "being_final_open_1",
+      "type": "being_final_open",
+      "schemaUrl": "https://example.com/schemas/different.json",
+      "context": {
+        "from": "App\\Input\\OrderInput",
+        "final": "App\\Final\\OrderConfirmed",
+        "input": {},
+        "inject": {}
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/point log\[0\]: schemaUrl .+ disagrees with types\[.being_final_open.\]/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsMissingSchemaResolution(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "log": [
+    {
+      "id": "being_final_open_1",
+      "type": "being_final_open",
+      "context": {
+        "from": "App\\Input\\OrderInput",
+        "final": "App\\Final\\OrderConfirmed",
+        "input": {},
+        "inject": {}
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/point log\[0\]: no schema for type being_final_open/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsTypeResolvingToMultipleSchemaUrls(): void
+    {
+        $first = $this->openEntry(['id' => 'being_final_open_1']);
+        unset($first['log']);
+        $second = $this->openEntry(['id' => 'being_final_open_2', 'schemaUrl' => 'https://example.com/schemas/being-final-open-v2.json']);
+        unset($second['log']);
+        $this->writeLog(['log' => [$first, $second]]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/point log\[1\]: type .being_final_open. already resolves to/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsDuplicateId(): void
+    {
+        $this->writeLog(['log' => [$this->openEntry(['close' => $this->closeEntry(['id' => 'being_final_open_1'])])]]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/close log\[0\]\.close: duplicate id .being_final_open_1./');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsDoubleCloseViaOrphan(): void
+    {
+        $this->writeLog([
+            'log' => [
+                $this->openEntry(['close' => $this->closeEntry()]),
+                $this->closeEntry(['id' => 'being_final_close_3', 'openId' => 'being_final_open_1']),
+            ],
+        ]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/orphan close log\[1\]: openId .being_final_open_1. matches an already-closed record: double close/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateWarnsOnInterruptedIntervalWithoutFailing(): void
+    {
+        $this->writeLog(['log' => [$this->openEntry()]]);
+
+        $this->expectOutputRegex('/interval log\[0\]: unclosed[\s\S]*All contexts validate successfully/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsKindField(): void
+    {
+        $record = $this->openEntry();
+        $record['kind'] = 'open';
+        $this->writeLog(['log' => [$record]]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/root:/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsNestedOpenId(): void
+    {
+        $child = $this->openEntry(['id' => 'being_final_open_2']);
+        $child['openId'] = 'bogus_1';
+        $outer = $this->openEntry(['log' => [$child]]);
+        $this->writeLog(['log' => [$outer]]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/root:/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsOrphanWithLog(): void
+    {
+        $orphan = $this->closeEntry(['openId' => 'missing_1']);
+        $orphan['log'] = [];
+        $this->writeLog(['log' => [$orphan]]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/root:/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
+    public function testValidateRejectsOrphanWithClose(): void
+    {
+        $orphan = $this->closeEntry(['openId' => 'missing_1']);
+        $orphan['close'] = $this->closeEntry(['id' => 'being_final_close_3']);
+        $this->writeLog(['log' => [$orphan]]);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/root:/');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
@@ -325,9 +514,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "event",
       "id": "semantic_logger_error_1",
       "type": "semantic_logger_error",
       "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json",
@@ -354,9 +542,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "event",
       "id": "semantic_logger_invalid_context_1",
       "type": "semantic_logger_invalid_context",
       "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-invalid-context.json",
@@ -389,9 +576,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "event",
       "id": "semantic_logger_error_1",
       "type": "semantic_logger_error",
       "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-invalid-context.json",
@@ -419,9 +605,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "event",
       "id": "semantic_logger_error_1",
       "type": "semantic_logger_error",
       "schemaUrl": "https://example.com/schemas/semantic-logger-error.json",
@@ -445,82 +630,70 @@ JSON,
     public function testValidateAcceptsNestedChildrenAndClose(): void
     {
         $child = $this->openEntry(['id' => 'being_final_open_2', 'close' => $this->closeEntry(['id' => 'being_final_close_3'])]);
-        $this->writeLog(['entries' => [$this->openEntry(['children' => [$child], 'close' => $this->closeEntry()])]]);
+        $this->writeLog(['log' => [$this->openEntry(['log' => [$child], 'close' => $this->closeEntry()])]]);
 
-        $this->expectOutputRegex('/entries\[0\]\.children\[0\]\.close \(being_final_close\)[\s\S]*entries\[0\]\.close \(being_final_close\)[\s\S]*All contexts validate successfully/');
+        $this->expectOutputRegex('/log\[0\]\.log\[0\]\.close \(being_final_close\)[\s\S]*log\[0\]\.close \(being_final_close\)[\s\S]*All contexts validate successfully/');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
 
     public function testValidateRejectsInvalidNestedChildContext(): void
     {
-        $event = $this->openEntry(['kind' => 'event', 'id' => 'being_final_open_2', 'context' => ['from' => 'A']]);
-        unset($event['children']);
-        $this->writeLog(['entries' => [$this->openEntry(['children' => [$event]])]]);
+        $event = $this->openEntry(['id' => 'being_final_open_2', 'context' => ['from' => 'A']]);
+        unset($event['log']);
+        $this->writeLog(['log' => [$this->openEntry(['log' => [$event]])]]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectOutputRegex('/\[entries\[0\]\.children\[0\]\.context \(being_final_open\)\]/');
+        $this->expectOutputRegex('/point log\[0\]\.log\[0\]\.context \(being_final_open\)/');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
 
     public function testValidateRejectsInvalidNestedCloseContext(): void
     {
-        $this->writeLog(['entries' => [$this->openEntry(['close' => $this->closeEntry(['context' => ['status' => 1]])])]]);
+        $this->writeLog(['log' => [$this->openEntry(['close' => $this->closeEntry(['context' => ['status' => 1]])])]]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectOutputRegex('/\[entries\[0\]\.close\.context \(being_final_close\)\]/');
+        $this->expectOutputRegex('/close log\[0\]\.close\.context \(being_final_close\)/');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
 
     public function testValidateAcceptsOrphanClose(): void
     {
-        $this->writeLog(['entries' => [], 'close' => [$this->closeEntry(['openId' => 'missing_open_1'])]]);
+        $this->writeLog(['log' => [$this->closeEntry(['openId' => 'missing_open_1'])]]);
 
-        $this->expectOutputRegex('/close\[0\] \(being_final_close\)[\s\S]*All contexts validate successfully/');
+        $this->expectOutputRegex('/log\[0\] \(being_final_close\)[\s\S]*All contexts validate successfully/');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
 
     public function testValidateRejectsInvalidOrphanCloseContext(): void
     {
-        $this->writeLog(['entries' => [], 'close' => [$this->closeEntry(['openId' => 'missing_open_1', 'context' => ['status' => 1]])]]);
+        $this->writeLog(['log' => [$this->closeEntry(['openId' => 'missing_open_1', 'context' => ['status' => 1]])]]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectOutputRegex('/\[close\[0\]\.context \(being_final_close\)\]/');
+        $this->expectOutputRegex('/orphan close log\[0\]\.context \(being_final_close\)/');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
 
     public function testValidateRejectsMissingContextSchema(): void
     {
-        $this->writeLog(['entries' => [$this->openEntry(['schemaUrl' => 'https://example.com/schemas/unknown.json'])]]);
+        $this->writeLog(['log' => [$this->openEntry(['schemaUrl' => 'https://example.com/schemas/unknown.json'])]]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectOutputRegex('/\[entries\[0\]\] Schema file not found: https:\/\/example\.com\/schemas\/unknown\.json/');
+        $this->expectOutputRegex('/interval log\[0\]: schema file not found: https:\/\/example\.com\/schemas\/unknown\.json/');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
 
-    public function testValidateRejectsMissingEntries(): void
+    public function testValidateRejectsMissingLog(): void
     {
         $this->writeLog([]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectOutputRegex('/entries/');
-        self::assertNotNull($this->validator);
-        $this->validator->validate($this->logFile, $this->schemaDirectory);
-    }
-
-    public function testValidateRejectsOpenEntryWithoutChildren(): void
-    {
-        $open = $this->openEntry();
-        unset($open['children']);
-        $this->writeLog(['entries' => [$open]]);
-
-        $this->expectException(RuntimeException::class);
-        $this->expectOutputRegex('/\[root\]/');
+        $this->expectOutputRegex('/log/');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
@@ -532,9 +705,8 @@ JSON,
             <<<'JSON'
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "open",
       "id": "being_final_open_1",
       "type": "being_final_open",
       "schemaUrl": "https://be-framework.org/schemas/being-final-open.json",
@@ -544,9 +716,8 @@ JSON,
         "input": {},
         "inject": {}
       },
-      "children": [
+      "log": [
         {
-          "kind": "event",
           "id": "semantic_logger_error_1",
           "type": "semantic_logger_error",
           "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json",
@@ -571,14 +742,22 @@ JSON,
      */
     private function openEntry(array $overrides = []): array
     {
-        return $overrides + [
-            'kind' => 'open',
+        $entry = $overrides + [
             'id' => 'being_final_open_1',
             'type' => 'being_final_open',
             'schemaUrl' => 'https://be-framework.org/schemas/being-final-open.json',
             'context' => ['from' => 'A', 'final' => 'B', 'input' => new stdClass(), 'inject' => new stdClass()],
-            'children' => [],
+            'log' => [],
         ];
+
+        // Writer rule: a closed interval with no children omits `log`. If the
+        // caller supplied `close` without its own `log`, drop the default
+        // empty array so the fixture matches real writer output.
+        if (isset($overrides['close']) && ! isset($overrides['log'])) {
+            unset($entry['log']);
+        }
+
+        return $entry;
     }
 
     /**

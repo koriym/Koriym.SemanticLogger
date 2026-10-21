@@ -4,19 +4,41 @@
 Failures and protocol misuse become core-owned diagnostic entries in the log
 itself, and quality gates move to the reading side (the validator and CI).
 
-## Unreleased: closes in the record list, diagnostic `code`
+## 0.10.0 → Unreleased: `log` replaces `entries`/`children`, `kind` is gone, orphans move inline
 
-The public JSON tree is unchanged. Two things move underneath it:
+The public document gets one key at every level and no discriminator field; the PHP value objects flatten closes into the record list.
+
+### Public JSON
 
 | 0.10.0 | Unreleased |
 |---|---|
+| root `entries`, every open's own `children` | root `log`, every interval's own `log` — one key at every level |
+| every entry carries `kind: "open"` / `kind: "event"` | no `kind` field; discriminate structurally: `close` present → completed interval, `log` present (maybe empty) with no `close` → interrupted interval, neither → point |
+| an open always carries `children` (even `[]`) regardless of close state | `log` is present whenever the interval is unclosed (even `[]`); omitted once closed if it has no children |
+| root `close[]` holds orphan closes, each `{id, type, schemaUrl, context, openId, profile?}` | no root `close[]`; an orphan close is a root record of the same shape, spliced into the root `log` at the position it was encountered (right after whichever root-scope record was being built at that moment) |
+| envelope `required: ["$schema", "entries"]`; `entry` is `oneOf(openEntry, eventEntry)` keyed on `kind` | `required: ["$schema", "log"]`; `rootRecord` is `oneOf(record, orphanClose)`, disjoint because `openId` is forbidden on `record` and required on `orphanClose` |
+| `schemaUrl` on every entry/close (only representation) | still always on every record/close from this writer (never a `types` index); readers additionally accept a document-level `types: {type: schemaUrl}` index with no per-record `schemaUrl` (the compact form) |
+| diagnostic context `kind` (`close_without_open`, …) | `code` |
+| `semantic_logger_error.json` / `semantic_logger_invalid_context.json` require `kind` | require `code` |
+
+### Validator and stree
+
+| 0.10.0 | Unreleased |
+|---|---|
+| validator paths `entries[i]`, `.children[j]` | `log[i]`, `.log[j]` (`.close` unchanged); messages name the structural kind |
+| validator: no check for an unresolved schema, duplicate `id`, or a double-close orphan | each is now a validator error; an interrupted interval (`log` without `close`) is a warning, not a failure, and does not participate in `--fail-on-diagnostics` |
+| stree: `LogDataParser` reads `entries` / `children` / `kind`; missing `entries` throws | reads `log`; kind derived structurally; missing `log` throws `RuntimeException('Invalid log data: missing log section')` |
+
+### PHP API
+
+| 0.10.0 | Unreleased |
+|---|---|
+| `OpenCloseEntry` | `OpenEntry` — it only ever held the open |
 | `new LogJson($schemaUrl, $records, $closes, $links)` | `new LogJson($schemaUrl, $records, $links)` — closes are records too, at the position they were recorded |
 | `$log->closes` | gone; filter `CloseEntry` instances from `$log->records` |
 | a close is an `EventEntry` with `openId` and `profile` | `CloseEntry(id, type, schemaUrl, context, openId, profile)` — `openId` is required |
 | `EventEntry(id, type, schemaUrl, context, openId, profile)` | `EventEntry(id, type, schemaUrl, context, openId)` — events never carried a profile in the output |
 | `LogTreeBuilder::build($records, $closes)` | `build($records)` |
-| diagnostic context `kind` (`close_without_open`, …) | `code` — `kind` now means only the entry kind (`open` / `event`) |
-| `semantic_logger_error.json` / `semantic_logger_invalid_context.json` require `kind` | require `code` |
 
 ## 0.10.0: one ordered `entries` tree
 

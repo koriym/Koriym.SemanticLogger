@@ -7,6 +7,7 @@ namespace Koriym\SemanticLogger;
 use PHPUnit\Framework\TestCase;
 
 use function array_column;
+use function array_map;
 use function assert;
 use function is_string;
 use function json_decode;
@@ -58,17 +59,14 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame('https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json', $logJson->schemaUrl);
 
         $array = $logJson->toArray();
-        $this->assertArrayNotHasKey('close', $array);
         $this->assertSame([
             [
-                'kind' => 'open',
                 'id' => 'process_start_1',
                 'type' => 'process_start',
                 'schemaUrl' => 'https://example.com/schemas/process_start.json',
                 'context' => ['message' => 'starting process', 'id' => 1],
-                'children' => [
+                'log' => [
                     [
-                        'kind' => 'event',
                         'id' => 'example_event_1',
                         'type' => 'example_event',
                         'schemaUrl' => 'https://example.com/schemas/example.json',
@@ -82,7 +80,7 @@ final class SemanticLoggerTest extends TestCase
                     'context' => ['result' => 'completed successfully'],
                 ],
             ],
-        ], $array['entries']);
+        ], $array['log']);
     }
 
     public function testSequentialSiblingsAreRecordedAsSiblings(): void
@@ -94,18 +92,18 @@ final class SemanticLoggerTest extends TestCase
         $second = $this->logger->open(new FakeContext('second', 3));
         $this->logger->close(new FakeContext('second done', 4), $second);
 
-        $entries = $this->logger->flush()->toArray()['entries'];
+        $log = $this->logger->flush()->toArray()['log'];
 
-        $this->assertCount(2, $entries, 'top-level opens should be siblings, not nested');
-        $this->assertSame($first, $entries[0]['id']);
-        $this->assertSame('first', $this->messageOf($entries[0]));
-        $this->assertSame([], $entries[0]['children'] ?? null);
-        $this->assertSame('first done', $this->messageOf($this->closeOf($entries[0])));
+        $this->assertCount(2, $log, 'top-level opens should be siblings, not nested');
+        $this->assertSame($first, $log[0]['id']);
+        $this->assertSame('first', $this->messageOf($log[0]));
+        $this->assertArrayNotHasKey('log', $log[0], 'closed open with no children omits log');
+        $this->assertSame('first done', $this->messageOf($this->closeOf($log[0])));
 
-        $this->assertSame($second, $entries[1]['id']);
-        $this->assertSame('second', $this->messageOf($entries[1]));
-        $this->assertSame([], $entries[1]['children'] ?? null);
-        $this->assertSame('second done', $this->messageOf($this->closeOf($entries[1])));
+        $this->assertSame($second, $log[1]['id']);
+        $this->assertSame('second', $this->messageOf($log[1]));
+        $this->assertArrayNotHasKey('log', $log[1]);
+        $this->assertSame('second done', $this->messageOf($this->closeOf($log[1])));
     }
 
     public function testOuterWithTwoSiblingInnersKeepsRealOrder(): void
@@ -120,11 +118,11 @@ final class SemanticLoggerTest extends TestCase
 
         $this->logger->close(new FakeContext('outer done', 6), $outer);
 
-        $entries = $this->logger->flush()->toArray()['entries'];
+        $log = $this->logger->flush()->toArray()['log'];
 
-        $this->assertCount(1, $entries);
-        $this->assertSame($outer, $entries[0]['id']);
-        $this->assertSame([$inner1, $inner2], array_column($this->childrenOf($entries[0]), 'id'));
+        $this->assertCount(1, $log);
+        $this->assertSame($outer, $log[0]['id']);
+        $this->assertSame([$inner1, $inner2], array_column($this->childrenOf($log[0]), 'id'));
     }
 
     public function testRecordOrderIsPreservedInChildren(): void
@@ -136,10 +134,10 @@ final class SemanticLoggerTest extends TestCase
         $this->logger->event(new FakeContext('e2', 5));
         $this->logger->close(new FakeContext('A done', 6), $a);
 
-        $entries = $this->logger->flush()->toArray()['entries'];
+        $log = $this->logger->flush()->toArray()['log'];
 
-        $children = $this->childrenOf($entries[0]);
-        $this->assertSame(['event', 'open', 'event'], array_column($children, 'kind'));
+        $children = $this->childrenOf($log[0]);
+        $this->assertSame(['event', 'open', 'event'], array_map($this->kindOf(...), $children));
         $this->assertSame('e1', $this->messageOf($children[0]));
         $this->assertSame($b, $children[1]['id']);
         $this->assertSame('B done', $this->messageOf($this->closeOf($children[1])));
@@ -158,7 +156,7 @@ final class SemanticLoggerTest extends TestCase
         $records = $this->logger->flush()->records;
 
         $this->assertCount(4, $records);
-        $this->assertInstanceOf(OpenCloseEntry::class, $records[0]);
+        $this->assertInstanceOf(OpenEntry::class, $records[0]);
         $this->assertInstanceOf(EventEntry::class, $records[1]);
         $this->assertInstanceOf(CloseEntry::class, $records[2]);
         $this->assertInstanceOf(EventEntry::class, $records[3]);
@@ -173,9 +171,8 @@ final class SemanticLoggerTest extends TestCase
         $this->logger->close(new FakeContext('outer finished', 4), $outerId);
 
         $array = $this->logger->flush()->toArray();
-        $outer = $array['entries'][0];
+        $outer = $array['log'][0];
 
-        $this->assertArrayNotHasKey('close', $array);
         $this->assertSame('example_event', $outer['type']);
         $this->assertSame('outer process', $this->messageOf($outer));
         $this->assertSame('outer finished', $this->messageOf($this->closeOf($outer)));
@@ -205,13 +202,13 @@ final class SemanticLoggerTest extends TestCase
 
         $preview = $this->logger->toArray();
         $this->assertSame($preview, $this->logger->toArray(), 'repeated previews must be identical');
-        $this->assertSame($openId, $preview['entries'][0]['id']);
+        $this->assertSame($openId, $preview['log'][0]['id']);
 
         $this->logger->close(new FakeContext('done', 3), $openId);
         $flushed = $this->logger->flush()->toArray();
 
-        $open = $flushed['entries'][0];
-        $this->assertCount(1, $flushed['entries']);
+        $open = $flushed['log'][0];
+        $this->assertCount(1, $flushed['log']);
         $this->assertSame($openId, $open['id']);
         $this->assertSame(['inside'], array_column(array_column($this->childrenOf($open), 'context'), 'message'));
         $this->assertSame('done', $this->messageOf($this->closeOf($open)));
@@ -227,7 +224,7 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame($preview, $flushed);
         $this->assertSame(
             'unclosed_at_flush',
-            $this->contextValue($this->unclosedDiagnostic($flushed['entries']), 'code'),
+            $this->contextValue($this->unclosedDiagnostic($flushed['log']), 'code'),
         );
     }
 
@@ -240,14 +237,14 @@ final class SemanticLoggerTest extends TestCase
         $this->logger->close(new FakeContext('parent complete', 500), $parentId);
 
         $array = $this->logger->flush()->toArray();
-        $parent = $array['entries'][0];
+        $parent = $array['log'][0];
         $child = $this->childrenOf($parent)[0];
         $event = $this->childrenOf($child)[0];
 
-        $this->assertArrayNotHasKey('close', $array);
         $this->assertSame($parentId, $parent['id']);
         $this->assertSame($childId, $child['id']);
-        $this->assertSame('event', $event['kind'] ?? null);
+        $this->assertArrayNotHasKey('log', $event);
+        $this->assertArrayNotHasKey('close', $event);
         $this->assertSame('child event', $this->messageOf($event));
         $this->assertArrayNotHasKey('openId', $event);
         $this->assertArrayNotHasKey('openId', $this->closeOf($parent));
@@ -296,10 +293,9 @@ final class SemanticLoggerTest extends TestCase
         $this->assertStringContainsString('schemas/semantic-log.json', $logJson->schemaUrl);
 
         $array = $logJson->toArray();
-        $root = $array['entries'][0];
+        $root = $array['log'][0];
         $close = $this->closeOf($root);
 
-        $this->assertSame('open', $root['kind']);
         $this->assertSame('example_event_1', $root['id']);
         $this->assertSame('example_event', $root['type']);
         $this->assertSame(['message' => 'test message', 'value' => 123], $root['context']);
@@ -308,7 +304,6 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame('example_event', $close['type']);
         $this->assertSame(['message' => 'test complete', 'value' => 456], $close['context']);
         $this->assertArrayNotHasKey('openId', $close);
-        $this->assertArrayNotHasKey('close', $array);
 
         $actualJson = json_encode($logJson, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
         $this->assertIsString($actualJson);
@@ -327,7 +322,7 @@ final class SemanticLoggerTest extends TestCase
         $this->assertStringContainsString('schemas/semantic-log.json', $logJson->schemaUrl);
 
         $array = $logJson->toArray();
-        $outer = $array['entries'][0];
+        $outer = $array['log'][0];
         $children = $this->childrenOf($outer);
         $inner = $children[0];
 
@@ -347,7 +342,6 @@ final class SemanticLoggerTest extends TestCase
         $this->assertSame('example_event_3', $innerClose['id']);
         $this->assertSame(['message' => 'inner done', 'value' => 300], $innerClose['context']);
         $this->assertArrayNotHasKey('openId', $innerClose);
-        $this->assertArrayNotHasKey('close', $array);
 
         $actualJson = json_encode($logJson, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
         $this->assertIsString($actualJson);
@@ -431,7 +425,7 @@ final class SemanticLoggerTest extends TestCase
         $this->assertCount(2, $logJson->links);
 
         $logArray = $logJson->toArray();
-        $children = $this->childrenOf($logArray['entries'][0]);
+        $children = $this->childrenOf($logArray['log'][0]);
         $this->assertCount(1, $children);
         $this->assertSame('processing step', $this->messageOf($children[0]));
         $this->assertSame($links, $logArray['links'] ?? null);
@@ -450,16 +444,16 @@ final class SemanticLoggerTest extends TestCase
         }
 
         $array = $this->logger->flush()->toArray();
-        $this->assertArrayNotHasKey('close', $array);
-        $this->assertCount(1, $array['entries']);
+        $this->assertCount(1, $array['log']);
 
-        $entry = $array['entries'][0];
+        $entry = $array['log'][0];
         for ($depth = 1; $depth <= 4; $depth++) {
             $this->assertSame("open {$depth}", $this->messageOf($entry));
             $this->assertSame("close {$depth}", $this->messageOf($this->closeOf($entry)));
             $children = $this->childrenOf($entry);
             if ($depth === 4) {
                 $this->assertSame([], $children);
+                $this->assertArrayNotHasKey('log', $entry, 'closed leaf with no children omits log');
                 break;
             }
 
@@ -475,7 +469,7 @@ final class SemanticLoggerTest extends TestCase
      */
     private function childrenOf(array $entry): array
     {
-        return $this->entryList($entry['children'] ?? null);
+        return $this->entryList($entry['log'] ?? []);
     }
 
     /**
@@ -489,6 +483,16 @@ final class SemanticLoggerTest extends TestCase
         $this->assertIsArray($close);
 
         return $this->stringKeyed($close);
+    }
+
+    /**
+     * Derived structurally: an interval carries `close` or `log`, a point carries neither.
+     *
+     * @param array<string, mixed> $entry
+     */
+    private function kindOf(array $entry): string
+    {
+        return isset($entry['close']) || isset($entry['log']) ? 'open' : 'event';
     }
 
     /** @param array<string, mixed> $entry */

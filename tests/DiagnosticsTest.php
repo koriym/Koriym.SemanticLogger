@@ -6,7 +6,7 @@ namespace Koriym\SemanticLogger;
 
 use PHPUnit\Framework\TestCase;
 
-use function array_column;
+use function array_map;
 use function dirname;
 use function file_put_contents;
 use function json_encode;
@@ -21,7 +21,7 @@ use const JSON_UNESCAPED_SLASHES;
  * become core-owned diagnostic entries — the logger never throws.
  *
  * @psalm-import-type DiagnosticData from Types
- * @psalm-import-type PublicEntry from Types
+ * @psalm-import-type PublicRecord from Types
  */
 final class DiagnosticsTest extends TestCase
 {
@@ -45,7 +45,7 @@ final class DiagnosticsTest extends TestCase
 
         $this->assertCount(1, $entries);
         $root = $entries[0];
-        $this->assertSame('open', $root['kind']);
+        $this->assertTrue($this->isIntervalShaped($root));
         $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $root['type']);
         $this->assertSame(CoreSchema::INVALID_CONTEXT_URL, $root['schemaUrl']);
         $context = $root['context'];
@@ -68,7 +68,7 @@ final class DiagnosticsTest extends TestCase
         $this->assertArrayHasKey('exceptionClass', $diagnostics[0]);
 
         // Topology: the child is nested under the placeholder, not re-parented.
-        $this->assertSame('open', $children[1]['kind']);
+        $this->assertTrue($this->isIntervalShaped($children[1]));
         $this->assertSame($childId, $children[1]['id']);
         $this->assertSame('child done', $this->closeOf($children[1])['context']['message']);
         $this->assertSame('broken done', $this->closeOf($root)['context']['message']);
@@ -86,7 +86,7 @@ final class DiagnosticsTest extends TestCase
 
         // Placeholder event, then the diagnostic recorded in the same scope.
         $this->assertCount(4, $entries);
-        $this->assertSame(['event', 'event', 'event', 'event'], array_column($entries, 'kind'));
+        $this->assertSame([false, false, false, false], array_map($this->isIntervalShaped(...), $entries));
         $userEvents = $this->userEventsIn($entries);
         $this->assertCount(3, $userEvents);
         $this->assertSame('example_event', $userEvents[0]['type']);
@@ -132,7 +132,6 @@ final class DiagnosticsTest extends TestCase
         $this->assertSame(CoreSchema::INVALID_CONTEXT_TYPE, $close['type']);
         $this->assertSame('close', $close['context']['operation']);
         $this->assertArrayNotHasKey('openId', $close);
-        $this->assertArrayNotHasKey('close', $log->toArray());
 
         $diagnostics = $this->diagnosticsIn($this->childrenOf($entries[0]));
         $this->assertCount(1, $diagnostics);
@@ -163,7 +162,7 @@ final class DiagnosticsTest extends TestCase
         $this->assertSame($innerId, $inner['id']);
 
         $innerChildren = $this->childrenOf($inner);
-        $this->assertSame(['event', 'event'], array_column($innerChildren, 'kind'));
+        $this->assertSame([false, false], array_map($this->isIntervalShaped(...), $innerChildren));
         $this->assertSame('note', $innerChildren[0]['context']['message']);
         $this->assertSame(CoreSchema::DIAGNOSTIC_TYPE, $innerChildren[1]['type']);
         $diagnostics = $this->diagnosticsIn($innerChildren);
@@ -204,7 +203,7 @@ final class DiagnosticsTest extends TestCase
 
         // No open existed, so the diagnostic sits at the root, before the real operation.
         $this->assertCount(2, $entries);
-        $this->assertSame('event', $entries[0]['kind']);
+        $this->assertFalse($this->isIntervalShaped($entries[0]));
         $diagnostics = $this->diagnosticsIn($entries);
         $this->assertCount(1, $diagnostics);
         $this->assertSame('close_without_open', $diagnostics[0]['code']);
@@ -214,10 +213,10 @@ final class DiagnosticsTest extends TestCase
         $this->assertSame('rejected', $discarded['message']);
 
         // The real operation is intact and the rejected close is not an orphan close.
-        $this->assertSame('open', $entries[1]['kind']);
+        $this->assertTrue($this->isIntervalShaped($entries[1]));
+        $this->assertArrayNotHasKey('openId', $entries[1]);
         $this->assertSame('work', $entries[1]['context']['message']);
         $this->assertSame('work done', $this->closeOf($entries[1])['context']['message']);
-        $this->assertArrayNotHasKey('close', $log->toArray());
     }
 
     public function testDoubleCloseRecordsDiagnosticAndKeepsFirstClose(): void
@@ -235,7 +234,6 @@ final class DiagnosticsTest extends TestCase
         $this->assertCount(1, $diagnostics);
         $this->assertSame('close_without_open', $diagnostics[0]['code']);
         $this->assertSame($openId, $diagnostics[0]['relatedId'] ?? null);
-        $this->assertArrayNotHasKey('close', $log->toArray());
     }
 
     public function testCloseIdMismatchRecordsDiagnosticAndKeepsStack(): void
@@ -309,7 +307,7 @@ final class DiagnosticsTest extends TestCase
         $this->assertSame(CoreSchema::LOG_URL, $log->schemaUrl);
         $this->assertSame([], $log->records);
 
-        $this->assertSame(['$schema' => CoreSchema::LOG_URL, 'entries' => []], $log->toArray());
+        $this->assertSame(['$schema' => CoreSchema::LOG_URL, 'log' => []], $log->toArray());
     }
 
     public function testEmptyLogValidatesAgainstSchema(): void
@@ -336,8 +334,8 @@ final class DiagnosticsTest extends TestCase
         // Snapshot of a live session includes the unclosed diagnostic preview.
         $snapshot = $this->logger->toArray();
         $this->assertSame(CoreSchema::LOG_URL, $snapshot['$schema']);
-        $this->assertCount(2, $snapshot['entries']);
-        $preview = $this->diagnosticsIn($snapshot['entries']);
+        $this->assertCount(2, $snapshot['log']);
+        $preview = $this->diagnosticsIn($snapshot['log']);
         $this->assertCount(1, $preview);
         $this->assertSame('unclosed_at_flush', $preview[0]['code']);
 
@@ -353,25 +351,25 @@ final class DiagnosticsTest extends TestCase
         $snapshot = $this->logger->toArray();
 
         $this->assertSame(CoreSchema::LOG_URL, $snapshot['$schema']);
-        $this->assertSame([], $snapshot['entries']);
+        $this->assertSame([], $snapshot['log']);
     }
 
-    /** @return list<PublicEntry> */
+    /** @return list<PublicRecord> */
     private function entriesOf(LogJson $log): array
     {
-        return $log->toArray()['entries'];
+        return $log->toArray()['log'];
     }
 
     /**
      * @param array<mixed> $open
      *
-     * @return list<PublicEntry>
+     * @return list<PublicRecord>
      */
     private function childrenOf(array $open): array
     {
-        $children = $open['children'] ?? null;
+        $children = $open['log'] ?? [];
         $this->assertIsArray($children);
-        /** @var list<PublicEntry> $children */
+        /** @var list<PublicRecord> $children */
 
         return $children;
     }
@@ -391,9 +389,19 @@ final class DiagnosticsTest extends TestCase
     }
 
     /**
+     * Structural kind: an interval carries `close` or `log`, a point carries neither.
+     *
+     * @param array<string, mixed> $entry
+     */
+    private function isIntervalShaped(array $entry): bool
+    {
+        return isset($entry['close']) || isset($entry['log']);
+    }
+
+    /**
      * Diagnostics among the given sibling entries (not descendants).
      *
-     * @param list<PublicEntry> $entries
+     * @param list<PublicRecord> $entries
      *
      * @return list<DiagnosticData>
      */
@@ -401,7 +409,7 @@ final class DiagnosticsTest extends TestCase
     {
         $diagnostics = [];
         foreach ($entries as $entry) {
-            if ($entry['kind'] === 'event' && $entry['type'] === CoreSchema::DIAGNOSTIC_TYPE) {
+            if ($entry['type'] === CoreSchema::DIAGNOSTIC_TYPE) {
                 /** @var DiagnosticData $context */
                 $context = $entry['context'];
                 $diagnostics[] = $context;
@@ -412,17 +420,17 @@ final class DiagnosticsTest extends TestCase
     }
 
     /**
-     * Non-diagnostic events among the given sibling entries.
+     * Non-diagnostic points among the given sibling entries.
      *
-     * @param list<PublicEntry> $entries
+     * @param list<PublicRecord> $entries
      *
-     * @return list<PublicEntry>
+     * @return list<PublicRecord>
      */
     private function userEventsIn(array $entries): array
     {
         $events = [];
         foreach ($entries as $entry) {
-            if ($entry['kind'] === 'event' && $entry['type'] !== CoreSchema::DIAGNOSTIC_TYPE) {
+            if (! $this->isIntervalShaped($entry) && $entry['type'] !== CoreSchema::DIAGNOSTIC_TYPE) {
                 $events[] = $entry;
             }
         }

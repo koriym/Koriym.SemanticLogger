@@ -1,11 +1,26 @@
 {
     "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-    "entries": [
+    "types": {
+        "authentication_request": "./schemas/authentication.json",
+        "authentication_response": "./schemas/authentication.json",
+        "business_logic": "./schemas/business_logic.json",
+        "business_logic_complete": "./schemas/business_logic.json",
+        "cache_operation": "./schemas/cache_operation.json",
+        "complex_query": "./schemas/complex_query.json",
+        "database_connection": "./schemas/database_connection.json",
+        "database_connection_close": "./schemas/database_connection.json",
+        "external_api_request": "./schemas/external_api_request.json",
+        "external_api_response": "./schemas/external_api_request.json",
+        "file_processing": "./schemas/file_processing.json",
+        "file_processing_complete": "./schemas/file_processing.json",
+        "http_request": "./schemas/http_request.json",
+        "http_response": "./schemas/http_response.json",
+        "performance_metrics": "./schemas/performance_metrics.json"
+    },
+    "log": [
         {
-            "kind": "open",
             "id": "http_request_1",
             "type": "http_request",
-            "schemaUrl": "./schemas/http_request.json",
             "context": {
                 "method": "POST",
                 "uri": "/api/orders",
@@ -16,23 +31,19 @@
                 "userAgent": "ECommerceApp/2.0.0",
                 "clientIp": "192.0.2.100"
             },
-            "children": [
+            "log": [
                 {
-                    "kind": "open",
                     "id": "authentication_1",
                     "type": "authentication_request",
-                    "schemaUrl": "./schemas/authentication.json",
                     "context": {
                         "method": "JWT",
                         "token": "[REDACTED]",
                         "executionTime": 0.012
                     },
-                    "children": [
+                    "log": [
                         {
-                            "kind": "event",
                             "id": "cache_operation_1",
                             "type": "cache_operation",
-                            "schemaUrl": "./schemas/cache_operation.json",
                             "context": {
                                 "operation": "get",
                                 "key": "user_session_12345",
@@ -41,10 +52,8 @@
                             }
                         },
                         {
-                            "kind": "open",
                             "id": "business_logic_1",
                             "type": "business_logic",
-                            "schemaUrl": "./schemas/business_logic.json",
                             "context": {
                                 "operation": "order_validation",
                                 "inputData": {
@@ -67,12 +76,10 @@
                                 },
                                 "success": true
                             },
-                            "children": [
+                            "log": [
                                 {
-                                    "kind": "event",
                                     "id": "performance_metrics_1",
                                     "type": "performance_metrics",
-                                    "schemaUrl": "./schemas/performance_metrics.json",
                                     "context": {
                                         "executionTime": 0.52,
                                         "memoryUsed": 8388608,
@@ -84,22 +91,18 @@
                                     }
                                 },
                                 {
-                                    "kind": "open",
                                     "id": "database_connection_1",
                                     "type": "database_connection",
-                                    "schemaUrl": "./schemas/database_connection.json",
                                     "context": {
                                         "driver": "mysql",
                                         "host": "db-cluster.example.com",
                                         "database": "ecommerce",
                                         "connectionTime": 0.008
                                     },
-                                    "children": [
+                                    "log": [
                                         {
-                                            "kind": "event",
                                             "id": "database_query_1",
                                             "type": "complex_query",
-                                            "schemaUrl": "./schemas/complex_query.json",
                                             "context": {
                                                 "queryType": "SELECT",
                                                 "table": "products p JOIN inventory i ON p.id = i.product_id",
@@ -109,10 +112,8 @@
                                             }
                                         },
                                         {
-                                            "kind": "event",
                                             "id": "database_query_2",
                                             "type": "complex_query",
-                                            "schemaUrl": "./schemas/complex_query.json",
                                             "context": {
                                                 "queryType": "INSERT",
                                                 "table": "orders",
@@ -122,10 +123,8 @@
                                             }
                                         },
                                         {
-                                            "kind": "event",
                                             "id": "database_query_3",
                                             "type": "complex_query",
-                                            "schemaUrl": "./schemas/complex_query.json",
                                             "context": {
                                                 "queryType": "UPDATE",
                                                 "table": "inventory",
@@ -135,10 +134,8 @@
                                             }
                                         },
                                         {
-                                            "kind": "open",
                                             "id": "external_api_1",
                                             "type": "external_api_request",
-                                            "schemaUrl": "./schemas/external_api_request.json",
                                             "context": {
                                                 "service": "PaymentGateway",
                                                 "endpoint": "https://api.stripe.com/v1/charges",
@@ -146,12 +143,10 @@
                                                 "statusCode": 200,
                                                 "responseTime": 0.18
                                             },
-                                            "children": [
+                                            "log": [
                                                 {
-                                                    "kind": "open",
                                                     "id": "file_processing_1",
                                                     "type": "file_processing",
-                                                    "schemaUrl": "./schemas/file_processing.json",
                                                     "context": {
                                                         "operation": "pdf_generation",
                                                         "filename": "invoice_12345.pdf",
@@ -160,11 +155,9 @@
                                                         "processingTime": 0.095,
                                                         "success": true
                                                     },
-                                                    "children": [],
                                                     "close": {
                                                         "id": "file_processing_complete_1",
                                                         "type": "file_processing_complete",
-                                                        "schemaUrl": "./schemas/file_processing.json",
                                                         "context": {
                                                             "operation": "pdf_generation",
                                                             "filename": "invoice_12345.pdf",
@@ -180,7 +173,6 @@
                                             "close": {
                                                 "id": "external_api_response_1",
                                                 "type": "external_api_response",
-                                                "schemaUrl": "./schemas/external_api_request.json",
                                                 "context": {
                                                     "service": "PaymentGateway",
                                                     "endpoint": "https://api.stripe.com/v1/charges",
@@ -195,7 +187,6 @@
                                     "close": {
                                         "id": "database_connection_close_1",
                                         "type": "database_connection_close",
-                                        "schemaUrl": "./schemas/database_connection.json",
                                         "context": {
                                             "driver": "mysql",
                                             "host": "db-cluster.example.com",
@@ -209,7 +200,6 @@
                             "close": {
                                 "id": "business_logic_complete_1",
                                 "type": "business_logic_complete",
-                                "schemaUrl": "./schemas/business_logic.json",
                                 "context": {
                                     "operation": "order_validation",
                                     "inputData": {
@@ -238,7 +228,6 @@
                     "close": {
                         "id": "authentication_response_1",
                         "type": "authentication_response",
-                        "schemaUrl": "./schemas/authentication.json",
                         "context": {
                             "method": "JWT",
                             "token": "[REDACTED]",
@@ -251,7 +240,6 @@
             "close": {
                 "id": "http_response_1",
                 "type": "http_response",
-                "schemaUrl": "./schemas/http_response.json",
                 "context": {
                     "statusCode": 200,
                     "headers": {

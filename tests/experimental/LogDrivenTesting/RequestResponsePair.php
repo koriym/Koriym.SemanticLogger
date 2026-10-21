@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Experimental\LogDrivenTesting;
 
 use Koriym\SemanticLogger\CloseEntry;
-use Koriym\SemanticLogger\OpenCloseEntry;
+use Koriym\SemanticLogger\OpenEntry;
 
 final class RequestResponsePair
 {
     public function __construct(
-        public readonly OpenCloseEntry $request,
+        public readonly OpenEntry $request,
         public readonly CloseEntry $response,
     ) {
     }

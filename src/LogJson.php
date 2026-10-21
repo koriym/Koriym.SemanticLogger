@@ -47,15 +47,11 @@ final class LogJson implements JsonSerializable
     /** @return LogSessionArray */
     public function toArray(): array
     {
-        $tree = (new LogTreeBuilder())->build($this->records);
+        $log = (new LogTreeBuilder())->build($this->records);
         $result = [
             '$schema' => $this->schemaUrl,
-            'entries' => $tree['entries'],
+            'log' => $log,
         ];
-
-        if ($tree['close'] !== []) {
-            $result['close'] = $tree['close'];
-        }
 
         if ($this->links !== []) {
             $result['links'] = $this->links;

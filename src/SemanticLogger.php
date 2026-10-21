@@ -34,7 +34,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     /** @var LogRecordList Opens, events and closes in record order. */
     private array $records = [];
 
-    /** @var SplStack<OpenCloseEntry> */
+    /** @var SplStack<OpenEntry> */
     private SplStack $openStack;
 
     /** @var TypeCounts */
@@ -43,7 +43,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 
     public function __construct()
     {
-        /** @var SplStack<OpenCloseEntry> $openStack */
+        /** @var SplStack<OpenEntry> $openStack */
         $openStack = new SplStack();
         $this->openStack = $openStack;
         $this->contextFreezer = new ContextFreezer();
@@ -54,7 +54,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     {
         $frozen = $this->contextFreezer->freeze($context, 'open');
         $operationId = $this->nextId($frozen['type']);
-        $open = new OpenCloseEntry(
+        $open = new OpenEntry(
             $operationId,
             $frozen['type'],
             $frozen['schemaUrl'],
@@ -180,7 +180,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 
     private function resetState(): void
     {
-        /** @var SplStack<OpenCloseEntry> $openStack */
+        /** @var SplStack<OpenEntry> $openStack */
         $openStack = new SplStack();
         $this->openStack = $openStack;
         $this->records = [];
@@ -249,7 +249,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     private function unclosedDiagnostic(): array
     {
         $ids = array_map(
-            static fn (OpenCloseEntry $entry): string => $entry->id,
+            static fn (OpenEntry $entry): string => $entry->id,
             array_reverse(iterator_to_array($this->openStack, false)),
         );
 

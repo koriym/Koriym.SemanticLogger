@@ -22,12 +22,11 @@ final class LogDataParserTest extends TestCase
     private static function open(string $id, string $type, array $context = [], array $children = [], array|null $close = null): array
     {
         $entry = [
-            'kind' => 'open',
             'id' => $id,
             'type' => $type,
             'schemaUrl' => 'test.json',
             'context' => $context,
-            'children' => $children,
+            'log' => $children,
         ];
 
         if ($close !== null) {
@@ -45,7 +44,6 @@ final class LogDataParserTest extends TestCase
     private static function event(string $id, string $type, array $context = []): array
     {
         return [
-            'kind' => 'event',
             'id' => $id,
             'type' => $type,
             'schemaUrl' => 'test.json',
@@ -68,10 +66,25 @@ final class LogDataParserTest extends TestCase
         ];
     }
 
+    /**
+     * Root-only orphan record: a close-shaped record carrying `openId`.
+     *
+     * @param array<string, mixed> $context
+     *
+     * @return array<string, mixed>
+     */
+    private static function orphan(string $id, string $type, string $openId, array $context = []): array
+    {
+        $entry = self::close($id, $type, $context);
+        $entry['openId'] = $openId;
+
+        return $entry;
+    }
+
     public function testParseBasicLogData(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('test_1', 'test_operation', ['executionTime' => 0.005], [], self::close('close_1')),
             ],
         ]);
@@ -86,7 +99,7 @@ final class LogDataParserTest extends TestCase
     public function testParseNestedLogData(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('parent_1', 'parent_operation', [], [
                     self::open('child_1', 'child_operation', ['responseTime' => 0.010]),
                 ], self::close('close_1')),
@@ -107,7 +120,7 @@ final class LogDataParserTest extends TestCase
     public function testChildrenKeepRecordedOrder(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('parent_1', 'parent_operation', [], [
                     self::open('sib_1', 'first', [], [], self::close('c1')),
                     self::event('event_1', 'infra_event', ['duration' => 0.002]),
@@ -130,7 +143,7 @@ final class LogDataParserTest extends TestCase
     public function testNestedCloseIsSetOnItsOwnOpen(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('outer_1', 'outer_open', [], [
                     self::open('inner_1', 'inner_open', [], [], self::close('close_inner', 'inner_close', ['inner' => true])),
                 ], self::close('close_outer', 'outer_close', ['outer' => true])),
@@ -149,7 +162,7 @@ final class LogDataParserTest extends TestCase
     public function testMultipleRootsAreWrappedInSyntheticForestRoot(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('a_1', 'a'),
                 self::open('b_1', 'b'),
             ],
@@ -164,7 +177,7 @@ final class LogDataParserTest extends TestCase
     public function testRootEventsAndOpensKeepRecordedOrderInForest(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::event('notice_1', 'notice', ['message' => 'before']),
                 self::open('a_1', 'a', [], [], self::close('c1')),
                 self::event('notice_2', 'notice', ['message' => 'after']),
@@ -182,7 +195,7 @@ final class LogDataParserTest extends TestCase
     public function testEventOnlyLogUsesSyntheticForestRoot(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [self::event('notice_1', 'notice', ['message' => 'event only'])],
+            'log' => [self::event('notice_1', 'notice', ['message' => 'event only'])],
         ]);
 
         $this->assertTrue($tree->isSynthetic);
@@ -191,9 +204,9 @@ final class LogDataParserTest extends TestCase
         $this->assertSame('notice', $tree->children[0]->type);
     }
 
-    public function testEmptyEntriesYieldEmptyForest(): void
+    public function testEmptyLogYieldsEmptyForest(): void
     {
-        $tree = (new LogDataParser())->parseLogData(['entries' => []]);
+        $tree = (new LogDataParser())->parseLogData(['log' => []]);
 
         $this->assertTrue($tree->isSynthetic);
         $this->assertEmpty($tree->children);
@@ -202,7 +215,7 @@ final class LogDataParserTest extends TestCase
     public function testUnclosedOpenHasNoCloseType(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [self::open('operation_1', 'test_operation')],
+            'log' => [self::open('operation_1', 'test_operation')],
         ]);
 
         $this->assertFalse($tree->isSynthetic);
@@ -213,7 +226,7 @@ final class LogDataParserTest extends TestCase
     public function testParseEventInOpen(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('operation_1', 'test_operation', [], [
                     self::event('event_1', 'test_event', ['duration' => 0.003]),
                 ], self::close('close_1')),
@@ -233,7 +246,7 @@ final class LogDataParserTest extends TestCase
     public function testParseMultipleEvents(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('operation_1', 'test_operation', [], [
                     self::event('event_1', 'first_event', ['duration' => 0.002]),
                     self::event('event_2', 'second_event', ['duration' => 0.004]),
@@ -268,7 +281,7 @@ final class LogDataParserTest extends TestCase
             unset($testCase['expected']);
 
             $tree = (new LogDataParser())->parseLogData([
-                'entries' => [self::open('test_1', 'test_operation', $testCase, [], self::close('close_1'))],
+                'log' => [self::open('test_1', 'test_operation', $testCase, [], self::close('close_1'))],
             ]);
 
             $this->assertSame(
@@ -279,29 +292,30 @@ final class LogDataParserTest extends TestCase
         }
     }
 
-    public function testInvalidLogDataMissingEntries(): void
+    public function testInvalidLogDataMissingLog(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Invalid log data: missing entries section');
+        $this->expectExceptionMessage('Invalid log data: missing log section');
 
-        (new LogDataParser())->parseLogData(['close' => []]);
+        (new LogDataParser())->parseLogData(['links' => []]);
     }
 
-    public function testInvalidLogDataInvalidEntries(): void
+    public function testInvalidLogDataInvalidLog(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Invalid log data: missing entries section');
+        $this->expectExceptionMessage('Invalid log data: missing log section');
 
-        (new LogDataParser())->parseLogData(['entries' => 'invalid']);
+        (new LogDataParser())->parseLogData(['log' => 'invalid']);
     }
 
     public function testNonArrayItemsAreSkipped(): void
     {
         $open = self::open('test_1', 'test_operation');
-        $open['children'] = ['x', self::event('event_1', 'test_event')];
+        $open['log'] = ['x', self::event('event_1', 'test_event')];
+        $orphanClose = self::orphan('close_1', 'close', 'does_not_exist');
+
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [null, $open, 'invalid'],
-            'close' => [42, self::close('close_1')],
+            'log' => [null, $open, 'invalid', 42, $orphanClose],
         ]);
 
         $this->assertTrue($tree->isSynthetic);
@@ -311,10 +325,10 @@ final class LogDataParserTest extends TestCase
         $this->assertTrue($tree->children[1]->isOrphanClose);
     }
 
-    public function testEntriesKeyedByStringParseAsAList(): void
+    public function testLogKeyedByStringParsesAsAList(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => ['only' => self::open('test_1', 'test_operation')],
+            'log' => ['only' => self::open('test_1', 'test_operation')],
         ]);
 
         $this->assertFalse($tree->isSynthetic);
@@ -327,7 +341,7 @@ final class LogDataParserTest extends TestCase
         $event['context'] = 'invalid_context';
 
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [self::open('operation_1', 'test_operation', [], [$event], self::close('close_1'))],
+            'log' => [self::open('operation_1', 'test_operation', [], [$event], self::close('close_1'))],
         ]);
 
         $this->assertCount(1, $tree->children);
@@ -340,7 +354,7 @@ final class LogDataParserTest extends TestCase
         $open = self::open('operation_1', 'test_operation', [], [], self::close('close_1'));
         $open['context'] = 'invalid_context';
 
-        $tree = (new LogDataParser())->parseLogData(['entries' => [$open]]);
+        $tree = (new LogDataParser())->parseLogData(['log' => [$open]]);
 
         $this->assertSame('test_operation', $tree->type);
         $this->assertSame([], $tree->context);
@@ -349,7 +363,7 @@ final class LogDataParserTest extends TestCase
     public function testOpenEntryWithMissingFields(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [['kind' => 'open', 'schemaUrl' => 'test.json']],
+            'log' => [['schemaUrl' => 'test.json', 'log' => []]],
         ]);
 
         $this->assertFalse($tree->isSynthetic);
@@ -361,9 +375,9 @@ final class LogDataParserTest extends TestCase
     public function testEventWithMissingFields(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('operation_1', 'test_operation', [], [
-                    ['kind' => 'event', 'schemaUrl' => 'test.json'],
+                    ['schemaUrl' => 'test.json'],
                 ], self::close('close_1')),
             ],
         ]);
@@ -377,7 +391,7 @@ final class LogDataParserTest extends TestCase
     public function testNonNumericExecutionTimeValues(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('test_1', 'test_operation', ['executionTime' => 'not_a_number'], [], self::close('close_1')),
             ],
         ]);
@@ -387,10 +401,10 @@ final class LogDataParserTest extends TestCase
 
     public function testOpenWithoutChildrenKey(): void
     {
-        $open = self::open('operation_1', 'test_operation');
-        unset($open['children']);
+        $open = self::open('operation_1', 'test_operation', [], [], self::close('close_1'));
+        unset($open['log']);
 
-        $tree = (new LogDataParser())->parseLogData(['entries' => [$open]]);
+        $tree = (new LogDataParser())->parseLogData(['log' => [$open]]);
 
         $this->assertSame('test_operation', $tree->type);
         $this->assertEmpty($tree->children);
@@ -399,9 +413,9 @@ final class LogDataParserTest extends TestCase
     public function testOpenWithInvalidChildrenValue(): void
     {
         $open = self::open('operation_1', 'test_operation');
-        $open['children'] = 'not_an_array';
+        $open['log'] = 'not_an_array';
 
-        $tree = (new LogDataParser())->parseLogData(['entries' => [$open]]);
+        $tree = (new LogDataParser())->parseLogData(['log' => [$open]]);
 
         $this->assertSame('test_operation', $tree->type);
         $this->assertEmpty($tree->children);
@@ -410,7 +424,7 @@ final class LogDataParserTest extends TestCase
     public function testCloseContextIsSetOnOpen(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('operation_1', 'process_open', [], [], self::close('close_1', 'process_close', ['result' => 'ok'])),
             ],
         ]);
@@ -432,7 +446,7 @@ final class LogDataParserTest extends TestCase
         $close['profile'] = $profile;
 
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [self::open('operation_1', 'process_open', [], [], $close)],
+            'log' => [self::open('operation_1', 'process_open', [], [], $close)],
         ]);
 
         $this->assertSame($profile, $tree->closeProfile);
@@ -440,12 +454,10 @@ final class LogDataParserTest extends TestCase
 
     public function testOrphanCloseIsAttachedAsDiagnosticNode(): void
     {
-        $orphan = self::close('close_1', 'process_close', ['result' => 'ok']);
-        $orphan['openId'] = 'does_not_exist';
+        $orphan = self::orphan('close_1', 'process_close', 'does_not_exist', ['result' => 'ok']);
 
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [self::open('operation_1', 'process_open')],
-            'close' => [$orphan],
+            'log' => [self::open('operation_1', 'process_open'), $orphan],
         ]);
 
         $this->assertNull($tree->closeType);
@@ -462,11 +474,11 @@ final class LogDataParserTest extends TestCase
     public function testOrphanCloseFollowsAllRootEntries(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [
+            'log' => [
                 self::open('operation_1', 'process_open'),
                 self::open('operation_2', 'other_open'),
+                self::orphan('close_1', 'process_close', 'does_not_exist', ['result' => 'ok']),
             ],
-            'close' => [self::close('close_1', 'process_close', ['result' => 'ok'])],
         ]);
 
         $this->assertTrue($tree->isSynthetic);
@@ -477,12 +489,14 @@ final class LogDataParserTest extends TestCase
 
     public function testOrphanCloseKeepsProfile(): void
     {
-        $orphan = self::close('close_1', 'process_close');
+        $orphan = self::orphan('close_1', 'process_close', 'does_not_exist');
         $orphan['profile'] = ['wallTime' => 0.5];
 
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [self::open('operation_1', 'process_open', [], [], self::close('c1'))],
-            'close' => [$orphan],
+            'log' => [
+                self::open('operation_1', 'process_open', [], [], self::close('c1')),
+                $orphan,
+            ],
         ]);
 
         $this->assertTrue($tree->isSynthetic);
@@ -492,10 +506,10 @@ final class LogDataParserTest extends TestCase
     public function testMissingOrphanCloseIdsReceiveUniqueFallbackIds(): void
     {
         $tree = (new LogDataParser())->parseLogData([
-            'entries' => [self::open('operation_1', 'process_open')],
-            'close' => [
-                ['type' => 'process_close', 'schemaUrl' => 'test.json', 'context' => ['result' => 'first']],
-                ['type' => 'process_close', 'schemaUrl' => 'test.json', 'context' => ['result' => 'second']],
+            'log' => [
+                self::open('operation_1', 'process_open'),
+                ['type' => 'process_close', 'schemaUrl' => 'test.json', 'context' => ['result' => 'first'], 'openId' => 'does_not_exist'],
+                ['type' => 'process_close', 'schemaUrl' => 'test.json', 'context' => ['result' => 'second'], 'openId' => 'does_not_exist_either'],
             ],
         ]);
 

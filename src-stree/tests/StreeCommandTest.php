@@ -38,12 +38,11 @@ final class StreeCommandTest extends TestCase
     private static function simpleOpen(array $context): array
     {
         return [
-            'kind' => 'open',
             'id' => 'test_1',
             'type' => 'test',
             'schemaUrl' => 'test.json',
             'context' => $context,
-            'children' => [],
+            'log' => [],
             'close' => ['id' => 'close_1', 'type' => 'close', 'schemaUrl' => 'test.json', 'context' => []],
         ];
     }
@@ -86,14 +85,13 @@ final class StreeCommandTest extends TestCase
     public function testBasicRendering(): void
     {
         $logData = [
-            'entries' => [
+            'log' => [
                 [
-                    'kind' => 'open',
                     'id' => 'test_1',
                     'type' => 'test_operation',
                     'schemaUrl' => 'test.json',
                     'context' => ['executionTime' => 0.005],
-                    'children' => [],
+                    'log' => [],
                     'close' => [
                         'id' => 'test_close_1',
                         'type' => 'test_close',
@@ -121,28 +119,25 @@ final class StreeCommandTest extends TestCase
     public function testFullOption(): void
     {
         $logData = [
-            'entries' => [
+            'log' => [
                 [
-                    'kind' => 'open',
                     'id' => 'parent_1',
                     'type' => 'parent',
                     'schemaUrl' => 'test.json',
                     'context' => ['name' => 'root'],
-                    'children' => [
+                    'log' => [
                         [
-                            'kind' => 'open',
                             'id' => 'child_1',
                             'type' => 'child',
                             'schemaUrl' => 'test.json',
                             'context' => ['name' => 'nested'],
-                            'children' => [
+                            'log' => [
                                 [
-                                    'kind' => 'open',
                                     'id' => 'grandchild_1',
                                     'type' => 'grandchild',
                                     'schemaUrl' => 'test.json',
                                     'context' => ['name' => 'deep'],
-                                    'children' => [],
+                                    'log' => [],
                                 ],
                             ],
                         ],
@@ -175,21 +170,19 @@ final class StreeCommandTest extends TestCase
     public function testThresholdOption(): void
     {
         $logData = [
-            'entries' => [
+            'log' => [
                 [
-                    'kind' => 'open',
                     'id' => 'fast_1',
                     'type' => 'fast_operation',
                     'schemaUrl' => 'test.json',
                     'context' => ['executionTime' => 0.001], // 1ms
-                    'children' => [
+                    'log' => [
                         [
-                            'kind' => 'open',
                             'id' => 'slow_1',
                             'type' => 'slow_operation',
                             'schemaUrl' => 'test.json',
                             'context' => ['executionTime' => 0.020], // 20ms
-                            'children' => [],
+                            'log' => [],
                         ],
                     ],
                     'close' => [
@@ -218,7 +211,7 @@ final class StreeCommandTest extends TestCase
     public function testJsonPassthrough(): void
     {
         $logData = [
-            'entries' => [self::simpleOpen([])],
+            'log' => [self::simpleOpen([])],
         ];
 
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
@@ -231,15 +224,14 @@ final class StreeCommandTest extends TestCase
         $output = ob_get_clean() ?: '';
 
         $this->assertSame(0, $exitCode);
-        $this->assertStringContainsString('"entries"', $output);
-        $this->assertStringContainsString('"kind"', $output);
+        $this->assertStringContainsString('"log"', $output);
         $this->assertStringContainsString('"close"', $output);
     }
 
     public function testShortOptions(): void
     {
         $logData = [
-            'entries' => [self::simpleOpen([])],
+            'log' => [self::simpleOpen([])],
         ];
 
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
@@ -279,7 +271,7 @@ final class StreeCommandTest extends TestCase
     public function testValuesFlagAccepted(): void
     {
         $logData = [
-            'entries' => [self::simpleOpen([])],
+            'log' => [self::simpleOpen([])],
         ];
 
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
@@ -296,7 +288,7 @@ final class StreeCommandTest extends TestCase
     public function testThresholdParsing(): void
     {
         $logData = [
-            'entries' => [self::simpleOpen(['executionTime' => 0.5])],
+            'log' => [self::simpleOpen(['executionTime' => 0.5])],
         ];
 
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');

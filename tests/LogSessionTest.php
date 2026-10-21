@@ -12,7 +12,7 @@ final class LogSessionTest extends TestCase
 {
     private const SCHEMA = 'https://schema.example.com/log.json';
 
-    public function testOpenWithItsCloseIsNestedAndRootCloseIsOmitted(): void
+    public function testOpenWithItsCloseIsNestedAndNoLogKey(): void
     {
         $session = new LogJson(self::SCHEMA, [$this->open('test_1'), $this->close('close_1', 'test_1')]);
 
@@ -21,16 +21,13 @@ final class LogSessionTest extends TestCase
 
         $array = $session->toArray();
         $this->assertSame(self::SCHEMA, $array['$schema']);
-        $this->assertArrayNotHasKey('close', $array);
         $this->assertArrayNotHasKey('links', $array);
         $this->assertSame([
             [
-                'kind' => 'open',
                 'id' => 'test_1',
                 'type' => 'test_1_type',
                 'schemaUrl' => 'https://example.com/test_1.json',
                 'context' => ['data' => 'value'],
-                'children' => [],
                 'close' => [
                     'id' => 'close_1',
                     'type' => 'close_1_type',
@@ -38,22 +35,39 @@ final class LogSessionTest extends TestCase
                     'context' => ['data' => 'value'],
                 ],
             ],
-        ], $array['entries']);
+        ], $array['log']);
     }
 
-    public function testEmptyLogHasEmptyEntries(): void
+    public function testEmptyLogHasEmptyLog(): void
     {
         $this->assertSame(
-            ['$schema' => self::SCHEMA, 'entries' => []],
+            ['$schema' => self::SCHEMA, 'log' => []],
             (new LogJson(self::SCHEMA, []))->toArray(),
         );
     }
 
-    public function testUnclosedOpenHasNoCloseKey(): void
+    public function testUnclosedOpenWithNoChildrenHasEmptyLogAndNoClose(): void
     {
-        $entries = (new LogJson(self::SCHEMA, [$this->open('test_1')]))->toArray()['entries'];
+        $record = (new LogJson(self::SCHEMA, [$this->open('test_1')]))->toArray()['log'][0];
 
-        $this->assertArrayNotHasKey('close', $entries[0]);
+        $this->assertSame([], $record['log'] ?? null);
+        $this->assertArrayNotHasKey('close', $record);
+    }
+
+    public function testClosedOpenWithNoChildrenHasNoLogKey(): void
+    {
+        $record = (new LogJson(self::SCHEMA, [$this->open('test_1'), $this->close('close_1', 'test_1')]))->toArray()['log'][0];
+
+        $this->assertArrayNotHasKey('log', $record);
+    }
+
+    public function testEventNeverHasALogKey(): void
+    {
+        $record = (new LogJson(self::SCHEMA, [$this->event('standalone_1')]))->toArray()['log'][0];
+
+        $this->assertArrayNotHasKey('log', $record);
+        $this->assertArrayNotHasKey('close', $record);
+        $this->assertArrayNotHasKey('openId', $record);
     }
 
     public function testChildrenKeepRecordOrder(): void
@@ -67,12 +81,11 @@ final class LogSessionTest extends TestCase
             $this->close('outer_end_1', 'outer_1'),
         ];
 
-        $entries = (new LogJson(self::SCHEMA, $records))->toArray()['entries'];
+        $log = (new LogJson(self::SCHEMA, $records))->toArray()['log'];
 
-        $this->assertCount(1, $entries);
-        $children = $this->children($entries[0]);
+        $this->assertCount(1, $log);
+        $children = $this->children($log[0]);
         $this->assertSame(['first_1', 'inner_1', 'second_1'], $this->ids($children));
-        $this->assertSame(['event', 'open', 'event'], $this->kinds($children));
         $this->assertArrayNotHasKey('openId', $children[0]);
         $innerClose = $children[1]['close'] ?? null;
         $this->assertIsArray($innerClose);
@@ -90,45 +103,60 @@ final class LogSessionTest extends TestCase
             $this->close('end_1', 'start_1'),
         ];
 
-        $entries = (new LogJson(self::SCHEMA, $records))->toArray()['entries'];
+        $log = (new LogJson(self::SCHEMA, $records))->toArray()['log'];
 
-        $this->assertSame(['start_1', 'orphan_1', 'top_1'], $this->ids($entries));
-        $this->assertSame(['open', 'event', 'event'], $this->kinds($entries));
-        $this->assertSame(['nested_1'], $this->ids($this->children($entries[0])));
+        $this->assertSame(['start_1', 'orphan_1', 'top_1'], $this->ids($log));
+        $this->assertSame(['nested_1'], $this->ids($this->children($log[0])));
     }
 
-    public function testCloseWithoutMatchingOpenBecomesRootOrphanWithOpenId(): void
+    public function testOrphanCloseAppearsInRootLogAtEncounterPositionWithOpenId(): void
     {
         $records = [$this->open('start_1'), $this->close('end_1', 'start_1'), $this->close('orphan_close_1', 'missing_1')];
 
         $array = (new LogJson(self::SCHEMA, $records))->toArray();
 
-        $orphans = $array['close'] ?? [];
-        $this->assertSame('end_1', $array['entries'][0]['close']['id'] ?? null);
-        $this->assertCount(1, $orphans);
-        $this->assertSame('orphan_close_1', $orphans[0]['id']);
-        $this->assertSame('missing_1', $orphans[0]['openId'] ?? null);
+        $log = $array['log'];
+        $this->assertSame('end_1', $log[0]['close']['id'] ?? null);
+        $this->assertSame(['start_1', 'orphan_close_1'], $this->ids($log));
+        $this->assertSame('missing_1', $log[1]['openId'] ?? null);
+        $this->assertArrayNotHasKey('close', $array);
+    }
+
+    public function testOrphanCloseIsSplicedAfterTheRootRecordBeingBuiltWhenEncountered(): void
+    {
+        $records = [
+            $this->open('start_1'),
+            $this->event('nested_1', 'start_1'),
+            $this->close('orphan_close_1', 'missing_1'),
+            $this->close('end_1', 'start_1'),
+        ];
+
+        $log = (new LogJson(self::SCHEMA, $records))->toArray()['log'];
+
+        // The orphan was encountered while `start_1` was the root record
+        // being built (a child was open under it), so it is spliced right
+        // after the whole `start_1` subtree, not nested inside it.
+        $this->assertSame(['start_1', 'orphan_close_1'], $this->ids($log));
+        $this->assertSame(['nested_1'], $this->ids($this->children($log[0])));
     }
 
     public function testSecondCloseOfTheSameOpenBecomesOrphan(): void
     {
         $records = [$this->open('start_1'), $this->close('end_1', 'start_1'), $this->close('end_duplicate_1', 'start_1')];
 
-        $array = (new LogJson(self::SCHEMA, $records))->toArray();
+        $log = (new LogJson(self::SCHEMA, $records))->toArray()['log'];
 
-        $orphans = $array['close'] ?? [];
-        $this->assertSame('end_1', $array['entries'][0]['close']['id'] ?? null);
-        $this->assertCount(1, $orphans);
-        $this->assertSame('end_duplicate_1', $orphans[0]['id']);
-        $this->assertSame('start_1', $orphans[0]['openId'] ?? null);
+        $this->assertSame('end_1', $log[0]['close']['id'] ?? null);
+        $this->assertSame(['start_1', 'end_duplicate_1'], $this->ids($log));
+        $this->assertSame('start_1', $log[1]['openId'] ?? null);
     }
 
     public function testOpenNamingItselfAsParentIsPlacedAtTheRoot(): void
     {
-        $array = (new LogJson(self::SCHEMA, [$this->open('loop_1', 'loop_1')]))->toArray();
+        $log = (new LogJson(self::SCHEMA, [$this->open('loop_1', 'loop_1')]))->toArray()['log'];
 
-        $this->assertSame(['loop_1'], $this->ids($array['entries']));
-        $this->assertSame([], $this->children($array['entries'][0]));
+        $this->assertSame(['loop_1'], $this->ids($log));
+        $this->assertSame([], $log[0]['log'] ?? null);
     }
 
     public function testOpensInAParentCycleArePlacedAtTheRootWithTheirRecords(): void
@@ -137,10 +165,9 @@ final class LogSessionTest extends TestCase
 
         $array = (new LogJson(self::SCHEMA, $records))->toArray();
 
-        $this->assertSame(['a_1', 'b_1'], $this->ids($array['entries']));
-        $this->assertSame(['note_1'], $this->ids($this->children($array['entries'][0])));
-        $this->assertSame('end_1', $array['entries'][1]['close']['id'] ?? null);
-        $this->assertArrayNotHasKey('close', $array);
+        $this->assertSame(['a_1', 'b_1'], $this->ids($array['log']));
+        $this->assertSame(['note_1'], $this->ids($this->children($array['log'][0])));
+        $this->assertSame('end_1', $array['log'][1]['close']['id'] ?? null);
     }
 
     public function testLinksArePresentOnlyWhenNotEmpty(): void
@@ -183,9 +210,9 @@ final class LogSessionTest extends TestCase
         $this->assertSame('rendered:test_1', $output);
     }
 
-    private function open(string $id, string|null $parentId = null): OpenCloseEntry
+    private function open(string $id, string|null $parentId = null): OpenEntry
     {
-        return new OpenCloseEntry($id, $id . '_type', 'https://example.com/' . $id . '.json', ['data' => 'value'], $parentId);
+        return new OpenEntry($id, $id . '_type', 'https://example.com/' . $id . '.json', ['data' => 'value'], $parentId);
     }
 
     private function event(string $id, string|null $openId = null): EventEntry
@@ -205,7 +232,7 @@ final class LogSessionTest extends TestCase
      */
     private function children(array $entry): array
     {
-        $raw = $entry['children'] ?? null;
+        $raw = $entry['log'] ?? null;
         $this->assertIsArray($raw);
 
         $children = [];
@@ -231,15 +258,5 @@ final class LogSessionTest extends TestCase
     private function ids(array $entries): array
     {
         return array_column($entries, 'id');
-    }
-
-    /**
-     * @param list<array<string, mixed>> $entries
-     *
-     * @return list<mixed>
-     */
-    private function kinds(array $entries): array
-    {
-        return array_column($entries, 'kind');
     }
 }

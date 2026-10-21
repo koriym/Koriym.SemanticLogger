@@ -93,7 +93,7 @@ final class DevSemanticLoggerTest extends TestCase
         $close = $this->firstSerializedClose($array);
 
         $this->assertArrayNotHasKey('profile', $array, 'top-level profile must not exist');
-        $this->assertArrayHasKey('entries', $array);
+        $this->assertArrayHasKey('log', $array);
         $this->assertArrayNotHasKey('profile', $close);
     }
 
@@ -166,17 +166,20 @@ final class DevSemanticLoggerTest extends TestCase
         $this->logger->event(new FakeContext('mid'));
         $this->logger->close(new FakeContext('end'), $openId);
 
-        $entries = $this->logger->flush()->toArray()['entries'];
+        $log = $this->logger->flush()->toArray()['log'];
 
-        $this->assertCount(1, $entries);
-        $open = $entries[0];
-        if ($open['kind'] !== 'open') {
-            $this->fail('Expected an open entry.');
+        $this->assertCount(1, $log);
+        $open = $log[0];
+        if (! isset($open['close']) && ! isset($open['log'])) {
+            $this->fail('Expected an interval record.');
         }
 
-        $this->assertCount(1, $open['children']);
-        $this->assertSame('event', $open['children'][0]['kind']);
-        $this->assertSame('mid', $this->messageOf($open['children'][0]));
+        $children = $open['log'] ?? [];
+        $this->assertCount(1, $children);
+        $event = $children[0];
+        $this->assertArrayNotHasKey('close', $event);
+        $this->assertArrayNotHasKey('log', $event);
+        $this->assertSame('mid', $this->messageOf($event));
     }
 
     public function testFlushResetsState(): void
@@ -346,9 +349,9 @@ final class DevSemanticLoggerTest extends TestCase
      */
     private function firstSerializedClose(array $serializedLog): array
     {
-        $entries = $serializedLog['entries'] ?? null;
-        if (is_array($entries)) {
-            foreach ($entries as $entry) {
+        $log = $serializedLog['log'] ?? null;
+        if (is_array($log)) {
+            foreach ($log as $entry) {
                 if (! is_array($entry)) {
                     continue;
                 }
@@ -375,7 +378,7 @@ final class DevSemanticLoggerTest extends TestCase
             return $this->normalizeSerializedEntry($close);
         }
 
-        $children = $entry['children'] ?? null;
+        $children = $entry['log'] ?? null;
         if (! is_array($children)) {
             return null;
         }
