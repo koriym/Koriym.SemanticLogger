@@ -140,6 +140,16 @@ final class LogSessionTest extends TestCase
         $this->assertSame(['nested_1'], $this->ids($this->children($log[0])));
     }
 
+    public function testOrphanCloseEncounteredBeforeAnyRootRecordLeadsTheRootLog(): void
+    {
+        $records = [$this->close('orphan_close_1', 'missing_1'), $this->open('start_1'), $this->close('end_1', 'start_1')];
+
+        $log = (new LogJson(self::SCHEMA, $records))->toArray()['log'];
+
+        $this->assertSame(['orphan_close_1', 'start_1'], $this->ids($log));
+        $this->assertSame('missing_1', $log[0]['openId'] ?? null);
+    }
+
     public function testSecondCloseOfTheSameOpenBecomesOrphan(): void
     {
         $records = [$this->open('start_1'), $this->close('end_1', 'start_1'), $this->close('end_duplicate_1', 'start_1')];

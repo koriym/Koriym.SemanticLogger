@@ -250,8 +250,9 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * Validate a root orphan close and check whether its `openId` matches a
-     * record already closed in this document (a double close).
+     * Validate a root orphan close and check whether its `openId` names a
+     * record that exists in this document — a close that the writer would
+     * have matched, so an orphan naming it is a double close.
      *
      * @param array<string, string> $types
      * @param array<string, string> $seenIds
@@ -271,7 +272,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         /** @var mixed $openId */
         $openId = $orphan->openId ?? null;
         if (is_string($openId) && isset($recordIds[$openId])) {
-            $violations[] = "orphan close {$path}: openId '{$openId}' matches an already-closed record: double close";
+            $violations[] = "orphan close {$path}: openId '{$openId}' names a record in this document: double close";
         }
     }
 

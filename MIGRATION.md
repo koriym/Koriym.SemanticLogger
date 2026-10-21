@@ -1,8 +1,8 @@
-# Migration Guide: 0.8 / 1.x → 0.9
+# Migration Guide
 
-0.9 rebuilds the logger around a single behavior: **the logger never throws**.
-Failures and protocol misuse become core-owned diagnostic entries in the log
-itself, and quality gates move to the reading side (the validator and CI).
+Newest step first: 0.10.0 → Unreleased, then 0.9 → 0.10.0, then 0.8 / 1.x → 0.9
+(where the logger stopped throwing and failures became diagnostic entries in
+the log itself).
 
 ## 0.10.0 → Unreleased: `log` replaces `entries`/`children`, `kind` is gone, orphans move inline
 

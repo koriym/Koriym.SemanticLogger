@@ -424,7 +424,7 @@ JSON,
         ]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectOutputRegex('/orphan close log\[1\]: openId .being_final_open_1. matches an already-closed record: double close/');
+        $this->expectOutputRegex('/orphan close log\[1\]: openId .being_final_open_1. names a record in this document: double close/');
         self::assertNotNull($this->validator);
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
