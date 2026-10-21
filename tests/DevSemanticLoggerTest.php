@@ -11,6 +11,7 @@ use ReflectionClass;
 use RuntimeException;
 
 use function array_filter;
+use function array_keys;
 use function array_values;
 use function file_put_contents;
 use function is_array;
@@ -59,6 +60,26 @@ final class DevSemanticLoggerTest extends TestCase
         $this->assertCount(1, $xdebugSegments[$inner], 'inner being has a single xdebug segment');
         $this->assertCount(2, $xhprofSegments[$outer]);
         $this->assertCount(1, $xhprofSegments[$inner]);
+    }
+
+    public function testRejectedNonInnermostCloseDoesNotAdvanceProfilingState(): void
+    {
+        $outer = $this->logger->open(new FakeContext('outer'));
+        $inner = $this->logger->open(new FakeContext('inner'));
+
+        $this->logger->close(new FakeContext('rejected'), $outer);
+
+        $this->assertSame([], $this->wallTimes($this->logger));
+
+        $this->logger->close(new FakeContext('inner-end'), $inner);
+        $this->assertSame([$inner], array_keys($this->wallTimes($this->logger)));
+
+        $this->logger->close(new FakeContext('outer-end'), $outer);
+        $this->assertSame([$inner, $outer], array_keys($this->wallTimes($this->logger)));
+        $this->assertCount(2, $this->xdebugSegments($this->logger)[$outer]);
+        $this->assertCount(1, $this->xdebugSegments($this->logger)[$inner]);
+        $this->assertCount(2, $this->xhprofSegments($this->logger)[$outer]);
+        $this->assertCount(1, $this->xhprofSegments($this->logger)[$inner]);
     }
 
     public function testProfileIsOmittedFromJsonOutputWithoutProfilerData(): void

@@ -30,6 +30,17 @@ final class ContextFreezerTest extends TestCase
         $this->assertSame(['serialized' => 'value'], $frozen['context']);
     }
 
+    public function testFreezeIgnoresNonPublicContextProperties(): void
+    {
+        $frozen = (new ContextFreezer())->freeze(
+            new MixedVisibilityContext('alice', 'token', 'secret'),
+            'event',
+        );
+
+        $this->assertNull($frozen['diagnostic']);
+        $this->assertSame(['name' => 'alice'], $frozen['context']);
+    }
+
     public function testFreezePreservesWholeNumberFloat(): void
     {
         // json_encode() drops the fraction from a whole-number float unless

@@ -73,7 +73,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     #[Override]
     public function close(AbstractContext $context, string $openId): void
     {
-        $tracked = isset($this->startedPhp[$openId]);
+        $tracked = isset($this->startedPhp[$openId]) && end($this->openStack) === $openId;
 
         if ($tracked) {
             // Stop the being's final segment and capture wallTime BEFORE
@@ -125,7 +125,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
 
             return new LogJson(
                 $logJson->schemaUrl,
-                $this->attachProfilesToCloses($logJson->records, $operations),
+                $this->attachProfiles($logJson->records, $operations),
                 $logJson->links,
             );
         } finally {
@@ -157,7 +157,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
      *
      * @return LogRecordList
      */
-    private function attachProfilesToCloses(array $records, array $operations): array
+    private function attachProfiles(array $records, array $operations): array
     {
         $result = [];
         foreach ($records as $record) {

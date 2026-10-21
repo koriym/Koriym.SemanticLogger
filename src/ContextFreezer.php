@@ -96,10 +96,10 @@ final class ContextFreezer
             // the legacy public-property fallback instead of storing them.
         }
 
-        /** @var ContextData $mixedArray */
-        $mixedArray = (array) $context;
+        /** @var ContextData $publicProperties */
+        $publicProperties = get_object_vars($context);
 
-        return $this->freezeArray($mixedArray);
+        return $this->freezeArray($publicProperties);
     }
 
     /**

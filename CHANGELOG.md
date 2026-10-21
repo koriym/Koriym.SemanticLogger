@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING — closes are records.** `new LogJson($schemaUrl, $records, $links = [])`: the `$closes` parameter and `LogJson::$closes` are gone. A close is a `CloseEntry` (`id, type, schemaUrl, context, openId, profile`) in `$records` at the position it was recorded, so the record list is the complete timeline including closes. `EventEntry` drops `profile` / `withProfile()`; `LogTreeBuilder::build()` takes the single list. The public JSON tree is unchanged. See [MIGRATION.md](MIGRATION.md).
 - **BREAKING — diagnostic `kind` is now `code`.** `semantic_logger_error` contexts and `semantic_logger_invalid_context.errors[]` carry `code` (`close_without_open`, `unclosed_at_flush`, …) instead of `kind`, so `kind` means only the entry kind (`open` / `event`). The bundled `semantic-logger-error.json` / `semantic-logger-invalid-context.json` schemas require `code`.
 
+### Fixed
+- Contexts with private or protected properties no longer lose their public properties to a freeze-time `JsonException`; the default context shape now includes public properties only, as documented. A context with no public properties (and no `JsonSerializable`) is now recorded as `{}` instead of a `semantic_logger_invalid_context` placeholder plus diagnostic; missing fields surface in the validator as schema violations rather than as logger diagnostics.
+- `DevSemanticLogger` no longer advances its profiling stack or finalizes timing when `close()` targets a tracked operation that is not the innermost open.
+
 ## [0.10.0] - 2026-10-20
 
 ### Changed
