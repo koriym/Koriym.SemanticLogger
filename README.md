@@ -186,13 +186,13 @@ Failures become data; the log never lies and never throws:
 
 ### The Logger Never Throws
 
-`SemanticLogger` never throws — not on serialization failures, not on protocol misuse, not on empty sessions. Failures become data: core-owned diagnostic entries in the log itself.
+`SemanticLogger` never throws while recording — not on serialization failures, not on protocol misuse, not on empty sessions. Failures become data: core-owned diagnostic entries in the log itself. (Configuration is different: `new SemanticLogger($maxRecords)` with a limit below 1 throws `InvalidArgumentException`, before any recording starts.)
 
 - A context that cannot be serialized is replaced by a `semantic_logger_invalid_context` placeholder that keeps the entry's position in the log; nested entries still attach to it. The loss radius of one bad context is that entry — never the session.
 - Protocol misuse is recorded as `semantic_logger_error` entries (see below).
 - `flush()` always returns a log and always resets: an empty session is a valid empty document (`"log": []`), and an unclosed session returns its live log with an `unclosed_at_flush` diagnostic.
 - `toArray()` / `jsonSerialize()` are total, non-destructive snapshots.
-- A session records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens, events and rejected-close diagnostics; pass another limit as `new SemanticLogger($maxRecords)`. Past the limit the logger stops recording instead of growing without bound: new opens and events are dropped, while every already-recorded open still gets its close, so no recorded interval reads as interrupted. `flush()` then appends one root `semantic_logger_truncated` point (`limit`, `dropped`, `firstDroppedType`). It is not a diagnostic — the validator lists it as a warning, and `--fail-on-diagnostics` ignores it. A web request records tens of entries; a batch that logs per row should `flush()` per chunk.
+- A session records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens, events and rejected-close diagnostics; pass another limit (1 or more) as `new SemanticLogger($maxRecords)`. Past the limit the logger stops recording instead of growing without bound: new opens and events are dropped, while every already-recorded open still gets its close, so no recorded interval reads as interrupted. `flush()` then appends one root `semantic_logger_truncated` point (`limit`, `dropped`, `firstDroppedType`). It is not a diagnostic — the validator lists it as a warning, and `--fail-on-diagnostics` ignores it. A web request records tens of entries; a batch that logs per row should `flush()` per chunk.
 
 Quality gates live on the reading side: the validator lists diagnostics with their own severity, and `--fail-on-diagnostics` lets CI turn their presence into a failing build.
 

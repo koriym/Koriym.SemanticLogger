@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
+use InvalidArgumentException;
 use JsonSerializable;
 use Override;
 use SplStack;
@@ -12,12 +13,12 @@ use Throwable;
 use function array_map;
 use function array_reverse;
 use function iterator_to_array;
-use function max;
+use function sprintf;
 
 /**
  * Semantic operation logger with a single behavior: totality.
  *
- * This logger never throws. Recording failures (a context that cannot be
+ * Recording never throws. Recording failures (a context that cannot be
  * serialized) and protocol misuse (closing without an open, LIFO violations,
  * unclosed operations at flush) are recorded as core-owned diagnostic entries
  * instead of exceptions — a logging failure can never break the application,
@@ -60,13 +61,14 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     private int $dropped = 0;
     private string $firstDroppedType = '';
 
-    /** @var positive-int */
-    private readonly int $maxRecords;
+    /** @throws InvalidArgumentException When $maxRecords is below 1 — a configuration error, raised before any recording starts. */
+    public function __construct(
+        private readonly int $maxRecords = self::DEFAULT_MAX_RECORDS,
+    ) {
+        if ($maxRecords < 1) {
+            throw new InvalidArgumentException(sprintf('maxRecords must be 1 or more, %d given', $maxRecords));
+        }
 
-    /** A limit below 1 is raised to 1: the logger never throws, and a session must be able to record something. */
-    public function __construct(int $maxRecords = self::DEFAULT_MAX_RECORDS)
-    {
-        $this->maxRecords = max(1, $maxRecords);
         /** @var SplStack<OpenEntry> $openStack */
         $openStack = new SplStack();
         $this->openStack = $openStack;

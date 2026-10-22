@@ -40,7 +40,7 @@ The public document gets one key at every level and no discriminator field; the 
 | a close is an `EventEntry` with `openId` and `profile` | `CloseEntry(id, type, schemaUrl, context, openId, profile)` — `openId` is required |
 | `EventEntry(id, type, schemaUrl, context, openId, profile)` | `EventEntry(id, type, schemaUrl, context, openId)` — events never carried a profile in the output |
 | `LogTreeBuilder::build($records, $closes)` | `build($records)` |
-| `new SemanticLogger()` records without limit | records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens, events and rejected-close diagnostics per session, then drops new ones and adds a `semantic_logger_truncated` marker at flush; pass `new SemanticLogger($maxRecords)` to change it, or `flush()` per chunk in batch code |
+| `new SemanticLogger()` records without limit | records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens, events and rejected-close diagnostics per session, then drops new ones and adds a `semantic_logger_truncated` marker at flush; pass `new SemanticLogger($maxRecords)` (1 or more; below 1 throws `InvalidArgumentException`) to change it, or `flush()` per chunk in batch code |
 
 ## 0.10.0: one ordered `entries` tree
 

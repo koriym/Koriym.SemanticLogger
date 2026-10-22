@@ -194,7 +194,7 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Maintain schema versioning for breaking changes
 
 ### Error Handling
-- The logger never throws: recording failures and protocol misuse become core-owned diagnostic entries (`semantic_logger_error` / `semantic_logger_invalid_context`)
+- Recording never throws: recording failures and protocol misuse become core-owned diagnostic entries (`semantic_logger_error` / `semantic_logger_invalid_context`). Construction can: an invalid `maxRecords` (below 1) throws `InvalidArgumentException`
 - Vocabulary violations (TYPE pattern, reserved namespace, SCHEMA_URL shape) are validator concerns, not runtime concerns
 - Use `--fail-on-diagnostics` in CI to fail on logger-recorded diagnostics
 - A session records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens/events/rejected-close diagnostics; past it, recording stops (recorded opens still get their closes) and `flush()` adds one `semantic_logger_truncated` point, which the validator treats as a warning, not a diagnostic

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger;
 
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 use function array_column;
@@ -122,16 +123,12 @@ final class RecordLimitTest extends TestCase
         $this->assertSame($flushed, $preview);
     }
 
-    public function testNonPositiveLimitStillRecordsOneEntryAndAValidMarker(): void
+    public function testLimitBelowOneIsRejectedAtConstruction(): void
     {
-        $logger = new SemanticLogger(0);
-        $logger->event(new FakeContext('kept'));
-        $logger->event(new FakeContext('dropped'));
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('maxRecords must be 1 or more, 0 given');
 
-        $log = $logger->flush()->toArray()['log'];
-
-        $this->assertSame('kept', $log[0]['context']['message']);
-        $this->assertSame(['limit' => 1, 'dropped' => 1, 'firstDroppedType' => FakeContext::TYPE], $log[1]['context']);
+        new SemanticLogger(0);
     }
 
     public function testFlushStartsAFreshBudget(): void
