@@ -10,6 +10,7 @@ use function chmod;
 use function file_exists;
 use function file_put_contents;
 use function json_encode;
+use function ob_end_clean;
 use function ob_get_clean;
 use function ob_start;
 use function sys_get_temp_dir;
@@ -222,6 +223,20 @@ final class StreeCommandTest extends TestCase
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('"context": {}', $output);
         $this->assertStringContainsString('"log": []', $output);
+    }
+
+    public function testTopLevelThatIsNotAnObjectIsAnError(): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, '[{"log":[]}]');
+
+        $command = new StreeCommand();
+
+        ob_start();
+        $exitCode = $command->__invoke(['stree', $this->tempFile]);
+        ob_end_clean();
+
+        $this->assertSame(1, $exitCode);
     }
 
     public function testShortOptions(): void

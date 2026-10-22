@@ -7,11 +7,13 @@ namespace Koriym\SemanticLogger\Stree;
 use JsonException;
 use RuntimeException;
 
+use function array_keys;
 use function array_slice;
 use function count;
 use function file_exists;
 use function file_get_contents;
 use function fprintf;
+use function is_array;
 use function is_numeric;
 use function is_readable;
 use function is_string;
@@ -77,8 +79,10 @@ final class StreeCommand
                 return 0;
             }
 
-            /** @var array<string, mixed> $logData */
             $logData = $this->decodeLog($content, true);
+            if (! self::isJsonObject($logData)) {
+                throw new RuntimeException(sprintf('Invalid log data in %s: expected a JSON object', $fileOption));
+            }
 
             $renderer = new TreeRenderer($config);
             $output = $renderer->renderTree($logData);
@@ -221,6 +225,25 @@ final class StreeCommand
         } catch (JsonException $e) {
             throw new RuntimeException(sprintf('Invalid JSON in log file: %s', $e->getMessage()));
         }
+    }
+
+    /**
+     * @psalm-assert-if-true array<string, mixed> $value
+     * @phpstan-assert-if-true array<string, mixed> $value
+     */
+    private static function isJsonObject(mixed $value): bool
+    {
+        if (! is_array($value)) {
+            return false;
+        }
+
+        foreach (array_keys($value) as $key) {
+            if (! is_string($key)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
