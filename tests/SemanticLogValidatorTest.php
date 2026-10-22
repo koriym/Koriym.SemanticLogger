@@ -328,6 +328,36 @@ JSON,
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
 
+    public function testValidateAcceptsCoreDiagnosticInCompactForm(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "types": {
+    "semantic_logger_error": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json"
+  },
+  "log": [
+    {
+      "id": "semantic_logger_error_1",
+      "type": "semantic_logger_error",
+      "context": {
+        "code": "close_without_open",
+        "message": "Cannot close operation: no open operations",
+        "relatedId": "missing_1"
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectOutputRegex('/All contexts validate successfully/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
     public function testValidateRejectsSchemaUrlDisagreeingWithTypesIndex(): void
     {
         file_put_contents(

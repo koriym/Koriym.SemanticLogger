@@ -333,7 +333,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $type = $contextData->type;
         if (is_string($type) && $this->coreDiagnostic->isCoreType($type)) {
             $diagnostics[] = $this->coreDiagnostic->describe($contextData, $path, $type);
-            $this->validateCoreDiagnostic($contextData, $type, $kind, $path, $violations, $schemaResolver);
+            $this->validateCoreDiagnostic($contextData, $type, $kind, $path, $types, $violations, $schemaResolver);
 
             return;
         }
@@ -367,18 +367,20 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     /**
      * Core diagnostic entries are validated against the schemas bundled with
      * this package, selected by the canonical type-to-URL mapping — an entry
-     * whose URL disagrees with its core type is rejected before any schema load.
+     * whose URL (own `schemaUrl`, or `types[type]` in the compact form)
+     * disagrees with its core type is rejected before any schema load.
      *
-     * @param object       $entry      the core-owned diagnostic entry
-     * @param string       $type       the entry's core-owned type
-     * @param list<string> $violations
+     * @param object                $entry      the core-owned diagnostic entry
+     * @param string                $type       the entry's core-owned type
+     * @param array<string, string> $types
+     * @param list<string>          $violations
      *
      * @param-out list<string>    $violations
      */
-    private function validateCoreDiagnostic(object $entry, string $type, string $kind, string $path, array &$violations, SchemaResolver $schemaResolver): void
+    private function validateCoreDiagnostic(object $entry, string $type, string $kind, string $path, array $types, array &$violations, SchemaResolver $schemaResolver): void
     {
         $canonicalUrl = $this->coreDiagnostic->schemaUrlFor($type);
-        $schemaUrl = $schemaResolver->extractSchemaUrl($entry);
+        $schemaUrl = $schemaResolver->extractSchemaUrl($entry) ?? ($types[$type] ?? null);
         if ($canonicalUrl === null || $schemaUrl !== $canonicalUrl) {
             $violations[] = "{$kind} {$path}: core diagnostic '{$type}' must use the canonical schema URL: {$canonicalUrl}";
 
