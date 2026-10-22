@@ -47,6 +47,14 @@ final class EmptyContextTest extends TestCase
         $this->assertStringContainsString('"discardedContext":{}', $json);
     }
 
+    public function testEncodingTheLoggerItselfAlsoWritesObjects(): void
+    {
+        $logger = new SemanticLogger();
+        $logger->event(new PrivateOnlyContext());
+
+        $this->assertStringContainsString('"context":{}', json_encode($logger, JSON_THROW_ON_ERROR));
+    }
+
     public function testToArrayKeepsContextsAsPhpArrays(): void
     {
         $logger = new SemanticLogger();
