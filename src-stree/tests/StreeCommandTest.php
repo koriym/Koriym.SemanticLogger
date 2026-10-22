@@ -208,14 +208,10 @@ final class StreeCommandTest extends TestCase
         $this->assertStringNotContainsString('fast_operation', $output);
     }
 
-    public function testJsonPassthrough(): void
+    public function testJsonPassthroughKeepsEmptyObjectsAndArrays(): void
     {
-        $logData = [
-            'log' => [self::simpleOpen([])],
-        ];
-
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
-        file_put_contents($this->tempFile, json_encode($logData));
+        file_put_contents($this->tempFile, '{"log":[{"id":"a_1","type":"a","schemaUrl":"https://example.com/a.json","context":{},"log":[]}]}');
 
         $command = new StreeCommand();
 
@@ -224,8 +220,8 @@ final class StreeCommandTest extends TestCase
         $output = ob_get_clean() ?: '';
 
         $this->assertSame(0, $exitCode);
-        $this->assertStringContainsString('"log"', $output);
-        $this->assertStringContainsString('"close"', $output);
+        $this->assertStringContainsString('"context": {}', $output);
+        $this->assertStringContainsString('"log": []', $output);
     }
 
     public function testShortOptions(): void

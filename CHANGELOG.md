@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Contexts with private or protected properties no longer lose their public properties to a freeze-time `JsonException`; the default context shape now includes public properties only, as documented. A context with no public properties (and no `JsonSerializable`) is now recorded as `{}` instead of a `semantic_logger_invalid_context` placeholder plus diagnostic; missing fields surface in the validator as schema violations rather than as logger diagnostics.
 - `DevSemanticLogger` no longer advances its profiling stack or finalizes timing when `close()` targets a tracked operation that is not the innermost open.
+- `stree --json` no longer rewrites empty JSON objects as `[]` (e.g. `"context": {}`); the passthrough keeps objects and arrays apart.
 
 ## [0.10.0] - 2026-10-20
 

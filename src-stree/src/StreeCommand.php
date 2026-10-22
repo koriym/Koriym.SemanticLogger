@@ -68,13 +68,17 @@ final class StreeCommand
                 throw new RuntimeException('File option must be a string');
             }
 
-            $logData = $this->loadLogFile($fileOption);
+            $content = $this->readLogFile($fileOption);
 
             if (isset($options['json'])) {
-                echo json_encode($logData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
+                // Decoded as objects so `{}` is not re-encoded as `[]`.
+                echo json_encode($this->decodeLog($content, false), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
 
                 return 0;
             }
+
+            /** @var array<string, mixed> $logData */
+            $logData = $this->decodeLog($content, true);
 
             $renderer = new TreeRenderer($config);
             $output = $renderer->renderTree($logData);
@@ -192,8 +196,7 @@ final class StreeCommand
         return (float) $numericValue;
     }
 
-    /** @return array<string, mixed> */
-    private function loadLogFile(string $file): array
+    private function readLogFile(string $file): string
     {
         if (! file_exists($file)) {
             throw new RuntimeException(sprintf('Log file not found: %s', $file));
@@ -208,11 +211,13 @@ final class StreeCommand
             throw new RuntimeException(sprintf('Failed to read log file: %s', $file)); // @codeCoverageIgnore
         }
 
-        try {
-            /** @var array<string, mixed> $data */
-            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+        return $content;
+    }
 
-            return $data;
+    private function decodeLog(string $content, bool $associative): mixed
+    {
+        try {
+            return json_decode($content, $associative, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
             throw new RuntimeException(sprintf('Invalid JSON in log file: %s', $e->getMessage()));
         }
