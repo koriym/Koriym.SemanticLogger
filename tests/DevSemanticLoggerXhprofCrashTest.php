@@ -26,12 +26,13 @@ final class DevSemanticLoggerXhprofCrashTest extends TestCase
 {
     public function testNestedCloseUnderXhprofDoesNotSegfault(): void
     {
-        if (! $this->childProcessCanLoadXhprof()) {
+        $xhprofArgs = $this->xhprofArgs();
+        if ($xhprofArgs === null) {
             self::markTestSkipped('xhprof extension is not loadable in a child PHP process');
         }
 
         $fixture = __DIR__ . '/Fake/xhprof-nested-close-smoke.php';
-        [$exitCode, $stdout, $stderr] = $this->runChildProcess([PHP_BINARY, '-d', 'extension=xhprof', $fixture]);
+        [$exitCode, $stdout, $stderr] = $this->runChildProcess([PHP_BINARY, ...$xhprofArgs, $fixture]);
 
         // Exit 139 (128 + SIGSEGV) is the regression this test guards
         // against: DevSemanticLogger's nested open/close used to crash
@@ -58,12 +59,23 @@ final class DevSemanticLoggerXhprofCrashTest extends TestCase
         }
     }
 
-    private function childProcessCanLoadXhprof(): bool
+    /**
+     * Loading an extension that php.ini already loads prints a startup warning to stdout,
+     * which would corrupt the child's JSON output, so `-d extension=xhprof` is added only when needed.
+     *
+     * @return list<string>|null null when xhprof cannot be loaded at all
+     */
+    private function xhprofArgs(): array|null
     {
         $probeCode = 'exit(extension_loaded("xhprof") ? 0 : 1);';
-        [$exitCode] = $this->runChildProcess([PHP_BINARY, '-d', 'extension=xhprof', '-r', $probeCode]);
+        foreach ([[], ['-d', 'extension=xhprof']] as $args) {
+            [$exitCode] = $this->runChildProcess([PHP_BINARY, ...$args, '-r', $probeCode]);
+            if ($exitCode === 0) {
+                return $args;
+            }
+        }
 
-        return $exitCode === 0;
+        return null;
     }
 
     /**
