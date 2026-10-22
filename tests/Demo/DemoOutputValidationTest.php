@@ -69,6 +69,6 @@ final class DemoOutputValidationTest extends TestCase
 
         $this->assertTrue($this->validator->isValid(), 'Demo semantic-log-demo.json should validate against schema');
         $this->assertIsObject($logData);
-        $this->assertObjectHasProperty('entries', $logData);
+        $this->assertObjectHasProperty('log', $logData);
     }
 }

@@ -1,8 +1,46 @@
-# Migration Guide: 0.8 / 1.x → 0.9
+# Migration Guide
 
-0.9 rebuilds the logger around a single behavior: **the logger never throws**.
-Failures and protocol misuse become core-owned diagnostic entries in the log
-itself, and quality gates move to the reading side (the validator and CI).
+Newest step first: 0.10.0 → Unreleased, then 0.9 → 0.10.0, then 0.8 / 1.x → 0.9
+(where the logger stopped throwing and failures became diagnostic entries in
+the log itself).
+
+## 0.10.0 → Unreleased: `log` replaces `entries`/`children`, `kind` is gone, orphans move inline
+
+The public document gets one key at every level and no discriminator field; the PHP value objects flatten closes into the record list.
+
+### Public JSON
+
+| 0.10.0 | Unreleased |
+|---|---|
+| root `entries`, every open's own `children` | root `log`, every interval's own `log` — one key at every level |
+| every entry carries `kind: "open"` / `kind: "event"` | no `kind` field; discriminate structurally: `close` present → completed interval, `log` present (maybe empty) with no `close` → interrupted interval, neither → point |
+| an open always carries `children` (even `[]`) regardless of close state | `log` is present whenever the interval is unclosed (even `[]`); omitted once closed if it has no children |
+| root `close[]` holds orphan closes, each `{id, type, schemaUrl, context, openId, profile?}` | no root `close[]`; an orphan close is a root record of the same shape, spliced into the root `log` at the position it was encountered (right after whichever root-scope record was being built at that moment) |
+| envelope `required: ["$schema", "entries"]`; `entry` is `oneOf(openEntry, eventEntry)` keyed on `kind` | `required: ["$schema", "log"]`; `rootRecord` is `oneOf(record, orphanClose)`, disjoint because `openId` is forbidden on `record` and required on `orphanClose` |
+| `schemaUrl` on every entry/close (only representation) | still always on every record/close from this writer (never a `types` index); readers additionally accept a document-level `types: {type: schemaUrl}` index with no per-record `schemaUrl` (the compact form) |
+| diagnostic context `kind` (`close_without_open`, …) | `code` |
+| `semantic_logger_error.json` / `semantic_logger_invalid_context.json` require `kind` | require `code` |
+
+### Validator and stree
+
+| 0.10.0 | Unreleased |
+|---|---|
+| validator paths `entries[i]`, `.children[j]` | `log[i]`, `.log[j]` (`.close` unchanged); messages name the structural kind |
+| validator: no check for an unresolved schema, duplicate `id`, or a double-close orphan | each is now a validator error; an interrupted interval (`log` without `close`) is a warning, not a failure, and does not participate in `--fail-on-diagnostics` |
+| stree: `LogDataParser` reads `entries` / `children` / `kind`; missing `entries` throws | reads `log`; kind derived structurally; missing `log` throws `RuntimeException('Invalid log data: missing log section')` |
+| validator: a reserved-namespace type other than the two diagnostics is an error | `semantic_logger_truncated` is a core point too, schema-checked like a diagnostic and listed as a warning; it never fails `--fail-on-diagnostics` |
+
+### PHP API
+
+| 0.10.0 | Unreleased |
+|---|---|
+| `OpenCloseEntry` | `OpenEntry` — it only ever held the open |
+| `new LogJson($schemaUrl, $records, $closes, $links)` | `new LogJson($schemaUrl, $records, $links)` — closes are records too, at the position they were recorded |
+| `$log->closes` | gone; filter `CloseEntry` instances from `$log->records` |
+| a close is an `EventEntry` with `openId` and `profile` | `CloseEntry(id, type, schemaUrl, context, openId, profile)` — `openId` is required |
+| `EventEntry(id, type, schemaUrl, context, openId, profile)` | `EventEntry(id, type, schemaUrl, context, openId)` — events never carried a profile in the output |
+| `LogTreeBuilder::build($records, $closes)` | `build($records)` |
+| `new SemanticLogger()` records without limit | records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens, events and rejected-close diagnostics per session, then drops new ones and adds a `semantic_logger_truncated` marker at flush; pass `new SemanticLogger($maxRecords)` (`positive-int`) to change it, or `flush()` per chunk in batch code |
 
 ## 0.10.0: one ordered `entries` tree
 
@@ -65,7 +103,7 @@ always succeed.
 
 Two core-owned context types carry what used to be exceptions:
 
-- `semantic_logger_error` — protocol and recording failures, with a `kind` of
+- `semantic_logger_error` — protocol and recording failures, with a `code` of
   `context_serialization_failed`, `close_without_open`, `close_id_mismatch`,
   or `unclosed_at_flush`.
 - `semantic_logger_invalid_context` — a placeholder that preserves an entry's

@@ -50,7 +50,7 @@ Keep commit messages concise and focused on what was changed, not categorizing t
 - `composer demo` - Run `demo/run.php` with Xdebug+XHProf profiling, then validate and render the resulting log
 - `composer validate-demo` - Validate bundled demo JSON logs (`demo/*.json`) against `demo/schemas`
 - `composer sgen` - Regenerate `demo/schemas/combined.json` from per-context schemas via `demo/generate-schema.php`
-- `composer stree` / `composer stree:full` / `composer stree:perf` / `composer stree:db` - Render `demo/semantic-log-demo.json` as a tree with different filters
+- `composer stree` / `composer stree:full` / `composer stree:perf` - Render `demo/semantic-log-demo.json` as a tree with different filters
 
 ## Architecture Overview
 
@@ -67,19 +67,19 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 **AbstractContext** (`src/AbstractContext.php`)
 - Base class for all context objects
 - Enforces type safety with const TYPE and SCHEMA_URL
-- Context data extracted via array casting
+- Context data is the public properties (or `jsonSerialize()` result), frozen at record time by `ContextFreezer`
 
-**EventEntry / OpenCloseEntry** (`src/EventEntry.php`, `src/OpenCloseEntry.php`)
+**OpenEntry / EventEntry / CloseEntry** (`src/OpenEntry.php`, `src/EventEntry.php`, `src/CloseEntry.php`)
 - Immutable value objects for log entries
-- Flat records as recorded: `EventEntry` is an event or a close (`openId` = the scope it was recorded in, or the open it ended; `profile` for closes), `OpenCloseEntry` is an open with the `parentId` captured at open time
+- Flat records as recorded: `OpenEntry` is an open with the `parentId` captured at open time, `EventEntry` is an event (`openId` = the scope it was recorded in), `CloseEntry` is a close (`openId` = the open it ended, optional `profile`)
 
 **LogTreeBuilder** (`src/LogTreeBuilder.php`)
-- Turns the flat record list into the public tree: one `children` list per open in record order, the first close for an open nested on it, every other close an orphan
+- Turns the record list into the public `log`: one `log` list per interval in record order (present, possibly empty, whenever the interval is unclosed; omitted when closed with no children), the first close for an open becomes its `close`, every other close is a root orphan spliced into the root `log` at the position it was encountered
 
 **LogJson** (`src/LogJson.php`)
 - Immutable structured log output
-- Implements JsonSerializable; holds `records` (opens and events) and `closes`, and builds the public tree in `toArray()`
-- Root `close` appears only for orphan closes
+- Implements JsonSerializable; holds `records` (opens, events and closes in record order) and builds the public `log` in `toArray()`
+- No `kind` field, no root `close` array; a record's kind (completed interval / interrupted interval / point / orphan close) is read structurally from which of `close`/`log`/`openId` it carries
 
 **DevLogger / DevSemanticLogger** (`src/DevLogger.php`, `src/DevSemanticLogger.php`)
 - Development-time helpers that flush the logger and write `semantic-dev-*.json` to disk
@@ -105,7 +105,7 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - `PhpProfile`, `XdebugTrace`, `XHProfResult` are immutable value objects for individual artifacts
 
 **Types.php** (`src/Types.php`)
-- Central catalog of `@psalm-type` / `@phpstan-type` aliases (ContextData, EventEntryList, OpenCloseEntryList, SchemaLinks, OperationProfileData, etc.)
+- Central catalog of `@psalm-type` / `@phpstan-type` aliases (ContextData, LogRecordList, OpenEntryArray, PublicRecord, PublicClose, SchemaLinks, OperationProfileData, etc.)
 - Not instantiable; import with `@psalm-import-type` / `@phpstan-import-type`. See `skills/php-domain-types/SKILL.md` for the policy.
 
 ### Key Architectural Patterns
@@ -131,10 +131,10 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Prevents log pollution between operations
 - Returns immutable LogJson object
 
-**Tree-shaped Public JSON**
-- `flush()` returns a tree: root `entries`, each entry with `kind` (`open` | `event`); each `open` carries `children` (events and nested opens in record order) and its matching `close`
-- Normal results are read from paths like `$log['entries'][0]['close']`; nested entries carry no `openId`
-- Root `close` exists only for orphan closes; consumers should treat the tree as the source of truth
+**Record-order Public JSON**
+- `flush()` returns `{ $schema, log, links? }`: `log` is an ordered list of records; a record with `close` is a completed interval, with `log` (possibly empty) and no `close` an interrupted interval, with neither a point, and a root record with `openId` an orphan close
+- Normal results are read from paths like `$log['log'][0]['close']`; the writer always emits `schemaUrl` on every record and close (never a document-level `types` index), though readers (the validator, stree) also accept that compact form
+- Orphan closes are inline in the root `log`, each carrying `openId`; there is no root-level `close` array
 
 **Profiler Integration Pattern**
 - Profiler output is modeled as immutable value objects under `src/Profiler/` (`OperationProfile`, `XdebugTrace`, `XHProfResult`, `PhpProfile`)
@@ -194,9 +194,10 @@ koriym/semantic-logger is a type-safe structured logging library with JSON schem
 - Maintain schema versioning for breaking changes
 
 ### Error Handling
-- The logger never throws: recording failures and protocol misuse become core-owned diagnostic entries (`semantic_logger_error` / `semantic_logger_invalid_context`)
+- The logger never throws: recording failures and protocol misuse become core-owned diagnostic entries (`semantic_logger_error` / `semantic_logger_invalid_context`). Argument contracts such as `maxRecords` being `positive-int` are enforced by static analysis, not at runtime
 - Vocabulary violations (TYPE pattern, reserved namespace, SCHEMA_URL shape) are validator concerns, not runtime concerns
 - Use `--fail-on-diagnostics` in CI to fail on logger-recorded diagnostics
+- A session records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens/events/rejected-close diagnostics; past it, recording stops (recorded opens still get their closes) and `flush()` adds one `semantic_logger_truncated` point, which the validator treats as a warning, not a diagnostic
 
 ### Profiler Integration (BEAR.Resource)
 - Profile data is carried by the immutable value objects in `src/Profiler/` (`OperationProfile` + artifact classes)

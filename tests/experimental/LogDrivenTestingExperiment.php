@@ -56,7 +56,7 @@ final class LogDrivenTestingExperiment extends TestCase
 
         // Debug output
         echo "\n=== LogJson Debug ===\n";
-        echo 'Entries: ' . json_encode($logJson->toArray()['entries'], JSON_PRETTY_PRINT) . "\n";
+        echo 'Log: ' . json_encode($logJson->toArray()['log'], JSON_PRETTY_PRINT) . "\n";
         echo 'Pairs found: ' . count($pairs) . "\n";
 
         $this->assertCount(2, $pairs);

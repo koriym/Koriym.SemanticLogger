@@ -15,7 +15,7 @@ use function end;
 use function uniqid;
 
 /**
- * @psalm-import-type EventEntryList from Types
+ * @psalm-import-type LogRecordList from Types
  * @psalm-import-type OperationProfilesById from Types
  * @psalm-import-type SchemaLinks from Types
  * @psalm-import-type WallTimesByOperationId from Types
@@ -73,7 +73,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     #[Override]
     public function close(AbstractContext $context, string $openId): void
     {
-        $tracked = isset($this->startedPhp[$openId]);
+        $tracked = isset($this->startedPhp[$openId]) && end($this->openStack) === $openId;
 
         if ($tracked) {
             // Stop the being's final segment and capture wallTime BEFORE
@@ -125,8 +125,7 @@ final class DevSemanticLogger implements SemanticLoggerInterface
 
             return new LogJson(
                 $logJson->schemaUrl,
-                $logJson->records,
-                $this->attachProfilesToCloses($logJson->closes, $operations),
+                $this->attachProfiles($logJson->records, $operations),
                 $logJson->links,
             );
         } finally {
@@ -153,17 +152,23 @@ final class DevSemanticLogger implements SemanticLoggerInterface
     }
 
     /**
-     * @param EventEntryList        $closes
+     * @param LogRecordList         $records
      * @param OperationProfilesById $operations
      *
-     * @return EventEntryList
+     * @return LogRecordList
      */
-    private function attachProfilesToCloses(array $closes, array $operations): array
+    private function attachProfiles(array $records, array $operations): array
     {
         $result = [];
-        foreach ($closes as $close) {
-            $profile = $close->openId !== null ? $operations[$close->openId] ?? null : null;
-            $result[] = $profile === null ? $close : $close->withProfile($profile);
+        foreach ($records as $record) {
+            if (! $record instanceof CloseEntry) {
+                $result[] = $record;
+
+                continue;
+            }
+
+            $profile = $operations[$record->openId] ?? null;
+            $result[] = $profile === null ? $record : $record->withProfile($profile);
         }
 
         return $result;

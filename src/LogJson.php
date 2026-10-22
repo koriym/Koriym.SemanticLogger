@@ -8,7 +8,6 @@ use JsonSerializable;
 use Override;
 
 /**
- * @psalm-import-type EventEntryList from Types
  * @psalm-import-type LogRecordList from Types
  * @psalm-import-type LogSessionArray from Types
  * @psalm-import-type SchemaLinks from Types
@@ -16,14 +15,12 @@ use Override;
 final class LogJson implements JsonSerializable
 {
     /**
-     * @param LogRecordList  $records Opens and events in record order.
-     * @param EventEntryList $closes  Closes in record order.
-     * @param SchemaLinks    $links
+     * @param LogRecordList $records Opens, events and closes in record order.
+     * @param SchemaLinks   $links
      */
     public function __construct(
         public readonly string $schemaUrl,
         public readonly array $records,
-        public readonly array $closes = [],
         public readonly array $links = [],
     ) {
     }
@@ -50,15 +47,11 @@ final class LogJson implements JsonSerializable
     /** @return LogSessionArray */
     public function toArray(): array
     {
-        $tree = (new LogTreeBuilder())->build($this->records, $this->closes);
+        $log = (new LogTreeBuilder())->build($this->records);
         $result = [
             '$schema' => $this->schemaUrl,
-            'entries' => $tree['entries'],
+            'log' => $log,
         ];
-
-        if ($tree['close'] !== []) {
-            $result['close'] = $tree['close'];
-        }
 
         if ($this->links !== []) {
             $result['links'] = $this->links;

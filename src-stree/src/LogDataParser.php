@@ -30,21 +30,33 @@ final class LogDataParser
     {
         $this->orphanCloseSequence = 0;
 
-        if (! array_key_exists('entries', $logData) || ! is_array($logData['entries'])) {
-            throw new RuntimeException('Invalid log data: missing entries section');
+        if (! array_key_exists('log', $logData) || ! is_array($logData['log'])) {
+            throw new RuntimeException('Invalid log data: missing log section');
         }
 
-        $entries = $this->arrayItems($logData['entries']);
-        $orphanCloses = isset($logData['close']) && is_array($logData['close']) ? $this->arrayItems($logData['close']) : [];
+        $rootItems = $this->arrayItems($logData['log']);
+        $hasOrphan = false;
+        foreach ($rootItems as $rootItem) {
+            if ($this->isOrphan($rootItem)) {
+                $hasOrphan = true;
+                break;
+            }
+        }
 
-        if (count($entries) === 1 && $orphanCloses === [] && $this->isOpen($entries[0])) {
-            return $this->parseOpen($entries[0], null);
+        if (count($rootItems) === 1 && ! $hasOrphan && $this->isInterval($rootItems[0])) {
+            return $this->parseOpen($rootItems[0], null);
         }
 
         $forestRoot = TreeNode::synthetic('__forest__', '__forest__', []);
-        $this->attachChildren($forestRoot, $entries);
-        foreach ($orphanCloses as $closeEntry) {
-            $forestRoot->addChild($this->createOrphanCloseNode($closeEntry, $forestRoot));
+        foreach ($rootItems as $rootItem) {
+            if ($this->isOrphan($rootItem)) {
+                $forestRoot->addChild($this->createOrphanCloseNode($rootItem, $forestRoot));
+                continue;
+            }
+
+            $forestRoot->addChild(
+                $this->isInterval($rootItem) ? $this->parseOpen($rootItem, $forestRoot) : $this->parseEvent($rootItem, $forestRoot),
+            );
         }
 
         return $forestRoot;
@@ -71,16 +83,22 @@ final class LogDataParser
     }
 
     /** @param array<string, mixed> $entry */
-    private function isOpen(array $entry): bool
+    private function isInterval(array $entry): bool
     {
-        return ($entry['kind'] ?? null) === 'open';
+        return array_key_exists('close', $entry) || array_key_exists('log', $entry);
+    }
+
+    /** @param array<string, mixed> $entry */
+    private function isOrphan(array $entry): bool
+    {
+        return array_key_exists('openId', $entry);
     }
 
     /** @param list<array<string, mixed>> $entries */
     private function attachChildren(TreeNode $node, array $entries): void
     {
         foreach ($entries as $entry) {
-            $node->addChild($this->isOpen($entry) ? $this->parseOpen($entry, $node) : $this->parseEvent($entry, $node));
+            $node->addChild($this->isInterval($entry) ? $this->parseOpen($entry, $node) : $this->parseEvent($entry, $node));
         }
     }
 
@@ -96,8 +114,8 @@ final class LogDataParser
             $parent,
         );
 
-        if (array_key_exists('children', $entry) && is_array($entry['children'])) {
-            $this->attachChildren($node, $this->arrayItems($entry['children']));
+        if (array_key_exists('log', $entry) && is_array($entry['log'])) {
+            $this->attachChildren($node, $this->arrayItems($entry['log']));
         }
 
         if (array_key_exists('close', $entry) && is_array($entry['close'])) {

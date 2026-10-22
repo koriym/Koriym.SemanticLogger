@@ -52,14 +52,14 @@ The generated `semantic-log.json` follows the Universal Semantic Logger Schema w
 Abbreviated example:
 ```json
 {
-  "entries": [
+  "log": [
     {
-      "kind": "open",
       "id": "http_request_1",
       "type": "http_request",
-      "children": [
-        {"kind": "event", "id": "cache_operation_1", "type": "cache_operation", "...": "..."},
-        {"kind": "open", "id": "auth_1", "type": "auth", "children": [], "close": {"...": "..."}}
+      "schemaUrl": "./schemas/http_request.json",
+      "log": [
+        {"id": "cache_operation_1", "type": "cache_operation", "schemaUrl": "...", "...": "..."},
+        {"id": "auth_1", "type": "auth", "schemaUrl": "...", "close": {"...": "..."}}
       ],
       "close": {"id": "http_response_1", "type": "http_response", "...": "..."}
     }
@@ -68,9 +68,10 @@ Abbreviated example:
 ```
 
 ### Structural Correlation
-- `children` is the timeline of a scope: events and nested opens in the order they were recorded
-- Matched `close` entries live directly under their `open`
-- A top-level `close` list appears only for orphan closes
+- `log` is the timeline of a scope at every level: events and nested opens in the order they were recorded
+- Matched `close` entries live directly under their interval
+- Kind is structural, not a field: `close` present means a completed interval; `log` present (possibly empty) with no `close` means an interrupted interval; neither means a point (event)
+- Orphan closes (no matching open in this document) are inline in the root `log`, each carrying `openId`; there is no root-level `close` list
 
 ## Schema Validation
 

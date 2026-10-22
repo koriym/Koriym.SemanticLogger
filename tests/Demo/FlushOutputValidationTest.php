@@ -78,13 +78,15 @@ final class FlushOutputValidationTest extends TestCase
 
         $log = $logger->flush()->toArray();
 
-        $this->assertArrayNotHasKey('close', $log);
-        $this->assertCount(1, $log['entries']);
-        $open = $log['entries'][0];
-        $this->assertSame('open', $open['kind']);
-        $this->assertCount(1, $open['children']);
-        $this->assertSame('event', $open['children'][0]['kind']);
-        $this->assertArrayNotHasKey('openId', $open['children'][0]);
+        $this->assertCount(1, $log['log']);
+        $open = $log['log'][0];
+        $this->assertTrue(isset($open['close']) || isset($open['log']));
+        $children = $open['log'] ?? [];
+        $this->assertCount(1, $children);
+        $event = $children[0];
+        $this->assertArrayNotHasKey('close', $event);
+        $this->assertArrayNotHasKey('log', $event);
+        $this->assertArrayNotHasKey('openId', $event);
         $close = $open['close'] ?? null;
         $this->assertIsArray($close);
         $this->assertArrayNotHasKey('openId', $close);

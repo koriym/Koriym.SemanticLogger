@@ -22,32 +22,48 @@ use function iterator_to_array;
  * instead of exceptions — a logging failure can never break the application,
  * and "nothing happened" never has to be inferred from absence.
  *
+ * A session records at most `$maxRecords` opens, events and rejected-close
+ * diagnostics. Beyond that it stops recording rather than growing without
+ * bound — opens past the limit are only counted, so even unbounded nesting
+ * keeps memory flat — and the flush carries one `semantic_logger_truncated`
+ * marker.
+ *
  * @psalm-import-type DiagnosticData from Types
- * @psalm-import-type DiagnosticKind from Types
- * @psalm-import-type EventEntryList from Types
+ * @psalm-import-type DiagnosticCode from Types
  * @psalm-import-type LogRecordList from Types
  * @psalm-import-type LogSessionArray from Types
  * @psalm-import-type SchemaLinks from Types
+ * @psalm-import-type TruncationData from Types
  * @psalm-import-type TypeCounts from Types
  */
 final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
 {
-    /** @var LogRecordList Opens and events in record order. */
+    /** Ample for a request (tens of records), and small enough that the rendered tree still fits an agent's context. */
+    public const DEFAULT_MAX_RECORDS = 1000;
+
+    /** @var LogRecordList Opens, events and closes in record order. */
     private array $records = [];
 
-    /** @var EventEntryList Closes in record order. */
-    private array $closes = [];
-
-    /** @var SplStack<OpenCloseEntry> */
+    /** @var SplStack<OpenEntry> */
     private SplStack $openStack;
 
     /** @var TypeCounts */
     private array $typeCounts = [];
     private readonly ContextFreezer $contextFreezer;
 
-    public function __construct()
-    {
-        /** @var SplStack<OpenCloseEntry> $openStack */
+    /** Opens, events and rejected-close diagnostics counted against the limit. */
+    private int $limitedCount = 0;
+
+    /** Opens past the limit that are still open: counted, never kept, so unbounded nesting stays O(1) memory. */
+    private int $unrecordedDepth = 0;
+    private int $dropped = 0;
+    private string $firstDroppedType = '';
+
+    /** @param positive-int $maxRecords */
+    public function __construct(
+        private readonly int $maxRecords = self::DEFAULT_MAX_RECORDS,
+    ) {
+        /** @var SplStack<OpenEntry> $openStack */
         $openStack = new SplStack();
         $this->openStack = $openStack;
         $this->contextFreezer = new ContextFreezer();
@@ -58,7 +74,14 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     {
         $frozen = $this->contextFreezer->freeze($context, 'open');
         $operationId = $this->nextId($frozen['type']);
-        $open = new OpenCloseEntry(
+        if ($this->isFull()) {
+            $this->unrecordedDepth++;
+            $this->drop($frozen['type']);
+
+            return $operationId;
+        }
+
+        $open = new OpenEntry(
             $operationId,
             $frozen['type'],
             $frozen['schemaUrl'],
@@ -66,6 +89,8 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             $this->currentOpenId(),
         );
         $this->openStack->push($open);
+
+        $this->limitedCount++;
         $this->records[] = $open;
         if ($frozen['diagnostic'] !== null) {
             $frozen['diagnostic']['relatedId'] = $operationId;
@@ -79,6 +104,13 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     public function event(AbstractContext $context): void
     {
         $frozen = $this->contextFreezer->freeze($context, 'event');
+        if ($this->isFull()) {
+            $this->drop($frozen['type']);
+
+            return;
+        }
+
+        $this->limitedCount++;
         $eventId = $this->nextId($frozen['type']);
         $currentOpenId = $this->currentOpenId();
         $this->records[] = new EventEntry(
@@ -97,6 +129,12 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     #[Override]
     public function close(AbstractContext $context, string $openId): void
     {
+        if ($this->unrecordedDepth > 0) {
+            $this->closeUnrecorded($context, $openId);
+
+            return;
+        }
+
         if ($this->openStack->isEmpty()) {
             $this->recordRejectedClose(
                 'close_without_open',
@@ -123,15 +161,18 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         }
 
         $frozen = $this->contextFreezer->freeze($context, 'close');
-        $closeId = $this->nextId($frozen['type']);
         $this->openStack->pop();
+
+        // A recorded open always gets its close, even past the limit, so no
+        // recorded interval reads as interrupted.
+        $closeId = $this->nextId($frozen['type']);
         // A close-time diagnostic belongs inside the scope the close ends.
         if ($frozen['diagnostic'] !== null) {
             $frozen['diagnostic']['relatedId'] = $openId;
             $this->recordDiagnostic($frozen['diagnostic'], $openId);
         }
 
-        $this->closes[] = new EventEntry(
+        $this->records[] = new CloseEntry(
             $closeId,
             $frozen['type'],
             $frozen['schemaUrl'],
@@ -157,21 +198,25 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     public function flush(array $links = []): LogJson
     {
         try {
-            if (! $this->openStack->isEmpty()) {
+            if ($this->hasUnclosed()) {
                 $this->recordDiagnostic($this->unclosedDiagnostic(), null);
             }
 
-            return new LogJson(CoreSchema::LOG_URL, $this->records, $this->closes, $links);
+            if ($this->dropped > 0) {
+                $this->records[] = $this->truncationEntry($this->nextId(CoreSchema::TRUNCATED_TYPE));
+            }
+
+            return new LogJson(CoreSchema::LOG_URL, $this->records, $links);
         } finally {
             $this->resetState();
         }
     }
 
-    /** Non-destructive view of the session; an unclosed session gets a preview of the flush-time diagnostic. */
+    /** Non-destructive view of the session; previews the entries flush() would add. */
     private function snapshot(): LogJson
     {
         $records = $this->records;
-        if (! $this->openStack->isEmpty()) {
+        if ($this->hasUnclosed()) {
             $records[] = $this->diagnosticEntry(
                 $this->unclosedDiagnostic(),
                 null,
@@ -179,17 +224,80 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
             );
         }
 
-        return new LogJson(CoreSchema::LOG_URL, $records, $this->closes);
+        if ($this->dropped > 0) {
+            $records[] = $this->truncationEntry($this->previewId(CoreSchema::TRUNCATED_TYPE));
+        }
+
+        return new LogJson(CoreSchema::LOG_URL, $records);
     }
 
     private function resetState(): void
     {
-        /** @var SplStack<OpenCloseEntry> $openStack */
+        /** @var SplStack<OpenEntry> $openStack */
         $openStack = new SplStack();
         $this->openStack = $openStack;
         $this->records = [];
-        $this->closes = [];
         $this->typeCounts = [];
+        $this->limitedCount = 0;
+        $this->unrecordedDepth = 0;
+        $this->dropped = 0;
+        $this->firstDroppedType = '';
+    }
+
+    private function isFull(): bool
+    {
+        return $this->limitedCount >= $this->maxRecords;
+    }
+
+    private function hasUnclosed(): bool
+    {
+        return $this->unrecordedDepth > 0 || ! $this->openStack->isEmpty();
+    }
+
+    /**
+     * Unrecorded opens always sit above every recorded one, so while any is
+     * open a close naming a recorded open skips over them (a LIFO violation)
+     * and any other close ends the innermost unrecorded open.
+     */
+    private function closeUnrecorded(AbstractContext $context, string $openId): void
+    {
+        foreach ($this->openStack as $open) {
+            if ($open->id === $openId) {
+                $this->recordRejectedClose(
+                    'close_id_mismatch',
+                    "Cannot close operation '{$openId}': operations opened past the record limit are still open (LIFO order required)",
+                    $context,
+                    $openId,
+                    $this->currentOpenId(),
+                );
+
+                return;
+            }
+        }
+
+        $this->unrecordedDepth--;
+        $this->drop($this->contextFreezer->freeze($context, 'close')['type']);
+    }
+
+    private function drop(string $type): void
+    {
+        if ($this->dropped === 0) {
+            $this->firstDroppedType = $type;
+        }
+
+        $this->dropped++;
+    }
+
+    private function truncationEntry(string $id): EventEntry
+    {
+        /** @var TruncationData $context */
+        $context = [
+            'limit' => $this->maxRecords,
+            'dropped' => $this->dropped,
+            'firstDroppedType' => $this->firstDroppedType,
+        ];
+
+        return new EventEntry($id, CoreSchema::TRUNCATED_TYPE, CoreSchema::TRUNCATED_URL, $context);
     }
 
     private function currentOpenId(): string|null
@@ -227,16 +335,23 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         );
     }
 
-    /** @param DiagnosticKind $kind */
+    /** @param DiagnosticCode $code */
     private function recordRejectedClose(
-        string $kind,
+        string $code,
         string $message,
         AbstractContext $context,
         string $attemptedId,
         string|null $currentOpenId,
     ): void {
+        if ($this->isFull()) {
+            $this->drop(CoreSchema::DIAGNOSTIC_TYPE);
+
+            return;
+        }
+
+        $this->limitedCount++;
         $diagnostic = [
-            'kind' => $kind,
+            'code' => $code,
             'message' => $message,
             'relatedId' => $attemptedId,
         ];
@@ -253,15 +368,13 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     /** @return DiagnosticData */
     private function unclosedDiagnostic(): array
     {
-        $ids = array_map(
-            static fn (OpenCloseEntry $entry): string => $entry->id,
-            array_reverse(iterator_to_array($this->openStack, false)),
-        );
-
         return [
-            'kind' => 'unclosed_at_flush',
+            'code' => 'unclosed_at_flush',
             'message' => 'Log session ended with unclosed operations.',
-            'unclosedIds' => $ids,
+            'unclosedIds' => array_map(
+                static fn (OpenEntry $entry): string => $entry->id,
+                array_reverse(iterator_to_array($this->openStack, false)),
+            ),
         ];
     }
 }

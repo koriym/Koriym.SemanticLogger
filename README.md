@@ -1,16 +1,19 @@
 # Koriym.SemanticLogger
 
-Type-safe semantic logging for hierarchical application workflows with tree-shaped JSON output.
+Type-safe semantic logging for hierarchical application workflows with record-order JSON output — facts, not intentions; meaning made explicit, never left to inference.
 
-`Koriym.SemanticLogger` records three kinds of facts as structured JSON:
+`Koriym.SemanticLogger` records what an application observed as structured JSON. Three calls — `open()` for what is starting, `event()` for what happened while it ran, `close()` for how it ended — produce one document in which every record carries a schema URL and typed context data, so logs stay machine-readable and can be validated, rendered, and inspected without depending on free-form log messages.
 
-- `open`: what is starting
-- `event`: what happened while it was running
-- `close`: how it ended
+A **log** is an ordered list of **records**. A record is one occurrence: a `type` (what it is) and a `context` (what was observed). Kinds are structural — there is no `kind` field:
 
-Each entry carries a schema URL and typed context data, so logs stay machine-readable and can be validated, rendered, and inspected without depending on free-form log messages.
+| A record with… | is… |
+|---|---|
+| `close` | a completed interval — observed at start (`context`) and end (`close.context`) |
+| `log` (even empty), no `close` | an interrupted interval — the end was never observed |
+| none of `close`, `log`, `openId` | a point — a single observed fact |
+| `openId` (root only) | an orphan close — an end whose start is not in this document |
 
-The public log contract is structural: everything that happened inside an `open` is in its `children`, in the order it was recorded, and its matching `close` is nested on it. Once serialized to JSON, normal operation results are read from paths such as `entries[0].close` — not from a separate top-level close list.
+The structure is fractal: any interval may contain a `log`; the document is the outermost one.
 
 ## Installation
 
@@ -35,7 +38,7 @@ This gives you:
 - nested workflow structure
 - intent vs outcome
 - schema-backed context instead of ad-hoc strings
-- parent-child relationships embedded in the tree — no need to correlate open/close pairs by ID
+- parent-child relationships embedded in the log — no need to correlate open/close pairs by ID
 
 Optional RFC 8288 links can be attached at flush time when you want to point to related resources such as source code, schemas, or external specs.
 
@@ -105,38 +108,48 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
 ### 3. Output Shape
 
-`flush()` returns a `LogJson` object. Its public JSON is a tree in record order: `entries` lists what happened at the root, each entry has a `kind` of `open` or `event`, and every `open` carries its own `children` (events and nested opens, in the order they were recorded) plus its matching `close`. Reading the document top to bottom is reading the timeline.
+`flush()` returns a `LogJson` object. Its public JSON follows this grammar:
+
+```
+document := { $schema, log, types?, links? }
+log      := record[]
+record   := { type,       // what it is; resolves via types or schemaUrl
+              context,    // what was observed; conforms to the resolved schema
+              log?,       // records observed while open; present (possibly empty) on every interrupted interval
+              close?,     // the end observation
+              openId?,    // orphan only: id of the missing start
+              id?,        // optional; writers MAY omit it where unreferenced, readers MUST NOT require it
+              schemaUrl?, // per-record schema (expanded form)
+              profile? }  // profiler artifacts (XHProf / Xdebug)
+close    := { type, context, id?, schemaUrl?, profile? }
+links    := link[]        // RFC 8288 web links to related resources
+link     := { rel, href, title?, type? }
+```
+
+This writer always emits the expanded form — `id` and `schemaUrl` on every record and close:
 
 ```json
 {
   "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-  "entries": [
+  "log": [
     {
-      "kind": "open",
       "id": "process_1",
       "type": "process",
       "schemaUrl": "https://example.com/schemas/process.json",
-      "context": {
-        "name": "data import"
-      },
-      "children": [
+      "context": { "name": "data import" },
+      "log": [
         {
-          "kind": "event",
           "id": "process_event_1",
           "type": "process_event",
           "schemaUrl": "https://example.com/schemas/process-event.json",
-          "context": {
-            "message": "processing started"
-          }
+          "context": { "message": "processing started" }
         }
       ],
       "close": {
         "id": "process_result_1",
         "type": "process_result",
         "schemaUrl": "https://example.com/schemas/process-result.json",
-        "context": {
-          "status": "success"
-        }
+        "context": { "status": "success" }
       }
     }
   ],
@@ -150,16 +163,36 @@ echo json_encode($log, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 }
 ```
 
-`close` is absent while an open is still unclosed. A top-level `close` list appears only for orphan closes (a close whose `openId` matches no open in the log, or a second close for an open that is already closed); it is diagnostic output, not part of the normal tree.
+The same key at every level means the document is walked with one rule (`recurse(.log[]?)` in jq). Reading it top to bottom is reading the timeline.
+
+#### Order
+
+Array position only — never object member order, timestamps, or counters. The full observation sequence is a depth-first walk: record → its `log` → its `close`. A matched `close` is not a separate record in the sequence but the interval's end observation; its position is determined by structure.
+
+#### Meaning
+
+Every record resolves to exactly one schema: its `schemaUrl`, otherwise the document-level `types[type]` map, otherwise the document is invalid. This writer always emits the expanded form (`schemaUrl` on every record and close, never a `types` key); the compact form (a document-level `types` index and no per-record `schemaUrl`) is a valid, losslessly-equivalent representation that readers (the validator, `stree`) accept but this writer does not produce. When both are present they must agree; a mismatch is an error. Within one document, a `type` always resolves to the same schema: type names are the document's vocabulary.
+
+#### Incomplete Logs
+
+Failures become data; the log never lies and never throws:
+
+- **Interrupted interval** — a `log` (possibly empty) without a `close`; a validator warning. `close` is absent while an open is still unclosed, and its `log` key is present — even empty (`"log": []`) — so an interrupted interval with nothing recorded inside it is still distinguishable from a point.
+- **Orphan close** — a root record with `openId`: a close whose open is not in this document, or a second close for an open that is already closed. The tree builder splices it into the root `log` right after the root record being built when it was encountered; there is no top-level `close` list. `SemanticLogger` itself never produces one — it discards misuse closes and records a `semantic_logger_error` instead (see below) — so orphans only appear in documents assembled from raw records.
+- **Double close** — an orphan whose `openId` matches an existing record; a validator error.
+- **Serialization failure** — the record is replaced in place by an error record; one bad context never loses the session.
+
+`close` is a slot on its interval, not a separate kind in the list: because opens and closes are paired in LIFO order, a matched close always comes last in its scope, so placing it there loses no ordering information.
 
 ### The Logger Never Throws
 
 `SemanticLogger` never throws — not on serialization failures, not on protocol misuse, not on empty sessions. Failures become data: core-owned diagnostic entries in the log itself.
 
-- A context that cannot be serialized is replaced by a `semantic_logger_invalid_context` placeholder that keeps the entry's position in the tree; children still attach to it. The loss radius of one bad context is that entry — never the session.
+- A context that cannot be serialized is replaced by a `semantic_logger_invalid_context` placeholder that keeps the entry's position in the log; nested entries still attach to it. The loss radius of one bad context is that entry — never the session.
 - Protocol misuse is recorded as `semantic_logger_error` entries (see below).
-- `flush()` always returns a log and always resets: an empty session is a valid empty document (`"entries": []`), and an unclosed session returns its live tree with an `unclosed_at_flush` diagnostic.
+- `flush()` always returns a log and always resets: an empty session is a valid empty document (`"log": []`), and an unclosed session returns its live log with an `unclosed_at_flush` diagnostic.
 - `toArray()` / `jsonSerialize()` are total, non-destructive snapshots.
+- A session records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens, events and rejected-close diagnostics; pass another limit as `new SemanticLogger($maxRecords)` (`positive-int`, checked by static analysis). Past the limit the logger stops recording instead of growing without bound: new opens and events are dropped, while every already-recorded open still gets its close, so no recorded interval reads as interrupted. `flush()` then appends one root `semantic_logger_truncated` point (`limit`, `dropped`, `firstDroppedType`). It is not a diagnostic — the validator lists it as a warning, and `--fail-on-diagnostics` ignores it. A web request records tens of entries; a batch that logs per row should `flush()` per chunk.
 
 Quality gates live on the reading side: the validator lists diagnostics with their own severity, and `--fail-on-diagnostics` lets CI turn their presence into a failing build.
 
@@ -167,11 +200,11 @@ Note the layer boundary: diagnostics cover the logger's own recording operations
 
 ### Open / Close Ordering
 
-`open` and `close` must be paired in LIFO order. The logger never throws on violations — it records them as `semantic_logger_error` diagnostic entries with one of these `kind` values:
+`open` and `close` must be paired in LIFO order. The logger never throws on violations — it records them as `semantic_logger_error` diagnostic entries with one of these `code` values:
 
 - `close_id_mismatch` — `close()` called with an id other than the innermost open; the stack is left untouched (no guessing), so correct closes still work
 - `close_without_open` — `close()` called with no open operation on the stack; the context is discarded and the session continues
-- `unclosed_at_flush` — `flush()` called while opens are still pending; the live tree is returned and the session resets
+- `unclosed_at_flush` — `flush()` called while opens are still pending; the live log is returned and the session resets
 
 Wrap work in `try/finally` so `close()` always runs — not because the logger throws, but because your log should reflect what actually happened.
 
@@ -199,7 +232,7 @@ $devLogger->log($semanticLogger);
 
 Each call writes a file named `semantic-dev-<timestamp>-<pid>-<uniqid>.json` (microsecond timestamp, PID, and `uniqid()` suffix) to the given directory, or to `sys_get_temp_dir()` when no directory is passed.
 
-`DevLogger` writes the same public tree JSON shape returned by `flush()`, which works naturally with `stree`.
+`DevLogger` writes the same public JSON shape returned by `flush()`, which works naturally with `stree`.
 
 ## Profiling (XHProf / Xdebug)
 
@@ -213,12 +246,13 @@ $logger = new DevSemanticLogger(new SemanticLogger());
 // open() / event() / close() / flush() as usual
 ```
 
-When XHProf and/or Xdebug are enabled, each `close` in the tree gains a `profile` object with `wallTime` plus `xhprofProfile` / `xdebugTrace` segments captured while that operation was active:
+When XHProf and/or Xdebug are enabled, each `close` gains a `profile` object with `wallTime` plus `xhprofProfile` / `xdebugTrace` segments captured while that operation was active:
 
 ```json
 "close": {
   "id": "process_result_1",
   "type": "process_result",
+  "schemaUrl": "https://example.com/schemas/process-result.json",
   "context": { "status": "success" },
   "profile": {
     "wallTime": 0.0123,
@@ -236,7 +270,7 @@ Segments are attributed only to the operation they ran inside — the parent's p
 vendor/bin/validate-semantic-log.php path/to/semantic-log.json [path/to/schemas]
 ```
 
-The envelope (root tree) is always validated against the bundled `docs/schemas/semantic-log.json` shipped in the composer dist. You supply a schema directory for your own context schemas — the CLI defaults to `./schemas/` when the second argument is omitted.
+The envelope (root log) is always validated against the bundled `docs/schemas/semantic-log.json` shipped in the composer dist. You supply a schema directory for your own context schemas — the CLI defaults to `./schemas/` when the second argument is omitted.
 
 ```php
 use Koriym\SemanticLogger\SemanticLogValidator;
@@ -247,8 +281,8 @@ $validator->validate('path/to/semantic-log.json', 'path/to/context-schemas');
 
 Validation checks:
 
-- nested log structure
-- schema URL resolution
+- log structure (kind-aware: interval, interrupted interval, point, orphan close)
+- schema URL resolution (`schemaUrl` or the document-level `types` index, and agreement between the two when both are present)
 - context payloads against their schemas
 - static context metadata: entry types must match `^[a-z_]+$` outside the reserved `semantic_logger_*` namespace, and schema URLs must be absolute URIs or `./schemas/<name>.json`
 - diagnostic entries recorded by the logger, listed with their own severity and validated against the bundled core schemas
@@ -309,5 +343,5 @@ This keeps the tree compact for both humans (visual parent/child structure) and 
 ## Documentation
 
 - [Schema Portal](https://koriym.github.io/Koriym.SemanticLogger/)
-- [MIGRATION.md](MIGRATION.md) — 0.8 / 1.x → 0.9 migration guide
+- [MIGRATION.md](MIGRATION.md) — 0.8 → 0.9 → 0.10 → Unreleased migration guides (`entries`/`kind`/`close`/`log` key history)
 - [CHANGELOG.md](CHANGELOG.md)

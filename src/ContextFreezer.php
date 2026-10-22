@@ -63,7 +63,7 @@ final class ContextFreezer
             ];
         } catch (Throwable $throwable) {
             $diagnostic = [
-                'kind' => 'context_serialization_failed',
+                'code' => 'context_serialization_failed',
                 'message' => 'Context serialization failed.',
                 'exceptionClass' => $throwable::class,
             ];
@@ -96,10 +96,10 @@ final class ContextFreezer
             // the legacy public-property fallback instead of storing them.
         }
 
-        /** @var ContextData $mixedArray */
-        $mixedArray = (array) $context;
+        /** @var ContextData $publicProperties */
+        $publicProperties = get_object_vars($context);
 
-        return $this->freezeArray($mixedArray);
+        return $this->freezeArray($publicProperties);
     }
 
     /**
@@ -158,7 +158,7 @@ final class ContextFreezer
             'operation' => $operation,
             'errors' => [
                 [
-                    'kind' => $diagnostic['kind'],
+                    'code' => $diagnostic['code'],
                     'message' => $diagnostic['message'],
                 ],
             ],

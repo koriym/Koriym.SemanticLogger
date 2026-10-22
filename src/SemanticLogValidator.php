@@ -16,14 +16,12 @@ use function dirname;
 use function file_exists;
 use function file_get_contents;
 use function is_array;
+use function is_int;
 use function is_object;
 use function is_string;
 use function json_decode;
 use function property_exists;
-use function realpath;
 use function sprintf;
-use function str_contains;
-use function str_starts_with;
 
 final class SemanticLogValidator implements SemanticLogValidatorInterface
 {
@@ -60,15 +58,19 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
         $violations = [];
         $diagnostics = [];
+        $warnings = [];
 
         if (! is_object($logData)) {
             throw new InvalidArgumentException('Log data must be an object');
         }
 
-        $this->validateRootSchema($logData, $violations);
-        $this->validateContexts($logData, $schemaDir, $violations, $diagnostics);
+        $schemaResolver = new SchemaResolver();
+
+        $this->validateRootSchema($logData, $schemaResolver, $violations);
+        $this->validateLog($logData, $schemaDir, $schemaResolver, $violations, $diagnostics, $warnings);
 
         $this->coreDiagnostic->report($diagnostics);
+        $this->reportWarnings($warnings);
 
         if (! empty($violations)) {
             $this->reportViolations($violations);
@@ -84,88 +86,249 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     }
 
     /**
-     * Walk the entry tree and the orphan closes, validating every context.
+     * Walk the root `log` list, resolving schemas and checking structural
+     * invariants (`id` uniqueness, type→schema consistency, orphan matching,
+     * interrupted intervals) that JSON Schema cannot express.
      *
      * @param list<string> $violations
      * @param list<string> $diagnostics
+     * @param list<string> $warnings
      *
      * @param-out list<string>    $violations
      * @param-out list<string>    $diagnostics
+     * @param-out list<string>    $warnings
      */
-    private function validateContexts(object $data, string $schemaDir, array &$violations, array &$diagnostics): void
+    private function validateLog(object $data, string $schemaDir, SchemaResolver $schemaResolver, array &$violations, array &$diagnostics, array &$warnings): void
     {
-        if (isset($data->entries) && is_array($data->entries)) {
-            $this->validateEntries($data->entries, $schemaDir, 'entries', $violations, $diagnostics);
-        }
-
-        if (! isset($data->close) || ! is_array($data->close)) {
+        if (! isset($data->log) || ! is_array($data->log)) {
             return;
         }
 
-        /** @var array<int, mixed> $closes */
-        $closes = $data->close;
-        foreach ($closes as $index => $close) {
-            if (! is_object($close)) {
+        /** @var array<array-key, mixed> $log */
+        $log = $data->log;
+
+        /** @var array<string, string> $types */
+        $types = $schemaResolver->extractTypesMap($data);
+
+        /** @var array<string, bool> $recordIds */
+        $recordIds = [];
+        $this->collectRecordIds($log, $recordIds);
+
+        /** @var array<string, string> $seenIds */
+        $seenIds = [];
+
+        $this->validateRootRecords($log, $schemaDir, $types, $schemaResolver, $seenIds, $recordIds, $violations, $diagnostics, $warnings);
+    }
+
+    /**
+     * Collect the ids of every record (interval/point, not orphan closes) in
+     * the tree, so a root orphan's `openId` can be checked against the whole
+     * document, not just the root scope.
+     *
+     * @param array<array-key, mixed> $records
+     * @param array<string, bool>     $recordIds
+     *
+     * @param-out array<string, bool> $recordIds
+     */
+    private function collectRecordIds(array $records, array &$recordIds): void
+    {
+        foreach ($records as $record) {
+            if (! is_object($record) || isset($record->openId)) {
                 continue;
             }
 
-            $this->validateContext($close, $schemaDir, "close[{$index}]", $violations, $diagnostics);
+            if (isset($record->id) && is_string($record->id)) {
+                $recordIds[$record->id] = true;
+            }
+
+            if (isset($record->log) && is_array($record->log)) {
+                $this->collectRecordIds($record->log, $recordIds);
+            }
         }
     }
 
     /**
-     * @param array<array-key, mixed> $entries
+     * @param array<array-key, mixed> $records
+     * @param array<string, string>   $types
+     * @param array<string, string>   $seenIds
+     * @param array<string, bool>     $recordIds
      * @param list<string>            $violations
      * @param list<string>            $diagnostics
+     * @param list<string>            $warnings
      *
-     * @param-out list<string>    $violations
-     * @param-out list<string>    $diagnostics
+     * @param-out array<string, string> $seenIds
+     * @param-out list<string>          $violations
+     * @param-out list<string>          $diagnostics
+     * @param-out list<string>          $warnings
      */
-    private function validateEntries(array $entries, string $schemaDir, string $path, array &$violations, array &$diagnostics): void
+    private function validateRootRecords(array $records, string $schemaDir, array $types, SchemaResolver $schemaResolver, array &$seenIds, array $recordIds, array &$violations, array &$diagnostics, array &$warnings): void
     {
-        foreach ($entries as $index => $entry) {
-            if (! is_object($entry)) {
+        foreach ($records as $index => $record) {
+            if (! is_object($record)) {
                 continue;
             }
 
-            $this->validateEntry($entry, $schemaDir, "{$path}[{$index}]", $violations, $diagnostics);
+            $path = "log[{$index}]";
+
+            if (isset($record->openId)) {
+                $this->validateOrphanClose($record, $schemaDir, $types, $schemaResolver, $seenIds, $recordIds, $path, $violations, $diagnostics);
+
+                continue;
+            }
+
+            $this->validateRecord($record, $schemaDir, $types, $schemaResolver, $seenIds, $path, $violations, $diagnostics, $warnings);
         }
     }
 
     /**
-     * @param list<string> $violations
-     * @param list<string> $diagnostics
+     * @param array<array-key, mixed> $records
+     * @param array<string, string>   $types
+     * @param array<string, string>   $seenIds
+     * @param list<string>            $violations
+     * @param list<string>            $diagnostics
+     * @param list<string>            $warnings
      *
-     * @param-out list<string>    $violations
-     * @param-out list<string>    $diagnostics
+     * @param-out array<string, string> $seenIds
+     * @param-out list<string>          $violations
+     * @param-out list<string>          $diagnostics
+     * @param-out list<string>          $warnings
      */
-    private function validateEntry(object $entry, string $schemaDir, string $path, array &$violations, array &$diagnostics): void
+    private function validateNestedRecords(array $records, string $schemaDir, array $types, SchemaResolver $schemaResolver, array &$seenIds, string $path, array &$violations, array &$diagnostics, array &$warnings): void
     {
-        $this->validateContext($entry, $schemaDir, $path, $violations, $diagnostics);
+        foreach ($records as $index => $record) {
+            if (! is_object($record)) {
+                continue;
+            }
 
-        if (isset($entry->children) && is_array($entry->children)) {
-            $this->validateEntries($entry->children, $schemaDir, "{$path}.children", $violations, $diagnostics);
-        }
-
-        if (isset($entry->close) && is_object($entry->close)) {
-            $this->validateContext($entry->close, $schemaDir, "{$path}.close", $violations, $diagnostics);
+            $this->validateRecord($record, $schemaDir, $types, $schemaResolver, $seenIds, "{$path}[{$index}]", $violations, $diagnostics, $warnings);
         }
     }
 
     /**
-     * Validate a single context against its schema
+     * Validate one record (completed interval, interrupted interval, or
+     * point) and recurse into its `log`/`close`.
+     *
+     * @param array<string, string> $types
+     * @param array<string, string> $seenIds
+     * @param list<string>          $violations
+     * @param list<string>          $diagnostics
+     * @param list<string>          $warnings
+     *
+     * @param-out array<string, string> $seenIds
+     * @param-out list<string>          $violations
+     * @param-out list<string>          $diagnostics
+     * @param-out list<string>          $warnings
+     */
+    private function validateRecord(object $record, string $schemaDir, array $types, SchemaResolver $schemaResolver, array &$seenIds, string $path, array &$violations, array &$diagnostics, array &$warnings): void
+    {
+        $kind = $this->recordKind($record);
+
+        $this->checkId($record, $seenIds, $kind, $path, $violations);
+        $this->validateContext($record, $kind, $schemaDir, $types, $schemaResolver, $path, $violations, $diagnostics);
+
+        $hasLog = isset($record->log) && is_array($record->log);
+        $hasClose = isset($record->close) && is_object($record->close);
+
+        if ($hasLog && ! $hasClose) {
+            $warnings[] = "interval {$path}: unclosed (log present without a matching close)";
+        }
+
+        if (($record->type ?? null) === CoreSchema::TRUNCATED_TYPE) {
+            $warnings[] = $this->truncationWarning($record, $path);
+        }
+
+        if ($hasLog) {
+            /** @var array<array-key, mixed> $nested */
+            $nested = $record->log;
+            $this->validateNestedRecords($nested, $schemaDir, $types, $schemaResolver, $seenIds, "{$path}.log", $violations, $diagnostics, $warnings);
+        }
+
+        if (! $hasClose) {
+            return;
+        }
+
+        $closePath = "{$path}.close";
+        /** @var object $close */
+        $close = $record->close;
+        $this->checkId($close, $seenIds, 'close', $closePath, $violations);
+        $this->validateContext($close, 'close', $schemaDir, $types, $schemaResolver, $closePath, $violations, $diagnostics);
+    }
+
+    /**
+     * Validate a root orphan close and check whether its `openId` names a
+     * record that exists in this document — a close that the writer would
+     * have matched, so an orphan naming it is a double close.
+     *
+     * @param array<string, string> $types
+     * @param array<string, string> $seenIds
+     * @param array<string, bool>   $recordIds
+     * @param list<string>          $violations
+     * @param list<string>          $diagnostics
+     *
+     * @param-out array<string, string> $seenIds
+     * @param-out list<string>          $violations
+     * @param-out list<string>          $diagnostics
+     */
+    private function validateOrphanClose(object $orphan, string $schemaDir, array $types, SchemaResolver $schemaResolver, array &$seenIds, array $recordIds, string $path, array &$violations, array &$diagnostics): void
+    {
+        $this->checkId($orphan, $seenIds, 'orphan close', $path, $violations);
+        $this->validateContext($orphan, 'orphan close', $schemaDir, $types, $schemaResolver, $path, $violations, $diagnostics);
+
+        /** @var mixed $openId */
+        $openId = $orphan->openId ?? null;
+        if (is_string($openId) && isset($recordIds[$openId])) {
+            $violations[] = "orphan close {$path}: openId '{$openId}' names a record in this document: double close";
+        }
+    }
+
+    /** A record is an interval when it carries `close` or `log` (even empty); otherwise it is a point. */
+    private function recordKind(object $record): string
+    {
+        if (isset($record->close) || (isset($record->log) && is_array($record->log))) {
+            return 'interval';
+        }
+
+        return 'point';
+    }
+
+    /**
+     * @param array<string, string> $seenIds
+     * @param list<string>          $violations
+     *
+     * @param-out array<string, string> $seenIds
+     * @param-out list<string>          $violations
+     */
+    private function checkId(object $entry, array &$seenIds, string $kind, string $path, array &$violations): void
+    {
+        if (! isset($entry->id) || ! is_string($entry->id)) {
+            return;
+        }
+
+        $id = $entry->id;
+        if (isset($seenIds[$id])) {
+            $violations[] = "{$kind} {$path}: duplicate id '{$id}' (already used at {$seenIds[$id]})";
+
+            return;
+        }
+
+        $seenIds[$id] = $path;
+    }
+
+    /**
+     * Validate a single context against its schema.
      *
      * Logger-owned diagnostic entries are collected with their own severity and
      * validated against the schemas bundled with this package. User entries get
      * the static metadata checks the runtime deliberately does not enforce.
      *
-     * @param list<string> $violations
-     * @param list<string> $diagnostics
+     * @param array<string, string> $types
+     * @param list<string>          $violations
+     * @param list<string>          $diagnostics
      *
-     * @param-out list<string>    $violations
-     * @param-out list<string>    $diagnostics
+     * @param-out list<string>          $violations
+     * @param-out list<string>          $diagnostics
      */
-    private function validateContext(object $contextData, string $schemaDir, string $path, array &$violations, array &$diagnostics): void
+    private function validateContext(object $contextData, string $kind, string $schemaDir, array $types, SchemaResolver $schemaResolver, string $path, array &$violations, array &$diagnostics): void
     {
         if (! isset($contextData->context, $contextData->type)) {
             return;
@@ -173,43 +336,72 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
         /** @var mixed $type */
         $type = $contextData->type;
-        if (is_string($type) && $this->coreDiagnostic->isCoreType($type)) {
+        if (is_string($type) && $this->coreDiagnostic->isDiagnosticType($type)) {
             $diagnostics[] = $this->coreDiagnostic->describe($contextData, $path, $type);
-            $this->validateCoreDiagnostic($contextData, $type, $path, $violations);
+            $this->validateCoreDiagnostic($contextData, $type, $kind, $path, $types, $violations, $schemaResolver);
 
             return;
         }
 
-        $metadataViolations = $this->metadataChecker->check($contextData, $path);
+        // Reaching the record limit is a size bound, not a logging failure:
+        // the marker is schema-checked like a diagnostic but never counts as one.
+        if ($type === CoreSchema::TRUNCATED_TYPE) {
+            $this->validateCoreDiagnostic($contextData, $type, $kind, $path, $types, $violations, $schemaResolver);
+
+            return;
+        }
+
+        if (! is_string($type)) {
+            $metadataViolations = $this->metadataChecker->check($contextData, $path);
+            array_push($violations, ...$metadataViolations);
+
+            return;
+        }
+
+        $schemaUrl = $schemaResolver->resolveSchemaUrl($contextData, $type, $types, $kind, $path, $violations);
+        if ($schemaUrl === null) {
+            return;
+        }
+
+        // Metadata checks (type pattern, schemaUrl format) run against the
+        // resolved schema URL, so a compact-form record (schema only known
+        // through document-level `types`) is checked the same as one that
+        // carries its own `schemaUrl`.
+        $metadataViolations = $this->metadataChecker->check($schemaResolver->withResolvedSchemaUrl($contextData, $schemaUrl), $path);
         if ($metadataViolations !== []) {
             array_push($violations, ...$metadataViolations);
 
             return;
         }
 
-        $schemaUrl = $this->extractSchemaUrl($contextData);
-        if ($schemaUrl !== null) {
-            $this->validateSingleContext($contextData, $schemaUrl, $schemaDir, $path, $violations);
-        }
+        $this->validateSingleContext($contextData, $schemaUrl, $schemaDir, $kind, $path, $violations, $schemaResolver);
     }
 
     /**
      * Core diagnostic entries are validated against the schemas bundled with
      * this package, selected by the canonical type-to-URL mapping — an entry
-     * whose URL disagrees with its core type is rejected before any schema load.
+     * whose URL (own `schemaUrl`, or `types[type]` in the compact form)
+     * disagrees with its core type is rejected before any schema load.
      *
-     * @param object       $entry      the core-owned diagnostic entry
-     * @param string       $type       the entry's core-owned type
-     * @param list<string> $violations
+     * @param object                $entry      the core-owned diagnostic entry
+     * @param string                $type       the entry's core-owned type
+     * @param array<string, string> $types
+     * @param list<string>          $violations
      *
      * @param-out list<string>    $violations
      */
-    private function validateCoreDiagnostic(object $entry, string $type, string $path, array &$violations): void
+    private function validateCoreDiagnostic(object $entry, string $type, string $kind, string $path, array $types, array &$violations, SchemaResolver $schemaResolver): void
     {
         $canonicalUrl = $this->coreDiagnostic->schemaUrlFor($type);
-        $schemaUrl = $this->extractSchemaUrl($entry);
+        // The same resolution as user records: an own schemaUrl that disagrees
+        // with types[type] is a violation, not silently preferred.
+        $schemaUrl = $schemaResolver->resolveSchemaUrl($entry, $type, $types, $kind, $path, $violations);
+        if ($schemaUrl === null) {
+            return;
+        }
+
         if ($canonicalUrl === null || $schemaUrl !== $canonicalUrl) {
-            $violations[] = "[{$path}] Core diagnostic '{$type}' must use the canonical schema URL: {$canonicalUrl}";
+            $violations[] = "{$kind} {$path}: core diagnostic '{$type}' must use the canonical schema URL: {$canonicalUrl}";
 
             return;
         }
@@ -217,25 +409,25 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $filename = basename($canonicalUrl);
         $schemaFile = dirname(__DIR__) . '/docs/schemas/' . $filename;
         if (! file_exists($schemaFile)) {
-            $violations[] = "[{$path}] Bundled core schema not found: {$filename}";
+            $violations[] = "{$kind} {$path}: bundled core schema not found: {$filename}";
 
             return;
         }
 
-        $schema = $this->loadSchema($schemaFile, $path, $violations);
+        $schema = $schemaResolver->loadSchema($schemaFile, $kind, $path, $violations);
         if ($schema === null) {
             return;
         }
 
         $context = $entry->context ?? null;
         if (! is_object($context)) {
-            $violations[] = "[{$path}] Invalid context structure";
+            $violations[] = "{$kind} {$path}: invalid context structure";
 
             return;
         }
 
         $type = isset($entry->type) && is_string($entry->type) ? $entry->type : '';
-        $this->performValidation($context, $schema, $type, (string) $schemaUrl, $path, $violations);
+        $this->performValidation($context, $schema, $type, $schemaUrl, $kind, $path, $violations);
     }
 
     /**
@@ -243,10 +435,10 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
      *
      * @param-out list<string>    $violations
      */
-    private function validateSingleContext(object $contextData, string $schemaUrl, string $schemaDir, string $path, array &$violations): void
+    private function validateSingleContext(object $contextData, string $schemaUrl, string $schemaDir, string $kind, string $path, array &$violations, SchemaResolver $schemaResolver): void
     {
         if (! property_exists($contextData, 'type') || ! property_exists($contextData, 'context')) {
-            $violations[] = "[{$path}] Invalid context structure";
+            $violations[] = "{$kind} {$path}: invalid context structure";
 
             return;
         }
@@ -255,62 +447,24 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         $context = $contextData->context;
 
         if (! is_string($type) || ! is_object($context)) {
-            $violations[] = "[{$path}] Invalid context structure";
+            $violations[] = "{$kind} {$path}: invalid context structure";
 
             return;
         }
 
-        $schemaFile = $this->resolveSchemaPath($schemaUrl, $schemaDir);
+        $schemaFile = $schemaResolver->resolveSchemaPath($schemaUrl, $schemaDir);
         if ($schemaFile === null) {
-            $violations[] = "[{$path}] Schema file not found: {$schemaUrl}";
+            $violations[] = "{$kind} {$path}: schema file not found: {$schemaUrl}";
 
             return;
         }
 
-        $schema = $this->loadSchema($schemaFile, $path, $violations);
+        $schema = $schemaResolver->loadSchema($schemaFile, $kind, $path, $violations);
         if ($schema === null) {
             return;
         }
 
-        $this->performValidation($context, $schema, $type, $schemaUrl, $path, $violations);
-    }
-
-    private function extractSchemaUrl(object $contextData): string|null
-    {
-        if (property_exists($contextData, '$schema') && is_string($contextData->{'$schema'})) {
-            return $contextData->{'$schema'};
-        }
-
-        if (isset($contextData->schemaUrl) && is_string($contextData->schemaUrl)) {
-            return $contextData->schemaUrl;
-        }
-
-        return null;
-    }
-
-    /**
-     * @param list<string> $violations
-     *
-     * @param-out list<string> $violations
-     */
-    private function loadSchema(string $schemaFile, string $path, array &$violations): object|null
-    {
-        $schemaContents = file_get_contents($schemaFile);
-        if ($schemaContents === false) {
-            $violations[] = "[{$path}] Cannot read schema file: {$schemaFile}";
-
-            return null;
-        }
-
-        /** @var object|null $schema */
-        $schema = json_decode($schemaContents);
-        if ($schema === null) {
-            $violations[] = "[{$path}] Invalid schema JSON: {$schemaFile}";
-
-            return null;
-        }
-
-        return $schema;
+        $this->performValidation($context, $schema, $type, $schemaUrl, $kind, $path, $violations);
     }
 
     /**
@@ -318,13 +472,13 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
      *
      * @param-out list<string>    $violations
      */
-    private function performValidation(object $context, object $schema, string $type, string $schemaUrl, string $path, array &$violations): void
+    private function performValidation(object $context, object $schema, string $type, string $schemaUrl, string $kind, string $path, array &$violations): void
     {
         $validator = new Validator();
         $validator->validate($context, $schema);
 
         if (! $validator->isValid()) {
-            $this->addValidationErrors($validator, $type, $path, $violations);
+            $this->addValidationErrors($validator, $type, $kind, $path, $violations);
 
             return;
         }
@@ -337,7 +491,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
      *
      * @param-out list<string> $violations
      */
-    private function addValidationErrors(Validator $validator, string $type, string $path, array &$violations): void
+    private function addValidationErrors(Validator $validator, string $type, string $kind, string $path, array &$violations): void
     {
         foreach ($validator->getErrors() as $error) {
             if (! is_array($error)) {
@@ -346,7 +500,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
             $property = isset($error['property']) && is_string($error['property']) ? $error['property'] : '';
             $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Validation failed';
-            $violations[] = "[{$path}.context ({$type})] {$message} at '{$property}'";
+            $violations[] = "{$kind} {$path}.context ({$type}): {$message} at '{$property}'";
         }
     }
 
@@ -355,14 +509,14 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
      *
      * @param-out list<string> $violations
      */
-    private function validateRootSchema(object $logData, array &$violations): void
+    private function validateRootSchema(object $logData, SchemaResolver $schemaResolver, array &$violations): void
     {
         $schemaFile = dirname(__DIR__) . '/docs/schemas/semantic-log.json';
         if (! file_exists($schemaFile)) {
             throw new RuntimeException("Bundled semantic-log schema not found: {$schemaFile}");
         }
 
-        $schema = $this->loadSchema($schemaFile, 'root', $violations);
+        $schema = $schemaResolver->loadSchema($schemaFile, 'root', 'root', $violations);
         if ($schema === null) {
             return;
         }
@@ -381,45 +535,8 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
             $property = isset($error['property']) && is_string($error['property']) ? $error['property'] : '';
             $message = isset($error['message']) && is_string($error['message']) ? $error['message'] : 'Validation failed';
-            $violations[] = "[root] {$message} at '{$property}'";
+            $violations[] = "root: {$message} at '{$property}'";
         }
-    }
-
-    /**
-     * Resolve schema URL to local file path
-     */
-    private function resolveSchemaPath(string $schemaUrl, string $schemaDir): string|null
-    {
-        // Handle relative paths like "./schemas/http_request.json"
-        if (str_starts_with($schemaUrl, './schemas/')) {
-            $filename = basename($schemaUrl);
-            $schemaFile = realpath($schemaDir . '/' . $filename);
-
-            return $schemaFile !== false ? $schemaFile : null;
-        }
-
-        // Handle direct filenames
-        if (! str_contains($schemaUrl, '/')) {
-            $schemaFile = realpath($schemaDir . '/' . $schemaUrl);
-
-            return $schemaFile !== false ? $schemaFile : null;
-        }
-
-        // For absolute URLs, try to extract filename and map to local files
-        $filename = basename($schemaUrl);
-
-        // Special case: complex-query.json from external URL
-        if ($filename === 'complex-query.json') {
-            $localFile = realpath($schemaDir . '/complex_query.json');
-            if ($localFile !== false) {
-                return $localFile;
-            }
-        }
-
-        // General case: try exact filename match
-        $schemaFile = realpath($schemaDir . '/' . $filename);
-
-        return $schemaFile !== false ? $schemaFile : null;
     }
 
     /**
@@ -435,5 +552,46 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         }
 
         echo "\n📖 For error format details, see: https://json-schema.org/understanding-json-schema/reference/generic.html#validation-keywords\n";
+    }
+
+    private function truncationWarning(object $record, string $path): string
+    {
+        /** @var mixed $context */
+        $context = $record->context ?? null;
+        $dropped = $this->intOrUnknown($context, 'dropped');
+        $limit = $this->intOrUnknown($context, 'limit');
+
+        return "point {$path}: log truncated ({$dropped} records not recorded after the {$limit}-record limit)";
+    }
+
+    private function intOrUnknown(mixed $context, string $name): string
+    {
+        if (! is_object($context) || ! property_exists($context, $name)) {
+            return '?';
+        }
+
+        /** @var mixed $value */
+        $value = $context->{$name};
+
+        return is_int($value) ? (string) $value : '?';
+    }
+
+    /**
+     * Report validator-level warnings (e.g. interrupted intervals). Unlike
+     * logger-recorded diagnostics, warnings never fail validation and are not
+     * affected by `--fail-on-diagnostics`.
+     *
+     * @param list<string> $warnings
+     */
+    private function reportWarnings(array $warnings): void
+    {
+        if ($warnings === []) {
+            return;
+        }
+
+        echo "⚠️  Warnings:\n";
+        foreach ($warnings as $warning) {
+            echo "  {$warning}\n";
+        }
     }
 }

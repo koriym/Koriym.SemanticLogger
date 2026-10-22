@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger;
 
 use JsonSerializable;
+use Koriym\SemanticLogger\Profiler\OperationProfile;
 use Override;
 
 /**
- * An open, as recorded. `parentId` is the open that was innermost at the time.
+ * A close, as recorded. `openId` is the open this close ended.
  *
+ * @psalm-import-type CloseEntryArray from Types
  * @psalm-import-type ContextData from Types
- * @psalm-import-type OpenCloseEntryArray from Types
  */
-final class OpenCloseEntry implements JsonSerializable
+final class CloseEntry implements JsonSerializable
 {
     /** @param ContextData $context */
     public function __construct(
@@ -21,11 +22,24 @@ final class OpenCloseEntry implements JsonSerializable
         public readonly string $type,
         public readonly string $schemaUrl,
         public readonly array $context,
-        public readonly string|null $parentId = null,
+        public readonly string $openId,
+        public readonly OperationProfile|null $profile = null,
     ) {
     }
 
-    /** @return OpenCloseEntryArray */
+    public function withProfile(OperationProfile $profile): self
+    {
+        return new self(
+            $this->id,
+            $this->type,
+            $this->schemaUrl,
+            $this->context,
+            $this->openId,
+            $profile,
+        );
+    }
+
+    /** @return CloseEntryArray */
     public function toArray(): array
     {
         $result = [
@@ -33,10 +47,11 @@ final class OpenCloseEntry implements JsonSerializable
             'type' => $this->type,
             'schemaUrl' => $this->schemaUrl,
             'context' => $this->context,
+            'openId' => $this->openId,
         ];
 
-        if ($this->parentId !== null) {
-            $result['parentId'] = $this->parentId;
+        if ($this->profile !== null) {
+            $result['profile'] = $this->profile->jsonSerialize();
         }
 
         return $result;
