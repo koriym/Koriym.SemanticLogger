@@ -19,6 +19,7 @@ use function is_readable;
 use function is_string;
 use function json_decode;
 use function json_encode;
+use function ltrim;
 use function sprintf;
 use function str_ends_with;
 use function str_starts_with;
@@ -80,7 +81,8 @@ final class StreeCommand
             }
 
             $logData = $this->decodeLog($content, true);
-            if (! self::isJsonObject($logData)) {
+            // An associative decode turns `[]` into the same empty array as `{}`, so the root is read from the text.
+            if (! str_starts_with(ltrim($content), '{') || ! self::isJsonObject($logData)) {
                 throw new RuntimeException(sprintf('Invalid log data in %s: expected a JSON object', $fileOption));
             }
 

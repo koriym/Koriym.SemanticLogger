@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 use function chmod;
+use function dirname;
+use function escapeshellarg;
+use function exec;
 use function file_exists;
 use function file_put_contents;
+use function implode;
 use function json_encode;
-use function ob_end_clean;
 use function ob_get_clean;
 use function ob_start;
 use function sys_get_temp_dir;
@@ -18,6 +22,7 @@ use function tempnam;
 use function unlink;
 
 use const JSON_THROW_ON_ERROR;
+use const PHP_BINARY;
 use const PHP_OS_FAMILY;
 
 final class StreeCommandTest extends TestCase
@@ -225,18 +230,26 @@ final class StreeCommandTest extends TestCase
         $this->assertStringContainsString('"log": []', $output);
     }
 
-    public function testTopLevelThatIsNotAnObjectIsAnError(): void
+    /** @return array<string, array{string}> */
+    public static function nonObjectRoots(): array
+    {
+        return [
+            'list of objects' => ['[{"log":[]}]'],
+            'empty list' => ['[]'],
+            'number' => ['123'],
+        ];
+    }
+
+    #[DataProvider('nonObjectRoots')]
+    public function testTopLevelThatIsNotAnObjectIsAnError(string $json): void
     {
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
-        file_put_contents($this->tempFile, '[{"log":[]}]');
+        file_put_contents($this->tempFile, $json);
 
-        $command = new StreeCommand();
-
-        ob_start();
-        $exitCode = $command->__invoke(['stree', $this->tempFile]);
-        ob_end_clean();
+        exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/stree') . ' ' . escapeshellarg($this->tempFile) . ' 2>&1', $output, $exitCode);
 
         $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString('expected a JSON object', implode("\n", $output));
     }
 
     public function testShortOptions(): void
