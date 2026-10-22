@@ -51,7 +51,7 @@ final class ContextFreezer
      */
     public function freeze(AbstractContext $context, string $operation): array
     {
-        $type = $this->constantToString($context::TYPE);
+        $type = $this->typeOf($context);
         $schemaUrl = $this->constantToString($context::SCHEMA_URL);
 
         try {
@@ -165,6 +165,12 @@ final class ContextFreezer
             'originalType' => $type,
             'originalSchemaUrl' => $schemaUrl,
         ];
+    }
+
+    /** The context's TYPE, without serializing it — for records that will not be kept. */
+    public function typeOf(AbstractContext $context): string
+    {
+        return $this->constantToString($context::TYPE);
     }
 
     /** Read a class constant that should be a string, degrading to its debug type. */

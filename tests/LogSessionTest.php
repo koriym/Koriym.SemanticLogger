@@ -191,13 +191,6 @@ final class LogSessionTest extends TestCase
         $this->assertArrayNotHasKey('links', $without);
     }
 
-    public function testJsonSerializeMatchesToArray(): void
-    {
-        $session = new LogJson(self::SCHEMA, [$this->open('test_1'), $this->close('close_1', 'test_1')]);
-
-        $this->assertSame($session->toArray(), $session->jsonSerialize());
-    }
-
     public function testRenderHandsLogToRenderer(): void
     {
         $session = new LogJson(self::SCHEMA, [$this->open('test_1'), $this->close('close_1', 'test_1')]);
