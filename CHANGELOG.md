@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Record limit.** A session records at most 1000 opens, events and diagnostics (`new SemanticLogger($maxRecords)` to change). Later records are dropped, and `flush()` appends one `semantic_logger_truncated` point `{limit, dropped, firstDroppedType}`. The validator reports it as a warning, not a diagnostic.
+- **Record limit.** A session records at most 1000 opens, events and rejected closes (`new SemanticLogger($maxRecords)` to change); later ones are dropped, while closes of recorded opens are still written. `flush()` then appends one `semantic_logger_truncated` point `{limit, dropped, firstDroppedType}`, which the validator reports as a warning, not a diagnostic.
 
 ### Changed
 - **BREAKING — the document is `log`.** Every list is `log` (was `entries`); `kind` and the root `close[]` array are gone. A record's kind follows from its keys: `close` = completed, `log` without `close` = interrupted, neither = point, a root record with `openId` = orphan close. See [MIGRATION.md](MIGRATION.md).
