@@ -6,8 +6,8 @@ namespace Koriym\SemanticLogger;
 
 use JsonSerializable;
 use Override;
+use stdClass;
 
-use function array_is_list;
 use function array_map;
 use function is_array;
 
@@ -30,9 +30,9 @@ final class LogJson implements JsonSerializable
     }
 
     /**
-     * The JSON document. Same as toArray(), except that every context is a JSON
-     * object: a PHP array with no string keys (an empty context, for one) would
-     * otherwise encode as a JSON array, which the envelope schema rejects.
+     * The JSON document. Same as toArray(), except that an empty context (and an
+     * empty diagnostic `discardedContext`) is a JSON object: as a PHP array it
+     * would encode as `[]`, which the envelope schema rejects.
      *
      * @return array<string, mixed>
      */
@@ -81,7 +81,12 @@ final class LogJson implements JsonSerializable
     private static function objectContexts(array $record): array
     {
         if (isset($record['context']) && is_array($record['context'])) {
-            $record['context'] = self::asObject($record['context']);
+            $context = $record['context'];
+            if (($record['type'] ?? null) === CoreSchema::DIAGNOSTIC_TYPE && isset($context['discardedContext']) && is_array($context['discardedContext'])) {
+                $context['discardedContext'] = self::asObject($context['discardedContext']);
+            }
+
+            $record['context'] = self::asObject($context);
         }
 
         if (isset($record['close']) && is_array($record['close'])) {
@@ -101,14 +106,10 @@ final class LogJson implements JsonSerializable
     /**
      * @param array<array-key, mixed> $context
      *
-     * @return array<array-key, mixed>|object
+     * @return array<array-key, mixed>|stdClass
      */
-    private static function asObject(array $context): array|object
+    private static function asObject(array $context): array|stdClass
     {
-        if (isset($context['discardedContext']) && is_array($context['discardedContext'])) {
-            $context['discardedContext'] = self::asObject($context['discardedContext']);
-        }
-
-        return array_is_list($context) ? (object) $context : $context;
+        return $context === [] ? new stdClass() : $context;
     }
 }

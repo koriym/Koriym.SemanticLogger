@@ -47,6 +47,14 @@ final class EmptyContextTest extends TestCase
         $this->assertStringContainsString('"discardedContext":{}', $json);
     }
 
+    public function testUserFieldNamedDiscardedContextIsLeftAsIs(): void
+    {
+        $logger = new SemanticLogger();
+        $logger->event(new DiscardedFieldContext());
+
+        $this->assertStringContainsString('"discardedContext":[]', json_encode($logger->flush(), JSON_THROW_ON_ERROR));
+    }
+
     public function testEncodingTheLoggerItselfAlsoWritesObjects(): void
     {
         $logger = new SemanticLogger();
