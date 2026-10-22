@@ -16,6 +16,7 @@ use function dirname;
 use function file_exists;
 use function file_get_contents;
 use function is_array;
+use function is_int;
 use function is_object;
 use function is_string;
 use function json_decode;
@@ -232,6 +233,10 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
             $warnings[] = "interval {$path}: unclosed (log present without a matching close)";
         }
 
+        if (($record->type ?? null) === CoreSchema::TRUNCATED_TYPE) {
+            $warnings[] = $this->truncationWarning($record, $path);
+        }
+
         if ($hasLog) {
             /** @var array<array-key, mixed> $nested */
             $nested = $record->log;
@@ -331,8 +336,16 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
 
         /** @var mixed $type */
         $type = $contextData->type;
-        if (is_string($type) && $this->coreDiagnostic->isCoreType($type)) {
+        if (is_string($type) && $this->coreDiagnostic->isDiagnosticType($type)) {
             $diagnostics[] = $this->coreDiagnostic->describe($contextData, $path, $type);
+            $this->validateCoreDiagnostic($contextData, $type, $kind, $path, $types, $violations, $schemaResolver);
+
+            return;
+        }
+
+        // Reaching the record limit is a size bound, not a logging failure:
+        // the marker is schema-checked like a diagnostic but never counts as one.
+        if ($type === CoreSchema::TRUNCATED_TYPE) {
             $this->validateCoreDiagnostic($contextData, $type, $kind, $path, $types, $violations, $schemaResolver);
 
             return;
@@ -533,6 +546,28 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         }
 
         echo "\n📖 For error format details, see: https://json-schema.org/understanding-json-schema/reference/generic.html#validation-keywords\n";
+    }
+
+    private function truncationWarning(object $record, string $path): string
+    {
+        /** @var mixed $context */
+        $context = $record->context ?? null;
+        $dropped = $this->intOrUnknown($context, 'dropped');
+        $limit = $this->intOrUnknown($context, 'limit');
+
+        return "point {$path}: log truncated ({$dropped} records not recorded after the {$limit}-record limit)";
+    }
+
+    private function intOrUnknown(mixed $context, string $name): string
+    {
+        if (! is_object($context) || ! property_exists($context, $name)) {
+            return '?';
+        }
+
+        /** @var mixed $value */
+        $value = $context->{$name};
+
+        return is_int($value) ? (string) $value : '?';
     }
 
     /**

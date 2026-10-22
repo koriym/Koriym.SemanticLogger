@@ -537,6 +537,55 @@ JSON,
         $this->validator->validate($this->logFile, $this->schemaDirectory, true);
     }
 
+    public function testTruncationMarkerIsAWarningEvenWhenFailingOnDiagnostics(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "log": [
+    {
+      "id": "semantic_logger_truncated_1",
+      "type": "semantic_logger_truncated",
+      "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-truncated.json",
+      "context": { "limit": 1000, "dropped": 12, "firstDroppedType": "media_query" }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectOutputRegex('/Warnings:\s+point log\[0\]: log truncated \(12 records not recorded after the 1000-record limit\)[\s\S]*All contexts validate successfully/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory, true);
+    }
+
+    public function testValidateRejectsMalformedTruncationMarker(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "log": [
+    {
+      "id": "semantic_logger_truncated_1",
+      "type": "semantic_logger_truncated",
+      "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-truncated.json",
+      "context": { "limit": 0, "dropped": 12 }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/firstDroppedType/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
     public function testValidateRejectsInvalidCoreDiagnosticContext(): void
     {
         file_put_contents(

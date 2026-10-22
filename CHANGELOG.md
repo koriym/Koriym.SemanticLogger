@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Record limit.** A session records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens, events and rejected-close diagnostics; `new SemanticLogger($maxRecords)` changes it. Past the limit the logger stops recording rather than growing until the process runs out of memory: new opens and events are dropped, closes of already-recorded opens are still recorded (no recorded interval reads as interrupted), and closing a dropped open is not a protocol violation. `flush()` appends one root `semantic_logger_truncated` point `{limit, dropped, firstDroppedType}` with the bundled `semantic-logger-truncated.json` schema. It is not a diagnostic: the validator lists it as a warning and `--fail-on-diagnostics` ignores it, so a legitimate per-row loop never fails CI.
+
 ### Changed
 - **BREAKING — `OpenCloseEntry`/`EventEntry`/`CloseEntry` hold only their own slot.** `OpenCloseEntry` only ever held the open — it is renamed `OpenEntry`.
 - **BREAKING — closes are records.** `new LogJson($schemaUrl, $records, $links = [])`: the `$closes` parameter and `LogJson::$closes` are gone. A close is a `CloseEntry` (`id, type, schemaUrl, context, openId, profile`) in `$records` at the position it was recorded, so the record list is the complete timeline including closes. `EventEntry` drops `profile` / `withProfile()`; `LogTreeBuilder::build()` takes the single list. This change alone does not alter the public JSON tree. See [MIGRATION.md](MIGRATION.md).

@@ -192,6 +192,7 @@ Failures become data; the log never lies and never throws:
 - Protocol misuse is recorded as `semantic_logger_error` entries (see below).
 - `flush()` always returns a log and always resets: an empty session is a valid empty document (`"log": []`), and an unclosed session returns its live log with an `unclosed_at_flush` diagnostic.
 - `toArray()` / `jsonSerialize()` are total, non-destructive snapshots.
+- A session records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens, events and rejected-close diagnostics; pass another limit as `new SemanticLogger($maxRecords)`. Past the limit the logger stops recording instead of growing without bound: new opens and events are dropped, while every already-recorded open still gets its close, so no recorded interval reads as interrupted. `flush()` then appends one root `semantic_logger_truncated` point (`limit`, `dropped`, `firstDroppedType`). It is not a diagnostic — the validator lists it as a warning, and `--fail-on-diagnostics` ignores it. A web request records tens of entries; a batch that logs per row should `flush()` per chunk.
 
 Quality gates live on the reading side: the validator lists diagnostics with their own severity, and `--fail-on-diagnostics` lets CI turn their presence into a failing build.
 

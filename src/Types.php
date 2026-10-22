@@ -58,6 +58,11 @@ namespace Koriym\SemanticLogger;
  *     discardedContext?: ContextData,
  *     unclosedIds?: list<OperationId>
  * }
+ * @psalm-type TruncationData = array{
+ *     limit: positive-int,
+ *     dropped: positive-int,
+ *     firstDroppedType: LogType
+ * }
  * @psalm-type FrozenContext = array{
  *     type: LogType,
  *     schemaUrl: SchemaUrl,

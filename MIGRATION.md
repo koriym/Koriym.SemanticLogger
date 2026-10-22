@@ -28,6 +28,7 @@ The public document gets one key at every level and no discriminator field; the 
 | validator paths `entries[i]`, `.children[j]` | `log[i]`, `.log[j]` (`.close` unchanged); messages name the structural kind |
 | validator: no check for an unresolved schema, duplicate `id`, or a double-close orphan | each is now a validator error; an interrupted interval (`log` without `close`) is a warning, not a failure, and does not participate in `--fail-on-diagnostics` |
 | stree: `LogDataParser` reads `entries` / `children` / `kind`; missing `entries` throws | reads `log`; kind derived structurally; missing `log` throws `RuntimeException('Invalid log data: missing log section')` |
+| validator: a reserved-namespace type other than the two diagnostics is an error | `semantic_logger_truncated` is a core point too, schema-checked like a diagnostic and listed as a warning; it never fails `--fail-on-diagnostics` |
 
 ### PHP API
 
@@ -39,6 +40,7 @@ The public document gets one key at every level and no discriminator field; the 
 | a close is an `EventEntry` with `openId` and `profile` | `CloseEntry(id, type, schemaUrl, context, openId, profile)` — `openId` is required |
 | `EventEntry(id, type, schemaUrl, context, openId, profile)` | `EventEntry(id, type, schemaUrl, context, openId)` — events never carried a profile in the output |
 | `LogTreeBuilder::build($records, $closes)` | `build($records)` |
+| `new SemanticLogger()` records without limit | records at most `SemanticLogger::DEFAULT_MAX_RECORDS` (1000) opens, events and rejected-close diagnostics per session, then drops new ones and adds a `semantic_logger_truncated` marker at flush; pass `new SemanticLogger($maxRecords)` to change it, or `flush()` per chunk in batch code |
 
 ## 0.10.0: one ordered `entries` tree
 
