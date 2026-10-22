@@ -393,7 +393,13 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
     private function validateCoreDiagnostic(object $entry, string $type, string $kind, string $path, array $types, array &$violations, SchemaResolver $schemaResolver): void
     {
         $canonicalUrl = $this->coreDiagnostic->schemaUrlFor($type);
-        $schemaUrl = $schemaResolver->extractSchemaUrl($entry) ?? ($types[$type] ?? null);
+        // The same resolution as user records: an own schemaUrl that disagrees
+        // with types[type] is a violation, not silently preferred.
+        $schemaUrl = $schemaResolver->resolveSchemaUrl($entry, $type, $types, $kind, $path, $violations);
+        if ($schemaUrl === null) {
+            return;
+        }
+
         if ($canonicalUrl === null || $schemaUrl !== $canonicalUrl) {
             $violations[] = "{$kind} {$path}: core diagnostic '{$type}' must use the canonical schema URL: {$canonicalUrl}";
 
@@ -421,7 +427,7 @@ final class SemanticLogValidator implements SemanticLogValidatorInterface
         }
 
         $type = isset($entry->type) && is_string($entry->type) ? $entry->type : '';
-        $this->performValidation($context, $schema, $type, (string) $schemaUrl, $kind, $path, $violations);
+        $this->performValidation($context, $schema, $type, $schemaUrl, $kind, $path, $violations);
     }
 
     /**

@@ -706,6 +706,36 @@ JSON,
         $this->validator->validate($this->logFile, $this->schemaDirectory);
     }
 
+    public function testValidateRejectsCoreDiagnosticWhoseSchemaUrlDisagreesWithTypes(): void
+    {
+        file_put_contents(
+            $this->logFile,
+            <<<'JSON'
+{
+  "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
+  "types": { "semantic_logger_error": "https://example.com/schemas/semantic-logger-error.json" },
+  "log": [
+    {
+      "id": "semantic_logger_error_1",
+      "type": "semantic_logger_error",
+      "schemaUrl": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json",
+      "context": {
+        "code": "close_without_open",
+        "message": "Close called without a matching open.",
+        "relatedId": "missing_open_1"
+      }
+    }
+  ]
+}
+JSON,
+        );
+
+        $this->expectException(RuntimeException::class);
+        $this->expectOutputRegex('/disagrees with types\[.semantic_logger_error.\]/');
+        self::assertNotNull($this->validator);
+        $this->validator->validate($this->logFile, $this->schemaDirectory);
+    }
+
     public function testValidateAcceptsNestedChildrenAndClose(): void
     {
         $child = $this->openEntry(['id' => 'being_final_open_2', 'close' => $this->closeEntry(['id' => 'being_final_close_3'])]);
