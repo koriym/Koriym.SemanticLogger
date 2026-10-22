@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Profiler;
 
 use JsonSerializable;
-use Koriym\SemanticLogger\DevSemanticLogger;
 use Override;
 
 use function count;
@@ -32,25 +31,32 @@ final class XHProfResult implements JsonSerializable
     ) {
     }
 
-    /** @param list<string> $ignoredFunctions Additional function/method names to exclude from the call graph (e.g. framework logger plumbing). */
+    /**
+     * @param list<string> $ignoredFunctions Additional function/method names to exclude from the call graph.
+     *     Unsafe for any name that is an ancestor of one profiling segment's xhprof_enable() call and, later,
+     *     an ancestor of a *different* segment's xhprof_disable() call (the exact shape that crashed xhprof for
+     *     DevSemanticLogger::close() — see the comment below). Do not pass names of methods that themselves call
+     *     XHProfResult::start()/stop() across nested open/close boundaries, such as framework-level logger methods.
+     */
     public static function start(array $ignoredFunctions = []): self
     {
         if (! function_exists('xhprof_enable')) {
             return new self(); // @codeCoverageIgnore
         }
 
-        // Exclude our own stop/teardown path so the being's segment isn't
-        // dominated by the logger that's measuring it. Callers can add more
-        // (e.g. framework-level logger methods) via $ignoredFunctions.
+        // Deliberately NOT ignoring our own stop/teardown frames (close(),
+        // stopAndAttachTo(), self::stop(), ...): xhprof's ignored_functions
+        // segfaults when a name in the list is both an ancestor of this
+        // xhprof_enable() call and later an ancestor of a *different*
+        // segment's xhprof_disable() call (DevSemanticLogger::close()
+        // starts the resumed-parent segment and a later close() stops it).
+        // Callers can still add their own names via $ignoredFunctions as
+        // long as those names don't span enable/disable boundaries the
+        // same way.
         $ignored = [
-            DevSemanticLogger::class . '::close',
-            DevSemanticLogger::class . '::stopAndAttachTo',
-            DevSemanticLogger::class . '::stopAndAttachToCurrent',
             XdebugTrace::class . '::stop',
             XdebugTrace::class . '::canStopTrace',
             XdebugTrace::class . '::performStopTrace',
-            self::class . '::stop',
-            self::class . '::saveToFile',
             ...$ignoredFunctions,
         ];
 

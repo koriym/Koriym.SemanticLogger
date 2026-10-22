@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `DevSemanticLogger` could crash the PHP process (SIGSEGV) inside the xhprof extension when closing a nested operation while XHProf profiling was active. `XHProfResult::start()` listed `DevSemanticLogger::close` in `ignored_functions` to keep logger plumbing out of the profile; xhprof segfaults when a name in that list is an ancestor of one segment's `xhprof_enable()` call and, later, an ancestor of a *different* segment's `xhprof_disable()` call — which happens for `close()` once operations nest two or more levels deep (a `close()` call starts the resumed-parent segment, and a separate, later `close()` call stops it). The logger's own stop/teardown frames (`DevSemanticLogger::close()` / `stopAndAttachTo()` / `stopAndAttachToCurrent()`, `XHProfResult::stop()` / `saveToFile()`) are no longer added to `ignored_functions`; they now appear as nodes in the xhprof call graph instead of being excluded from it.
+
 ## [0.10.0] - 2026-10-20
 
 ### Changed
