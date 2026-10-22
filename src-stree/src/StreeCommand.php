@@ -7,8 +7,11 @@ namespace Koriym\SemanticLogger\Stree;
 use JsonException;
 use RuntimeException;
 
+use function array_combine;
 use function array_keys;
+use function array_map;
 use function array_slice;
+use function array_values;
 use function count;
 use function file_exists;
 use function file_get_contents;
@@ -23,6 +26,7 @@ use function ltrim;
 use function sprintf;
 use function str_ends_with;
 use function str_starts_with;
+use function strval;
 use function substr;
 
 use const JSON_PRETTY_PRINT;
@@ -82,12 +86,12 @@ final class StreeCommand
 
             $logData = $this->decodeLog($content, true);
             // An associative decode turns `[]` into the same empty array as `{}`, so the root is read from the text.
-            if (! str_starts_with(ltrim($content), '{') || ! self::isJsonObject($logData)) {
+            if (! str_starts_with(ltrim($content), '{') || ! is_array($logData)) {
                 throw new RuntimeException(sprintf('Invalid log data in %s: expected a JSON object', $fileOption));
             }
 
             $renderer = new TreeRenderer($config);
-            $output = $renderer->renderTree($logData);
+            $output = $renderer->renderTree(self::objectKeys($logData));
             echo $output . "\n";
 
             return 0;
@@ -230,22 +234,15 @@ final class StreeCommand
     }
 
     /**
-     * @psalm-assert-if-true array<string, mixed> $value
-     * @phpstan-assert-if-true array<string, mixed> $value
+     * JSON object keys are strings; an associative decode turns numeric ones (`"0"`) into ints.
+     *
+     * @param array<array-key, mixed> $object
+     *
+     * @return array<string, mixed>
      */
-    private static function isJsonObject(mixed $value): bool
+    private static function objectKeys(array $object): array
     {
-        if (! is_array($value)) {
-            return false;
-        }
-
-        foreach (array_keys($value) as $key) {
-            if (! is_string($key)) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_combine(array_map(strval(...), array_keys($object)), array_values($object));
     }
 
     /**

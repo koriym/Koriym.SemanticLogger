@@ -252,6 +252,21 @@ final class StreeCommandTest extends TestCase
         $this->assertStringContainsString('expected a JSON object', implode("\n", $output));
     }
 
+    public function testAnObjectWithANumericPropertyNameIsStillALog(): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, '{"0":"extra","log":[{"id":"a_1","type":"numeric_key_event","schemaUrl":"https://example.com/a.json","context":{}}]}');
+
+        $command = new StreeCommand();
+
+        ob_start();
+        $exitCode = $command->__invoke(['stree', $this->tempFile]);
+        $output = ob_get_clean() ?: '';
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('numeric_key_event', $output);
+    }
+
     public function testShortOptions(): void
     {
         $logData = [
