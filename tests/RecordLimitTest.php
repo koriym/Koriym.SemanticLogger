@@ -7,6 +7,7 @@ namespace Koriym\SemanticLogger;
 use PHPUnit\Framework\TestCase;
 
 use function array_column;
+use function array_reverse;
 use function count;
 
 /**
@@ -56,6 +57,31 @@ final class RecordLimitTest extends TestCase
         $types = array_column($logger->flush()->toArray()['log'], 'type');
 
         $this->assertNotContains(CoreSchema::DIAGNOSTIC_TYPE, $types);
+    }
+
+    public function testDeepNestingPastTheLimitStillPairsClosesInLifoOrder(): void
+    {
+        $logger = new SemanticLogger(1);
+        $kept = $logger->open(new FakeContext('kept'));
+        $lost = [];
+        for ($i = 0; $i < 50; $i++) {
+            $lost[] = $logger->open(new FakeContext('lost', $i));
+        }
+
+        // Closing the recorded open while unrecorded ones are still open skips
+        // over them: a LIFO violation, dropped (the session is full) — not a pop.
+        $logger->close(new FakeContext('too early'), $kept);
+        foreach (array_reverse($lost) as $id) {
+            $logger->close(new FakeContext('lost done'), $id);
+        }
+
+        $logger->close(new FakeContext('kept done'), $kept);
+
+        $log = $logger->flush()->toArray()['log'];
+
+        $this->assertCount(2, $log);
+        $this->assertSame(['message' => 'kept done', 'value' => 0], $log[0]['close']['context'] ?? null);
+        $this->assertSame(['limit' => 1, 'dropped' => 101, 'firstDroppedType' => FakeContext::TYPE], $log[1]['context']);
     }
 
     public function testRejectedClosesCountAgainstTheLimit(): void
