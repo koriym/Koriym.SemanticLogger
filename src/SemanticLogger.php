@@ -12,6 +12,7 @@ use Throwable;
 use function array_map;
 use function array_reverse;
 use function iterator_to_array;
+use function max;
 
 /**
  * Semantic operation logger with a single behavior: totality.
@@ -59,10 +60,13 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     private int $dropped = 0;
     private string $firstDroppedType = '';
 
-    /** @param positive-int $maxRecords */
-    public function __construct(
-        private readonly int $maxRecords = self::DEFAULT_MAX_RECORDS,
-    ) {
+    /** @var positive-int */
+    private readonly int $maxRecords;
+
+    /** A limit below 1 is raised to 1: the logger never throws, and a session must be able to record something. */
+    public function __construct(int $maxRecords = self::DEFAULT_MAX_RECORDS)
+    {
+        $this->maxRecords = max(1, $maxRecords);
         /** @var SplStack<OpenEntry> $openStack */
         $openStack = new SplStack();
         $this->openStack = $openStack;

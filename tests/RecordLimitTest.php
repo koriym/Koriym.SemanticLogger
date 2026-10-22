@@ -122,6 +122,18 @@ final class RecordLimitTest extends TestCase
         $this->assertSame($flushed, $preview);
     }
 
+    public function testNonPositiveLimitStillRecordsOneEntryAndAValidMarker(): void
+    {
+        $logger = new SemanticLogger(0);
+        $logger->event(new FakeContext('kept'));
+        $logger->event(new FakeContext('dropped'));
+
+        $log = $logger->flush()->toArray()['log'];
+
+        $this->assertSame('kept', $log[0]['context']['message']);
+        $this->assertSame(['limit' => 1, 'dropped' => 1, 'firstDroppedType' => FakeContext::TYPE], $log[1]['context']);
+    }
+
     public function testFlushStartsAFreshBudget(): void
     {
         $logger = new SemanticLogger(1);
