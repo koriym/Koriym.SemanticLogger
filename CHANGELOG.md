@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.11.0] - 2026-10-23
 
 ### Added
 - **Record limit.** A session records at most 1000 opens, events and rejected closes (`new SemanticLogger($maxRecords)` to change); later ones are dropped, while closes of recorded opens are still written. `flush()` then appends one `semantic_logger_truncated` point `{limit, dropped, firstDroppedType}`, which the validator reports as a warning, not a diagnostic.
