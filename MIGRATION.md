@@ -1,16 +1,16 @@
 # Migration Guide
 
-Newest step first: 0.10.0 → Unreleased, then 0.9 → 0.10.0, then 0.8 / 1.x → 0.9
+Newest step first: 0.10.0 → 0.11.0, then 0.9 → 0.10.0, then 0.8 / 1.x → 0.9
 (where the logger stopped throwing and failures became diagnostic entries in
 the log itself).
 
-## 0.10.0 → Unreleased: `log` replaces `entries`/`children`, `kind` is gone, orphans move inline
+## 0.10.0 → 0.11.0: `log` replaces `entries`/`children`, `kind` is gone, orphans move inline
 
 The public document gets one key at every level and no discriminator field; the PHP value objects flatten closes into the record list.
 
 ### Public JSON
 
-| 0.10.0 | Unreleased |
+| 0.10.0 | 0.11.0 |
 |---|---|
 | root `entries`, every open's own `children` | root `log`, every interval's own `log` — one key at every level |
 | every entry carries `kind: "open"` / `kind: "event"` | no `kind` field; discriminate structurally: `close` present → completed interval, `log` present (maybe empty) with no `close` → interrupted interval, neither → point |
@@ -23,7 +23,7 @@ The public document gets one key at every level and no discriminator field; the 
 
 ### Validator and stree
 
-| 0.10.0 | Unreleased |
+| 0.10.0 | 0.11.0 |
 |---|---|
 | validator paths `entries[i]`, `.children[j]` | `log[i]`, `.log[j]` (`.close` unchanged); messages name the structural kind |
 | validator: no check for an unresolved schema, duplicate `id`, or a double-close orphan | each is now a validator error; an interrupted interval (`log` without `close`) is a warning, not a failure, and does not participate in `--fail-on-diagnostics` |
@@ -32,7 +32,7 @@ The public document gets one key at every level and no discriminator field; the 
 
 ### PHP API
 
-| 0.10.0 | Unreleased |
+| 0.10.0 | 0.11.0 |
 |---|---|
 | `OpenCloseEntry` | `OpenEntry` — it only ever held the open |
 | `new LogJson($schemaUrl, $records, $closes, $links)` | `new LogJson($schemaUrl, $records, $links)` — closes are records too, at the position they were recorded |

@@ -343,5 +343,5 @@ This keeps the tree compact for both humans (visual parent/child structure) and 
 ## Documentation
 
 - [Schema Portal](https://koriym.github.io/Koriym.SemanticLogger/)
-- [MIGRATION.md](MIGRATION.md) — 0.8 → 0.9 → 0.10 → Unreleased migration guides (`entries`/`kind`/`close`/`log` key history)
+- [MIGRATION.md](MIGRATION.md) — 0.8 → 0.9 → 0.10 → 0.11 migration guides (`entries`/`kind`/`close`/`log` key history)
 - [CHANGELOG.md](CHANGELOG.md)
