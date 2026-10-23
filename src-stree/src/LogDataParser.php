@@ -25,7 +25,7 @@ final class LogDataParser
 {
     private int $orphanCloseSequence = 0;
 
-    /** @param array<string, mixed> $logData */
+    /** @param array<array-key, mixed> $logData */
     public function parseLogData(array $logData): TreeNode
     {
         $this->orphanCloseSequence = 0;

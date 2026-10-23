@@ -12,11 +12,13 @@ use function count;
 use function file_exists;
 use function file_get_contents;
 use function fprintf;
+use function is_array;
 use function is_numeric;
 use function is_readable;
 use function is_string;
 use function json_decode;
 use function json_encode;
+use function ltrim;
 use function sprintf;
 use function str_ends_with;
 use function str_starts_with;
@@ -68,12 +70,19 @@ final class StreeCommand
                 throw new RuntimeException('File option must be a string');
             }
 
-            $logData = $this->loadLogFile($fileOption);
+            $content = $this->readLogFile($fileOption);
 
             if (isset($options['json'])) {
-                echo json_encode($logData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
+                // Decoded as objects so `{}` is not re-encoded as `[]`.
+                echo json_encode($this->decodeLog($content, false), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
 
                 return 0;
+            }
+
+            $logData = $this->decodeLog($content, true);
+            // An associative decode turns `[]` into the same empty array as `{}`, so the root is read from the text.
+            if (! str_starts_with(ltrim($content), '{') || ! is_array($logData)) {
+                throw new RuntimeException(sprintf('Invalid log data in %s: expected a JSON object', $fileOption));
             }
 
             $renderer = new TreeRenderer($config);
@@ -192,8 +201,7 @@ final class StreeCommand
         return (float) $numericValue;
     }
 
-    /** @return array<string, mixed> */
-    private function loadLogFile(string $file): array
+    private function readLogFile(string $file): string
     {
         if (! file_exists($file)) {
             throw new RuntimeException(sprintf('Log file not found: %s', $file));
@@ -208,11 +216,13 @@ final class StreeCommand
             throw new RuntimeException(sprintf('Failed to read log file: %s', $file)); // @codeCoverageIgnore
         }
 
-        try {
-            /** @var array<string, mixed> $data */
-            $data = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+        return $content;
+    }
 
-            return $data;
+    private function decodeLog(string $content, bool $associative): mixed
+    {
+        try {
+            return json_decode($content, $associative, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $e) {
             throw new RuntimeException(sprintf('Invalid JSON in log file: %s', $e->getMessage()));
         }

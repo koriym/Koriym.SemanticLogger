@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 use function chmod;
+use function dirname;
+use function escapeshellarg;
+use function exec;
 use function file_exists;
 use function file_put_contents;
+use function implode;
 use function json_encode;
 use function ob_get_clean;
 use function ob_start;
@@ -17,6 +22,7 @@ use function tempnam;
 use function unlink;
 
 use const JSON_THROW_ON_ERROR;
+use const PHP_BINARY;
 use const PHP_OS_FAMILY;
 
 final class StreeCommandTest extends TestCase
@@ -208,14 +214,10 @@ final class StreeCommandTest extends TestCase
         $this->assertStringNotContainsString('fast_operation', $output);
     }
 
-    public function testJsonPassthrough(): void
+    public function testJsonPassthroughKeepsEmptyObjectsAndArrays(): void
     {
-        $logData = [
-            'log' => [self::simpleOpen([])],
-        ];
-
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
-        file_put_contents($this->tempFile, json_encode($logData));
+        file_put_contents($this->tempFile, '{"log":[{"id":"a_1","type":"a","schemaUrl":"https://example.com/a.json","context":{},"log":[]}]}');
 
         $command = new StreeCommand();
 
@@ -224,8 +226,45 @@ final class StreeCommandTest extends TestCase
         $output = ob_get_clean() ?: '';
 
         $this->assertSame(0, $exitCode);
-        $this->assertStringContainsString('"log"', $output);
-        $this->assertStringContainsString('"close"', $output);
+        $this->assertStringContainsString('"context": {}', $output);
+        $this->assertStringContainsString('"log": []', $output);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function nonObjectRoots(): array
+    {
+        return [
+            'list of objects' => ['[{"log":[]}]'],
+            'empty list' => ['[]'],
+            'number' => ['123'],
+        ];
+    }
+
+    #[DataProvider('nonObjectRoots')]
+    public function testTopLevelThatIsNotAnObjectIsAnError(string $json): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, $json);
+
+        exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/stree') . ' ' . escapeshellarg($this->tempFile) . ' 2>&1', $output, $exitCode);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString('expected a JSON object', implode("\n", $output));
+    }
+
+    public function testAnObjectWithANumericPropertyNameIsStillALog(): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, '{"0":"extra","log":[{"id":"a_1","type":"numeric_key_event","schemaUrl":"https://example.com/a.json","context":{}}]}');
+
+        $command = new StreeCommand();
+
+        ob_start();
+        $exitCode = $command->__invoke(['stree', $this->tempFile]);
+        $output = ob_get_clean() ?: '';
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('numeric_key_event', $output);
     }
 
     public function testShortOptions(): void
