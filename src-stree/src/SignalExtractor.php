@@ -227,12 +227,16 @@ final class SignalExtractor
                 continue;
             }
 
+            if (is_bool($value)) {
+                $lines[] = $qualifiedKey . ': ' . $this->formatBoolean($value);
+                continue;
+            }
+
             if (! is_scalar($value)) {
                 continue;
             }
 
-            $stringValue = (string) $value;
-            $lines[] = $qualifiedKey . ': ' . $stringValue;
+            $lines[] = $qualifiedKey . ': ' . (string) $value;
         }
 
         return $lines;
@@ -308,7 +312,7 @@ final class SignalExtractor
     public function formatValue(mixed $value): string|null
     {
         if (is_bool($value)) {
-            return $value ? 'true' : 'false';
+            return $this->formatBoolean($value);
         }
 
         if ($value === null) {
@@ -338,6 +342,15 @@ final class SignalExtractor
         $str = $this->truncate($str);
 
         return $str;
+    }
+
+    /**
+     * Render a boolean the same way in both compact and full mode: "true" / "false", never the
+     * PHP string-cast "1" / "" that makes a false value indistinguishable from a missing key.
+     */
+    private function formatBoolean(bool $value): string
+    {
+        return $value ? 'true' : 'false';
     }
 
     /**

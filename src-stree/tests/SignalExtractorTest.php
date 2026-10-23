@@ -341,6 +341,23 @@ final class SignalExtractorTest extends TestCase
         $this->assertContains('xdebugTrace[1].path: /tmp/profile_b.xt', $result);
     }
 
+    public function testExpandFullRendersBooleansAndFalsyScalarsLikeCompactMode(): void
+    {
+        $context = [
+            'success' => true,
+            'verified' => false,
+            'count' => 0,
+            'label' => '',
+        ];
+
+        $result = $this->extractor->expandFull($context);
+
+        $this->assertContains('success: true', $result);
+        $this->assertContains('verified: false', $result);
+        $this->assertContains('count: 0', $result);
+        $this->assertContains('label: ', $result);
+    }
+
     public function testExpandFullExcludesTimingKeys(): void
     {
         $context = ['executionTime' => 0.5, 'name' => 'task'];
