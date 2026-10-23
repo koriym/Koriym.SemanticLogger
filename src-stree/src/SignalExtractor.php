@@ -202,6 +202,10 @@ final class SignalExtractor
     /**
      * Expand all context keys into leaf lines for --full mode.
      *
+     * Shares formatBoolean() with formatValue() so true/false read the same in both modes, but
+     * otherwise casts scalars directly: unlike compact mode, --full never truncates a long
+     * string or shortens a FQCN, since showing every value in full is the point of this mode.
+     *
      * @param  array<string, mixed> $context
      *
      * @return string[]
@@ -428,7 +432,7 @@ final class SignalExtractor
                 return '[' . count($arr) . ' items]';
             }
 
-            $scalars[] = (string) $item;
+            $scalars[] = is_bool($item) ? $this->formatBoolean($item) : (string) $item;
         }
 
         return $this->joinWithOverflow($scalars, count($arr));

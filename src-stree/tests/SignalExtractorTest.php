@@ -175,6 +175,13 @@ final class SignalExtractorTest extends TestCase
         $this->assertSame('[a, b, c]', $result);
     }
 
+    public function testScalarArrayInlineRendersBooleansLikeFormatValue(): void
+    {
+        $result = $this->extractor->formatValue([true, false, true]);
+
+        $this->assertSame('[true, false, true]', $result);
+    }
+
     public function testLargeArrayShowsCount(): void
     {
         $arr = ['very long item one', 'very long item two', 'very long item three', 'four', 'five', 'six'];
@@ -356,6 +363,19 @@ final class SignalExtractorTest extends TestCase
         $this->assertContains('verified: false', $result);
         $this->assertContains('count: 0', $result);
         $this->assertContains('label: ', $result);
+    }
+
+    public function testExpandFullKeepsLongStringsAndFqcnsUntouched(): void
+    {
+        // Unlike compact mode, --full never truncates or FQCN-shortens: it exists to show
+        // every value in full.
+        $long = str_repeat('x', 80);
+        $context = ['long' => $long, 'final' => 'Be\\Skeleton\\Final\\Hello'];
+
+        $result = $this->extractor->expandFull($context);
+
+        $this->assertContains('long: ' . $long, $result);
+        $this->assertContains('final: Be\\Skeleton\\Final\\Hello', $result);
     }
 
     public function testExpandFullExcludesTimingKeys(): void
