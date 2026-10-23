@@ -19,8 +19,8 @@
     "exceptionClass": { "type": "string" },
     "relatedId": { "type": "string" },
     "discardedContext": {
-      "description": "The rejected context. An empty PHP context is encoded as an empty JSON array; non-empty contexts are objects.",
-      "type": ["object", "array"],
+      "description": "The rejected context, as a JSON object (empty when the context has no public properties).",
+      "type": "object",
       "additionalProperties": true
     },
     "unclosedIds": {

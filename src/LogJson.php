@@ -6,6 +6,10 @@ namespace Koriym\SemanticLogger;
 
 use JsonSerializable;
 use Override;
+use stdClass;
+
+use function array_map;
+use function is_array;
 
 /**
  * @psalm-import-type LogRecordList from Types
@@ -25,11 +29,20 @@ final class LogJson implements JsonSerializable
     ) {
     }
 
-    /** @return LogSessionArray */
+    /**
+     * The JSON document. Same as toArray(), except that an empty context (and an
+     * empty diagnostic `discardedContext`) is a JSON object: as a PHP array it
+     * would encode as `[]`, which the envelope schema rejects.
+     *
+     * @return array<string, mixed>
+     */
     #[Override]
     public function jsonSerialize(): array
     {
-        return $this->toArray();
+        $document = $this->toArray();
+        $document['log'] = array_map(self::objectContexts(...), $document['log']);
+
+        return $document;
     }
 
     /**
@@ -58,5 +71,45 @@ final class LogJson implements JsonSerializable
         }
 
         return $result;
+    }
+
+    /**
+     * @param array<array-key, mixed> $record
+     *
+     * @return array<array-key, mixed>
+     */
+    private static function objectContexts(array $record): array
+    {
+        if (isset($record['context']) && is_array($record['context'])) {
+            $context = $record['context'];
+            if (($record['type'] ?? null) === CoreSchema::DIAGNOSTIC_TYPE && isset($context['discardedContext']) && is_array($context['discardedContext'])) {
+                $context['discardedContext'] = self::asObject($context['discardedContext']);
+            }
+
+            $record['context'] = self::asObject($context);
+        }
+
+        if (isset($record['close']) && is_array($record['close'])) {
+            $record['close'] = self::objectContexts($record['close']);
+        }
+
+        if (isset($record['log']) && is_array($record['log'])) {
+            $record['log'] = array_map(
+                static fn (mixed $child): mixed => is_array($child) ? self::objectContexts($child) : $child,
+                $record['log'],
+            );
+        }
+
+        return $record;
+    }
+
+    /**
+     * @param array<array-key, mixed> $context
+     *
+     * @return array<array-key, mixed>|stdClass
+     */
+    private static function asObject(array $context): array|stdClass
+    {
+        return $context === [] ? new stdClass() : $context;
     }
 }

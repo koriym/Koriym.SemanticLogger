@@ -72,15 +72,16 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     #[Override]
     public function open(AbstractContext $context): string
     {
-        $frozen = $this->contextFreezer->freeze($context, 'open');
-        $operationId = $this->nextId($frozen['type']);
         if ($this->isFull()) {
+            $type = $this->contextFreezer->typeOf($context);
             $this->unrecordedDepth++;
-            $this->drop($frozen['type']);
+            $this->drop($type);
 
-            return $operationId;
+            return $this->nextId($type);
         }
 
+        $frozen = $this->contextFreezer->freeze($context, 'open');
+        $operationId = $this->nextId($frozen['type']);
         $open = new OpenEntry(
             $operationId,
             $frozen['type'],
@@ -103,13 +104,13 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     #[Override]
     public function event(AbstractContext $context): void
     {
-        $frozen = $this->contextFreezer->freeze($context, 'event');
         if ($this->isFull()) {
-            $this->drop($frozen['type']);
+            $this->drop($this->contextFreezer->typeOf($context));
 
             return;
         }
 
+        $frozen = $this->contextFreezer->freeze($context, 'event');
         $this->limitedCount++;
         $eventId = $this->nextId($frozen['type']);
         $currentOpenId = $this->currentOpenId();
@@ -184,7 +185,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
     #[Override]
     public function jsonSerialize(): mixed
     {
-        return $this->snapshot()->toArray();
+        return $this->snapshot()->jsonSerialize();
     }
 
     /** @return LogSessionArray */
@@ -249,9 +250,13 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         return $this->limitedCount >= $this->maxRecords;
     }
 
+    /**
+     * Only recorded opens count: an open past the limit has no id in the log to
+     * name, and the truncation marker already says recording stopped.
+     */
     private function hasUnclosed(): bool
     {
-        return $this->unrecordedDepth > 0 || ! $this->openStack->isEmpty();
+        return ! $this->openStack->isEmpty();
     }
 
     /**
@@ -276,7 +281,7 @@ final class SemanticLogger implements SemanticLoggerInterface, JsonSerializable
         }
 
         $this->unrecordedDepth--;
-        $this->drop($this->contextFreezer->freeze($context, 'close')['type']);
+        $this->drop($this->contextFreezer->typeOf($context));
     }
 
     private function drop(string $type): void

@@ -98,6 +98,30 @@ final class RecordLimitTest extends TestCase
         $this->assertSame(['limit' => 2, 'dropped' => 3, 'firstDroppedType' => CoreSchema::DIAGNOSTIC_TYPE], $log[2]['context']);
     }
 
+    public function testOpensPastTheLimitLeftOpenAreNotReportedAsUnclosed(): void
+    {
+        $logger = new SemanticLogger(1);
+        $logger->event(new FakeContext('kept'));
+        $logger->open(new FakeContext('lost and never closed'));
+
+        $types = array_column($logger->flush()->toArray()['log'], 'type');
+
+        $this->assertSame([FakeContext::TYPE, CoreSchema::TRUNCATED_TYPE], $types);
+    }
+
+    public function testRecordsPastTheLimitAreNeverSerialized(): void
+    {
+        $logger = new SemanticLogger(1);
+        CountingContext::$serialized = 0;
+        $id = $logger->open(new CountingContext());
+        $logger->event(new CountingContext());
+        $inner = $logger->open(new CountingContext());
+        $logger->close(new CountingContext(), $inner);
+        $logger->close(new CountingContext(), $id);
+
+        $this->assertSame(2, CountingContext::$serialized, 'only the recorded open and its close are serialized');
+    }
+
     public function testUnclosedDiagnosticNamesOnlyRecordedOpens(): void
     {
         $logger = new SemanticLogger(1);
