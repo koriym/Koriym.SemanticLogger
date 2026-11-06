@@ -6,8 +6,9 @@ namespace Koriym\SemanticLogger;
 
 use PHPUnit\Framework\TestCase;
 
-use function array_column;
+use function array_map;
 use function assert;
+use function is_array;
 use function is_string;
 use function json_decode;
 use function json_encode;
@@ -22,8 +23,7 @@ final class ErrorHandlingTest extends TestCase
 
         $this->assertSame(CoreSchema::LOG_URL, $log->schemaUrl);
         $this->assertSame([], $log->records);
-        $this->assertSame([], $log->closes);
-        $this->assertSame([], $log->toArray()['entries']);
+        $this->assertSame([], $log->toArray()['log']);
     }
 
     public function testToArrayWithoutOpenReturnsEmptyShape(): void
@@ -33,7 +33,7 @@ final class ErrorHandlingTest extends TestCase
         $array = $logger->toArray();
 
         $this->assertSame(CoreSchema::LOG_URL, $array['$schema']);
-        $this->assertSame([], $array['entries']);
+        $this->assertSame([], $array['log']);
     }
 
     public function testJsonSerializeWithoutOpenProducesEmptyLog(): void
@@ -46,7 +46,7 @@ final class ErrorHandlingTest extends TestCase
 
         $this->assertIsArray($decoded);
         $this->assertSame(CoreSchema::LOG_URL, $decoded['$schema']);
-        $this->assertSame([], $decoded['entries']);
+        $this->assertSame([], $decoded['log']);
     }
 
     public function testCompleteLogSessionSerialization(): void
@@ -81,27 +81,31 @@ final class ErrorHandlingTest extends TestCase
         $this->assertSame(CoreSchema::LOG_URL, $logJson->schemaUrl);
 
         $array = $logJson->toArray();
-        $this->assertArrayNotHasKey('close', $array);
-        $this->assertCount(1, $array['entries']);
+        $this->assertCount(1, $array['log']);
 
         // Outer open: nested inner open, then closed by the outer close.
-        $outer = $array['entries'][0];
-        $this->assertSame('open', $outer['kind']);
+        $outer = $array['log'][0];
+        $this->assertTrue($this->isIntervalShaped($outer));
         $this->assertSame('outer', $this->messageOf($outer));
         $this->assertSame('outer_finished', $this->messageOf($outer['close'] ?? []));
-        $this->assertCount(1, $outer['children']);
+        $outerChildren = $outer['log'] ?? [];
+        $this->assertCount(1, $outerChildren);
 
         // The inner open holds both events in record order, then its own close.
-        $inner = $outer['children'][0];
-        $this->assertSame('open', $inner['kind']);
+        $inner = $outerChildren[0];
+        $this->assertTrue($this->isIntervalShaped($inner));
         $this->assertSame('inner', $this->messageOf($inner));
         $innerClose = $inner['close'] ?? [];
         $this->assertIsArray($innerClose);
         $this->assertSame('inner_finished', $this->messageOf($innerClose));
-        $innerChildren = $inner['children'] ?? [];
+        $innerChildren = $inner['log'] ?? [];
         $this->assertIsArray($innerChildren);
         $this->assertCount(2, $innerChildren);
-        $this->assertSame(['event', 'event'], array_column($innerChildren, 'kind'));
+        $shapes = array_map(
+            fn (mixed $entry): bool => is_array($entry) && $this->isIntervalShaped($entry),
+            $innerChildren,
+        );
+        $this->assertSame([false, false], $shapes);
         $this->assertIsArray($innerChildren[0]);
         $this->assertIsArray($innerChildren[1]);
         $this->assertSame('event1', $this->messageOf($innerChildren[0]));
@@ -110,7 +114,6 @@ final class ErrorHandlingTest extends TestCase
         // The logger is cleared after flush: a second flush returns an empty log.
         $next = $logger->flush();
         $this->assertSame([], $next->records);
-        $this->assertSame([], $next->closes);
     }
 
     /** @param array<mixed> $entry */
@@ -120,5 +123,15 @@ final class ErrorHandlingTest extends TestCase
         $this->assertIsArray($context);
 
         return $context['message'] ?? null;
+    }
+
+    /**
+     * Structural kind: an interval carries `close` or `log`, a point carries neither.
+     *
+     * @param array<array-key, mixed> $entry
+     */
+    private function isIntervalShaped(array $entry): bool
+    {
+        return isset($entry['close']) || isset($entry['log']);
     }
 }

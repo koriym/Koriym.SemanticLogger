@@ -34,7 +34,7 @@ final class TreeRenderer implements LogRendererInterface
         return $this->renderTree($log->toArray());
     }
 
-    /** @param array<string, mixed> $logData */
+    /** @param array<array-key, mixed> $logData A decoded JSON object; numeric property names arrive as int keys. */
     public function renderTree(array $logData): string
     {
         $config = $this->config;

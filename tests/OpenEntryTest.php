@@ -6,11 +6,11 @@ namespace Koriym\SemanticLogger;
 
 use PHPUnit\Framework\TestCase;
 
-final class OpenCloseEntryTest extends TestCase
+final class OpenEntryTest extends TestCase
 {
     public function testRootEntryOmitsParentId(): void
     {
-        $entry = new OpenCloseEntry(
+        $entry = new OpenEntry(
             'simple_entry_1',
             'simple_entry',
             'https://example.com/simple.json',
@@ -34,7 +34,7 @@ final class OpenCloseEntryTest extends TestCase
 
     public function testNestedEntryEmitsParentId(): void
     {
-        $child = new OpenCloseEntry(
+        $child = new OpenEntry(
             'child_entry_1',
             'child_entry',
             'https://example.com/child.json',
@@ -54,7 +54,7 @@ final class OpenCloseEntryTest extends TestCase
 
     public function testJsonSerializeMatchesToArray(): void
     {
-        $entry = new OpenCloseEntry('a_1', 'a', 'https://example.com/a.json', ['x' => 1], 'root_1');
+        $entry = new OpenEntry('a_1', 'a', 'https://example.com/a.json', ['x' => 1], 'root_1');
 
         $this->assertSame($entry->toArray(), $entry->jsonSerialize());
     }

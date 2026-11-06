@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented
+Implemented; depth limiting and `--expand` (§ Core Design Decisions 1–2) were removed in 0.4.0 — see [CHANGELOG.md](../../CHANGELOG.md#040---2026-04-20) and [usage.md](usage.md) for the current CLI surface. The rest of this record (architecture, context-aware display, data flow) still reflects the implementation.
 
 ## Context
 
@@ -71,7 +71,7 @@ We decided to implement `stree` (semantic tree), a command-line tool that render
 ### Data Flow
 
 1. **Input**: SemanticLogger JSON file
-2. **Parse**: Walk the ordered `entries` tree (`kind: open | event`, nested `children` and `close`) plus any top-level orphan `close` diagnostics
+2. **Parse**: Walk the ordered `log` list, classifying each record structurally — `close` or `log` (even empty) present → interval (open), neither present → point (event), root-only `openId` → orphan close — recursing into nested `log` lists for children
 3. **Transform**: Build a tree (or forest) structure for rendering
 4. **Filter**: Apply depth, expansion, and time threshold rules
 5. **Render**: Generate ASCII tree with context-specific formatting
@@ -81,9 +81,9 @@ We decided to implement `stree` (semantic tree), a command-line tool that render
 
 The tool handles SemanticLogger's public tree JSON:
 
-- **Hierarchical operations**: each `open` entry carries `children` — events and nested opens in record order
-- **Nested close**: Matching `close` objects live directly under their `open`
-- **Top-level diagnostics**: a `close` list may appear at the top level for orphan closes
+- **Hierarchical operations**: each interval record carries its own `log` — events and nested opens in record order
+- **Nested close**: Matching `close` objects live directly under their interval record
+- **Top-level diagnostics**: orphan closes are spliced into the root `log` list at the position they were encountered, each carrying `openId`
 - **Multi-root logs**: Multiple sibling roots are rendered as a forest
 - **Timing Data**: Multiple possible fields (`executionTime`, `responseTime`, `duration`)
 

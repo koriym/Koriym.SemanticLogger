@@ -14,29 +14,29 @@
   "type": "object",
   "required": [
     "$schema",
-    "entries"
+    "log"
   ],
   "properties": {
     "$schema": {
       "$ref": "#/definitions/schemaUrl"
     },
-    "entries": {
+    "log": {
       "type": "array",
-      "description": "Root-scope entries in record order: opens (each carrying its own children and matching close) and events. An empty array is a valid empty session.",
+      "description": "Root-scope records in record order: intervals (each carrying its own log and matching close) and points. A root record may also be an orphan close (a close whose open is not in this document, or a duplicate close of an open already closed), kept in place with its openId. An empty array is a valid empty log.",
       "items": {
-        "$ref": "#/definitions/entry"
+        "$ref": "#/definitions/rootRecord"
       }
     },
-    "close": {
-      "type": "array",
-      "description": "Orphan close entries: closes whose open is not in this document, or duplicate closes of an open that was already closed. Each keeps its openId.",
-      "items": {
-        "$ref": "#/definitions/closeEntry"
+    "types": {
+      "type": "object",
+      "description": "Document-level type-to-schema index (compact form). When present, a record without its own schemaUrl resolves its schema through types[type]. A record's own schemaUrl, when present, must agree with this map.",
+      "additionalProperties": {
+        "$ref": "#/definitions/schemaUrl"
       }
     },
     "links": {
       "type": "array",
-      "description": "Web Links for semantic relationships - extends JSON Schema with hypermedia concepts for AI understanding. While not part of JSON Schema specification, these links provide semantic context and relationships between log entries, following RFC 8288 Web Linking principles. Enables AI to understand contextual relationships, dependencies, and semantic connections that pure data structure cannot express",
+      "description": "Web Links for semantic relationships - extends JSON Schema with hypermedia concepts for AI understanding. While not part of JSON Schema specification, these links provide semantic context and relationships between log records, following RFC 8288 Web Linking principles. Enables AI to understand contextual relationships, dependencies, and semantic connections that pure data structure cannot express",
       "items": {
         "type": "object",
         "properties": {
@@ -67,7 +67,7 @@
       "examples": [
         {
           "rel": "related",
-          "href": "#/entries/0/children/0",
+          "href": "#/log/0/log/0",
           "title": "Cache operation within this request"
         },
         {
@@ -80,32 +80,25 @@
   },
   "additionalProperties": false,
   "definitions": {
-    "entry": {
-      "description": "One child of a scope, in record order. `kind` tells an open (which carries its own children and close) from an event.",
+    "rootRecord": {
+      "description": "One root-scope record: either a record (interval or point, discriminated structurally by the presence of `log`/`close`) or an orphan close (a close carrying `openId` because no open in this document owns it).",
       "oneOf": [
         {
-          "$ref": "#/definitions/openEntry"
+          "$ref": "#/definitions/record"
         },
         {
-          "$ref": "#/definitions/eventEntry"
+          "$ref": "#/definitions/orphanClose"
         }
       ]
     },
-    "openEntry": {
+    "record": {
       "type": "object",
-      "description": "Application-defined open context. Its events and nested opens are listed together in `children` in the order they were recorded; its matching close, if any, is nested in `close`.",
+      "description": "A record in log order. With `close` present it is a completed interval; with `log` (empty or not) and no `close` it is an interrupted interval; with neither `log` nor `close` it is a point. Never carries `openId` (that is reserved for root-level orphan closes) and never carries `kind` (structure discriminates, not a tag).",
       "required": [
-        "kind",
-        "id",
         "type",
-        "schemaUrl",
-        "context",
-        "children"
+        "context"
       ],
       "properties": {
-        "kind": {
-          "const": "open"
-        },
         "id": {
           "$ref": "#/definitions/operationId"
         },
@@ -121,59 +114,29 @@
           "description": "Application-specific context data conforming to the referenced schema",
           "additionalProperties": true
         },
-        "children": {
+        "log": {
           "type": "array",
-          "description": "Events and nested opens recorded while this operation was active, in record order.",
+          "description": "Records recorded while this interval was open, in record order. Present whenever the interval is unclosed (even if empty); omitted once closed if it has no children.",
           "items": {
-            "$ref": "#/definitions/entry"
+            "$ref": "#/definitions/record"
           }
         },
         "close": {
-          "$ref": "#/definitions/closeEntry",
-          "description": "The close that ended this operation. Omitted when the operation is unclosed."
+          "$ref": "#/definitions/close",
+          "description": "The close that ended this interval. Omitted when the interval is still open (interrupted) or when this record is a point."
+        },
+        "profile": {
+          "$ref": "#/definitions/operationProfile",
+          "description": "Observed profiling data attributed to this record. Present only when an attached profiler captured external Xdebug or XHProf output for it."
         }
       },
-      "additionalProperties": true
+      "additionalProperties": false
     },
-    "eventEntry": {
+    "close": {
       "type": "object",
-      "description": "Application-defined event context. Its scope is the open it is listed under; root-scope events are listed in the top-level entries.",
+      "description": "The close observation nested on its matching interval.",
       "required": [
-        "kind",
-        "id",
         "type",
-        "schemaUrl",
-        "context"
-      ],
-      "properties": {
-        "kind": {
-          "const": "event"
-        },
-        "id": {
-          "$ref": "#/definitions/operationId"
-        },
-        "type": {
-          "type": "string",
-          "description": "Application-defined event type (e.g., cache_operation, database_query, external_api)"
-        },
-        "schemaUrl": {
-          "$ref": "#/definitions/schemaUrl"
-        },
-        "context": {
-          "type": "object",
-          "description": "Application-specific event data conforming to the referenced schema",
-          "additionalProperties": true
-        }
-      },
-      "additionalProperties": true
-    },
-    "closeEntry": {
-      "type": "object",
-      "description": "Application-defined close context. A matched close is nested on its open and omits openId; an orphan close in the top-level close list keeps openId.",
-      "required": [
-        "id",
-        "type",
-        "schemaUrl",
         "context"
       ],
       "properties": {
@@ -187,9 +150,6 @@
         "schemaUrl": {
           "$ref": "#/definitions/schemaUrl"
         },
-        "openId": {
-          "$ref": "#/definitions/openIdReference"
-        },
         "context": {
           "type": "object",
           "description": "Application-specific context data conforming to the referenced schema",
@@ -200,7 +160,41 @@
           "description": "Observed profiling data attributed to this specific operation. Present only when an attached profiler captured external Xdebug or XHProf output for this close."
         }
       },
-      "additionalProperties": true
+      "additionalProperties": false
+    },
+    "orphanClose": {
+      "type": "object",
+      "description": "A root-level close whose open is not in this document, or a duplicate close of an open that was already closed. Kept inline in the root `log` at the position it was encountered, carrying `openId` to name the open it attempted to close.",
+      "required": [
+        "type",
+        "context",
+        "openId"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/operationId"
+        },
+        "type": {
+          "type": "string",
+          "description": "Application-defined context type (e.g., http_response, database_result, business_complete)"
+        },
+        "schemaUrl": {
+          "$ref": "#/definitions/schemaUrl"
+        },
+        "context": {
+          "type": "object",
+          "description": "Application-specific context data conforming to the referenced schema",
+          "additionalProperties": true
+        },
+        "openId": {
+          "$ref": "#/definitions/openIdReference"
+        },
+        "profile": {
+          "$ref": "#/definitions/operationProfile",
+          "description": "Observed profiling data attributed to this specific operation. Present only when an attached profiler captured external Xdebug or XHProf output for this close."
+        }
+      },
+      "additionalProperties": false
     },
     "operationId": {
       "type": "string",

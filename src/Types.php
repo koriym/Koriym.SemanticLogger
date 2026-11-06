@@ -40,23 +40,28 @@ namespace Koriym\SemanticLogger;
  * @psalm-type OperationProfilesById = array<OperationId, Profiler\OperationProfile>
  *
  * Runtime collection types
- * @psalm-type EventEntryList = list<EventEntry>
- * @psalm-type LogRecord = OpenCloseEntry|EventEntry
+ * @psalm-type LogRecord = OpenEntry|EventEntry|CloseEntry
  * @psalm-type LogRecordList = list<LogRecord>
- * @psalm-type RecordsByScope = array<string, LogRecordList>
- * @psalm-type CloseByOpenIdMap = array<string, EventEntry>
+ * @psalm-type ScopedRecordList = list<OpenEntry|EventEntry>
+ * @psalm-type RecordsByScope = array<string, ScopedRecordList>
+ * @psalm-type CloseByOpenIdMap = array<string, CloseEntry>
  * @psalm-type OperationIdSet = array<OperationId, true>
  * @psalm-type ParentByOpenId = array<OperationId, OperationId>
  * @psalm-type TypeCounts = array<LogType, int>
  * @psalm-type SchemaTypeMap = array<LogType, string>
- * @psalm-type DiagnosticKind = 'context_serialization_failed'|'close_without_open'|'close_id_mismatch'|'unclosed_at_flush'
+ * @psalm-type DiagnosticCode = 'context_serialization_failed'|'close_without_open'|'close_id_mismatch'|'unclosed_at_flush'
  * @psalm-type DiagnosticData = array{
- *     kind: DiagnosticKind,
+ *     code: DiagnosticCode,
  *     message: string,
  *     exceptionClass?: string,
  *     relatedId?: OperationId,
  *     discardedContext?: ContextData,
  *     unclosedIds?: list<OperationId>
+ * }
+ * @psalm-type TruncationData = array{
+ *     limit: positive-int,
+ *     dropped: positive-int,
+ *     firstDroppedType: LogType
  * }
  * @psalm-type FrozenContext = array{
  *     type: LogType,
@@ -71,118 +76,46 @@ namespace Koriym\SemanticLogger;
  *     id: OperationId,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
- *     openId?: OperationId,
+ *     openId?: OperationId
+ * }
+ * @psalm-type CloseEntryArray = array{
+ *     type: LogType,
+ *     id: OperationId,
+ *     schemaUrl: SchemaUrl,
+ *     context: ContextData,
+ *     openId: OperationId,
  *     profile?: OperationProfileData
  * }
- * @psalm-type OpenCloseEntryArray = array{
+ * @psalm-type OpenEntryArray = array{
  *     type: LogType,
  *     id: OperationId,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
  *     parentId?: OperationId
  * }
- * @psalm-type PublicEventEntry = array{
- *     kind: 'event',
- *     id: OperationId,
- *     type: LogType,
- *     schemaUrl: SchemaUrl,
- *     context: ContextData
- * }
- * @psalm-type PublicCloseEntry = array{
+ * @psalm-type PublicClose = array{
  *     id: OperationId,
  *     type: LogType,
  *     schemaUrl: SchemaUrl,
  *     context: ContextData,
+ *     profile?: OperationProfileData
+ * }
+ * @psalm-type PublicRecord = array{
+ *     id: OperationId,
+ *     type: LogType,
+ *     schemaUrl: SchemaUrl,
+ *     context: ContextData,
+ *     log?: list<array<string, mixed>>,
+ *     close?: PublicClose,
  *     openId?: OperationId,
  *     profile?: OperationProfileData
  * }
- * @psalm-type PublicOpenEntry = array{
- *     kind: 'open',
- *     id: OperationId,
- *     type: LogType,
- *     schemaUrl: SchemaUrl,
- *     context: ContextData,
- *     children: list<JsonMap>,
- *     close?: PublicCloseEntry
- * }
- * @psalm-type PublicEntry = PublicOpenEntry|PublicEventEntry
- * @psalm-type PublicLogTree = array{
- *     entries: list<PublicEntry>,
- *     close: list<PublicCloseEntry>
- * }
  * @psalm-type LogSessionArray = array{
  *     '$schema': SchemaUrl,
- *     entries: list<PublicEntry>,
- *     close?: list<PublicCloseEntry>,
+ *     log: list<PublicRecord>,
  *     links?: SchemaLinks
  * }
  *
- * MCP types
- * @psalm-type McpJsonRpcError = array{
- *     code: int,
- *     message: string
- * }
- * @psalm-type McpServerInfo = array{
- *     name: string,
- *     version: string
- * }
- * @psalm-type McpCapabilities = array{
- *     tools: object
- * }
- * @psalm-type McpInitializeResult = array{
- *     protocolVersion: string,
- *     serverInfo: McpServerInfo,
- *     capabilities: McpCapabilities
- * }
- * @psalm-type McpPropertySchema = array{
- *     type: string,
- *     description?: string,
- *     default?: string
- * }
- * @psalm-type McpInputSchema = array{
- *     type: string,
- *     properties: object|array<string, McpPropertySchema>,
- *     required?: list<string>
- * }
- * @psalm-type McpTool = array{
- *     name: string,
- *     description: string,
- *     inputSchema: McpInputSchema
- * }
- * @psalm-type McpToolsList = list<McpTool>
- * @psalm-type McpToolsListResult = array{
- *     tools: McpToolsList
- * }
- * @psalm-type McpContent = array{
- *     type: string,
- *     text: string
- * }
- * @psalm-type McpContentList = list<McpContent>
- * @psalm-type McpToolCallResult = array{
- *     content: McpContentList,
- *     isError: bool
- * }
- * @psalm-type McpJsonRpcResponse = array{
- *     jsonrpc: string,
- *     id: int|string|null,
- *     result?: McpInitializeResult|McpToolsListResult|McpToolCallResult,
- *     error?: McpJsonRpcError
- * }
- * @psalm-type McpJsonRpcRequest = array{
- *     jsonrpc: string,
- *     method: string,
- *     id?: int|string|null,
- *     params?: array<string, mixed>
- * }
- * @psalm-type McpToolCallParams = array{
- *     name: string,
- *     arguments?: JsonMap
- * }
- * @psalm-type McpSemanticAnalyzeArgs = array{
- *     script?: string,
- *     xdebug_mode?: string
- * }
- * @psalm-type McpLogData = JsonMap
  * @phpcs:enable
  */
 final class Types

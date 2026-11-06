@@ -51,7 +51,7 @@ final class ContextFreezer
      */
     public function freeze(AbstractContext $context, string $operation): array
     {
-        $type = $this->constantToString($context::TYPE);
+        $type = $this->typeOf($context);
         $schemaUrl = $this->constantToString($context::SCHEMA_URL);
 
         try {
@@ -63,7 +63,7 @@ final class ContextFreezer
             ];
         } catch (Throwable $throwable) {
             $diagnostic = [
-                'kind' => 'context_serialization_failed',
+                'code' => 'context_serialization_failed',
                 'message' => 'Context serialization failed.',
                 'exceptionClass' => $throwable::class,
             ];
@@ -96,10 +96,10 @@ final class ContextFreezer
             // the legacy public-property fallback instead of storing them.
         }
 
-        /** @var ContextData $mixedArray */
-        $mixedArray = (array) $context;
+        /** @var ContextData $publicProperties */
+        $publicProperties = get_object_vars($context);
 
-        return $this->freezeArray($mixedArray);
+        return $this->freezeArray($publicProperties);
     }
 
     /**
@@ -158,13 +158,19 @@ final class ContextFreezer
             'operation' => $operation,
             'errors' => [
                 [
-                    'kind' => $diagnostic['kind'],
+                    'code' => $diagnostic['code'],
                     'message' => $diagnostic['message'],
                 ],
             ],
             'originalType' => $type,
             'originalSchemaUrl' => $schemaUrl,
         ];
+    }
+
+    /** The context's TYPE, without serializing it — for records that will not be kept. */
+    public function typeOf(AbstractContext $context): string
+    {
+        return $this->constantToString($context::TYPE);
     }
 
     /** Read a class constant that should be a string, degrading to its debug type. */

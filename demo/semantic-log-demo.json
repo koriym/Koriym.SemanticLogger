@@ -1,8 +1,7 @@
 {
     "$schema": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log.json",
-    "entries": [
+    "log": [
         {
-            "kind": "open",
             "id": "business_logic_1",
             "type": "business_logic",
             "schemaUrl": "./schemas/business_logic.json",
@@ -22,9 +21,8 @@
                 },
                 "success": false
             },
-            "children": [
+            "log": [
                 {
-                    "kind": "event",
                     "id": "http_request_1",
                     "type": "http_request",
                     "schemaUrl": "./schemas/http_request.json",
@@ -35,7 +33,7 @@
                             "Content-Type": "application/json",
                             "Authorization": "Bearer <TOKEN_REDACTED>",
                             "User-Agent": "ECommerceApp/2.1.0",
-                            "X-Request-ID": "req_69e99470ad083"
+                            "X-Request-ID": "req_6ad8c59398a30"
                         },
                         "body": {
                             "customerId": 12345,
@@ -62,25 +60,6 @@
                     }
                 },
                 {
-                    "kind": "event",
-                    "id": "http_response_1",
-                    "type": "http_response",
-                    "schemaUrl": "./schemas/http_response.json",
-                    "context": {
-                        "statusCode": 201,
-                        "headers": {
-                            "Content-Type": "application/json",
-                            "X-Response-Time": "492.22ms",
-                            "X-Request-ID": "req_69e9947131071"
-                        },
-                        "contentLength": 512,
-                        "contentType": "application/json",
-                        "responseTime": 0.4922151565551758,
-                        "cached": false
-                    }
-                },
-                {
-                    "kind": "open",
                     "id": "authentication_request_1",
                     "type": "authentication_request",
                     "schemaUrl": "./schemas/authentication.json",
@@ -89,9 +68,8 @@
                         "token": null,
                         "requestMetadata": []
                     },
-                    "children": [
+                    "log": [
                         {
-                            "kind": "event",
                             "id": "cache_operation_1",
                             "type": "cache_operation",
                             "schemaUrl": "./schemas/cache_operation.json",
@@ -120,7 +98,6 @@
                     }
                 },
                 {
-                    "kind": "open",
                     "id": "business_logic_2",
                     "type": "business_logic",
                     "schemaUrl": "./schemas/business_logic.json",
@@ -143,56 +120,8 @@
                         },
                         "success": false
                     },
-                    "children": [
+                    "log": [
                         {
-                            "kind": "event",
-                            "id": "cache_operation_2",
-                            "type": "cache_operation",
-                            "schemaUrl": "./schemas/cache_operation.json",
-                            "context": {
-                                "operation": "set",
-                                "key": "order_summary_12345",
-                                "hit": true,
-                                "duration": 0.003,
-                                "ttl": 1800,
-                                "size": 512
-                            }
-                        },
-                        {
-                            "kind": "event",
-                            "id": "performance_metrics_1",
-                            "type": "performance_metrics",
-                            "schemaUrl": "./schemas/performance_metrics.json",
-                            "context": {
-                                "executionTime": 0.49115514755249023,
-                                "memoryUsed": 56696,
-                                "peakMemory": 1834832,
-                                "databaseQueries": 5,
-                                "totalQueryTime": 0.093,
-                                "cacheHits": 2,
-                                "cacheMisses": 0,
-                                "functionCalls": {
-                                    "mysql_query": {
-                                        "calls": 5,
-                                        "time": 0.093
-                                    },
-                                    "curl_exec": {
-                                        "calls": 3,
-                                        "time": 0.347
-                                    },
-                                    "json_encode": {
-                                        "calls": 8,
-                                        "time": 0.004
-                                    },
-                                    "pdf_create": {
-                                        "calls": 1,
-                                        "time": 0.078
-                                    }
-                                }
-                            }
-                        },
-                        {
-                            "kind": "open",
                             "id": "database_connection_1",
                             "type": "database_connection",
                             "schemaUrl": "./schemas/database_connection.json",
@@ -203,9 +132,8 @@
                                 "connectionTime": 0.045,
                                 "pooled": true
                             },
-                            "children": [
+                            "log": [
                                 {
-                                    "kind": "event",
                                     "id": "complex_query_1",
                                     "type": "complex_query",
                                     "schemaUrl": "https://example.com/schema/complex-query.json",
@@ -224,7 +152,6 @@
                                     }
                                 },
                                 {
-                                    "kind": "event",
                                     "id": "complex_query_2",
                                     "type": "complex_query",
                                     "schemaUrl": "https://example.com/schema/complex-query.json",
@@ -246,7 +173,6 @@
                                     }
                                 },
                                 {
-                                    "kind": "event",
                                     "id": "complex_query_3",
                                     "type": "complex_query",
                                     "schemaUrl": "https://example.com/schema/complex-query.json",
@@ -267,7 +193,6 @@
                                     }
                                 },
                                 {
-                                    "kind": "open",
                                     "id": "complex_query_4",
                                     "type": "complex_query",
                                     "schemaUrl": "https://example.com/schema/complex-query.json",
@@ -281,9 +206,8 @@
                                         "hasError": false,
                                         "customerId": null
                                     },
-                                    "children": [
+                                    "log": [
                                         {
-                                            "kind": "event",
                                             "id": "complex_query_5",
                                             "type": "complex_query",
                                             "schemaUrl": "https://example.com/schema/complex-query.json",
@@ -330,7 +254,6 @@
                             }
                         },
                         {
-                            "kind": "open",
                             "id": "external_api_request_1",
                             "type": "external_api_request",
                             "schemaUrl": "./schemas/external_api_request.json",
@@ -344,7 +267,6 @@
                                 "responseSize": 0,
                                 "errorCode": 0
                             },
-                            "children": [],
                             "close": {
                                 "id": "external_api_request_2",
                                 "type": "external_api_request",
@@ -362,7 +284,6 @@
                             }
                         },
                         {
-                            "kind": "open",
                             "id": "external_api_request_3",
                             "type": "external_api_request",
                             "schemaUrl": "./schemas/external_api_request.json",
@@ -376,7 +297,6 @@
                                 "responseSize": 0,
                                 "errorCode": 0
                             },
-                            "children": [],
                             "close": {
                                 "id": "external_api_request_4",
                                 "type": "external_api_request",
@@ -394,20 +314,18 @@
                             }
                         },
                         {
-                            "kind": "open",
                             "id": "file_processing_1",
                             "type": "file_processing",
                             "schemaUrl": "./schemas/file_processing.json",
                             "context": {
                                 "operation": "pdf_generation",
-                                "filename": "invoice_ORD_69e994710bb7f.pdf",
+                                "filename": "invoice_ORD_6ad8c593ea4a7.pdf",
                                 "mimeType": "application/pdf",
                                 "fileSize": 0,
                                 "processingTime": 0,
                                 "success": false,
                                 "outputPath": null
                             },
-                            "children": [],
                             "close": {
                                 "id": "file_processing_2",
                                 "type": "file_processing",
@@ -424,7 +342,19 @@
                             }
                         },
                         {
-                            "kind": "open",
+                            "id": "cache_operation_2",
+                            "type": "cache_operation",
+                            "schemaUrl": "./schemas/cache_operation.json",
+                            "context": {
+                                "operation": "set",
+                                "key": "order_summary_12345",
+                                "hit": true,
+                                "duration": 0.003,
+                                "ttl": 1800,
+                                "size": 512
+                            }
+                        },
+                        {
                             "id": "external_api_request_5",
                             "type": "external_api_request",
                             "schemaUrl": "./schemas/external_api_request.json",
@@ -438,7 +368,6 @@
                                 "responseSize": 0,
                                 "errorCode": 0
                             },
-                            "children": [],
                             "close": {
                                 "id": "external_api_request_6",
                                 "type": "external_api_request",
@@ -452,6 +381,38 @@
                                     "requestSize": 2048,
                                     "responseSize": 128,
                                     "errorCode": 0
+                                }
+                            }
+                        },
+                        {
+                            "id": "performance_metrics_1",
+                            "type": "performance_metrics",
+                            "schemaUrl": "./schemas/performance_metrics.json",
+                            "context": {
+                                "executionTime": 0.48021984100341797,
+                                "memoryUsed": 67224,
+                                "peakMemory": 3351288,
+                                "databaseQueries": 5,
+                                "totalQueryTime": 0.093,
+                                "cacheHits": 2,
+                                "cacheMisses": 0,
+                                "functionCalls": {
+                                    "mysql_query": {
+                                        "calls": 5,
+                                        "time": 0.093
+                                    },
+                                    "curl_exec": {
+                                        "calls": 3,
+                                        "time": 0.347
+                                    },
+                                    "json_encode": {
+                                        "calls": 8,
+                                        "time": 0.004
+                                    },
+                                    "pdf_create": {
+                                        "calls": 1,
+                                        "time": 0.078
+                                    }
                                 }
                             }
                         }
@@ -483,6 +444,23 @@
                             },
                             "success": true
                         }
+                    }
+                },
+                {
+                    "id": "http_response_1",
+                    "type": "http_response",
+                    "schemaUrl": "./schemas/http_response.json",
+                    "context": {
+                        "statusCode": 201,
+                        "headers": {
+                            "Content-Type": "application/json",
+                            "X-Response-Time": "480.70ms",
+                            "X-Request-ID": "req_6ad8c59419d37"
+                        },
+                        "contentLength": 512,
+                        "contentType": "application/json",
+                        "responseTime": 0.4806959629058838,
+                        "cached": false
                     }
                 }
             ],

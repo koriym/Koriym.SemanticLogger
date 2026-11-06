@@ -20,17 +20,21 @@ use function sprintf;
  */
 final class CoreDiagnostic
 {
-    public function isCoreType(string $type): bool
+    public function isDiagnosticType(string $type): bool
     {
-        return $this->schemaUrlFor($type) !== null;
+        return $type === CoreSchema::DIAGNOSTIC_TYPE || $type === CoreSchema::INVALID_CONTEXT_TYPE;
     }
 
-    /** Return the canonical schema URL for a core-owned type, or null for any other type. */
+    /**
+     * Return the canonical schema URL for a core-owned type, or null for any other type.
+     * The truncation marker is core-owned but is not a diagnostic.
+     */
     public function schemaUrlFor(string $type): string|null
     {
         return match ($type) {
             CoreSchema::DIAGNOSTIC_TYPE => CoreSchema::DIAGNOSTIC_URL,
             CoreSchema::INVALID_CONTEXT_TYPE => CoreSchema::INVALID_CONTEXT_URL,
+            CoreSchema::TRUNCATED_TYPE => CoreSchema::TRUNCATED_URL,
             default => null,
         };
     }
@@ -43,17 +47,17 @@ final class CoreDiagnostic
             return "[{$path}] {$type}";
         }
 
-        // semantic_logger_error carries kind/message at the top level;
+        // semantic_logger_error carries code/message at the top level;
         // semantic_logger_invalid_context carries them in errors[0].
         $source = $this->diagnosticSource($context);
-        $kind = $this->stringProperty($source, 'kind');
+        $code = $this->stringProperty($source, 'code');
         $message = $this->stringProperty($source, 'message');
-        if ($kind !== null && $message !== null) {
-            return "[{$path}] {$type} ({$kind}): {$message}";
+        if ($code !== null && $message !== null) {
+            return "[{$path}] {$type} ({$code}): {$message}";
         }
 
-        if ($kind !== null) {
-            return "[{$path}] {$type} ({$kind})";
+        if ($code !== null) {
+            return "[{$path}] {$type} ({$code})";
         }
 
         return "[{$path}] {$type}";

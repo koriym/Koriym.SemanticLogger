@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-truncated.json",
+  "title": "Semantic Logger Truncation Marker",
+  "description": "Core-owned root point recorded at flush when the session reached its record limit. Opens and events beyond the limit were not recorded; closes of already-recorded opens still were, so every recorded interval keeps its close. This is not a diagnostic: reaching the limit is a size bound, not a logging failure, and the validator lists it as a warning.",
+  "type": "object",
+  "required": ["limit", "dropped", "firstDroppedType"],
+  "properties": {
+    "limit": {
+      "description": "The session's record limit (SemanticLogger constructor argument).",
+      "type": "integer",
+      "minimum": 1
+    },
+    "dropped": {
+      "description": "Number of opens, events, closes of unrecorded opens and diagnostics that were not recorded.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "firstDroppedType": {
+      "description": "Type of the first record that was not recorded.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

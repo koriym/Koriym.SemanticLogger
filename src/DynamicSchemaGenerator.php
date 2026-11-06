@@ -26,7 +26,7 @@ final class DynamicSchemaGenerator
     }
 
     /**
-     * Generate tree-oriented public schema with dynamic type-based context validation.
+     * Generate log-oriented public schema with dynamic type-based context validation.
      *
      * @return JsonMap
      */
@@ -38,18 +38,18 @@ final class DynamicSchemaGenerator
             '$schema' => 'http://json-schema.org/draft-07/schema#',
             '$id' => 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-log-generated.json',
             'title' => 'Dynamic Semantic Logger Schema',
-            'description' => 'Auto-generated tree-oriented semantic log schema with type-based context validation',
+            'description' => 'Auto-generated log-oriented semantic log schema with type-based context validation',
             'type' => 'object',
-            'required' => ['$schema', 'entries'],
+            'required' => ['$schema', 'log'],
             'properties' => [
                 '$schema' => ['$ref' => '#/definitions/schemaUrl'],
-                'entries' => [
+                'log' => [
                     'type' => 'array',
-                    'items' => ['$ref' => '#/definitions/entry'],
+                    'items' => ['$ref' => '#/definitions/rootRecord'],
                 ],
-                'close' => [
-                    'type' => 'array',
-                    'items' => ['$ref' => '#/definitions/closeEntry'],
+                'types' => [
+                    'type' => 'object',
+                    'additionalProperties' => ['$ref' => '#/definitions/schemaUrl'],
                 ],
                 'links' => [
                     'type' => 'array',
@@ -84,15 +84,15 @@ final class DynamicSchemaGenerator
                     'pattern' => '^[a-z_]+$',
                     'description' => 'Context type identifier; semantic_logger_* is reserved for core entries',
                 ],
-                'entry' => [
+                'rootRecord' => [
                     'oneOf' => [
-                        ['$ref' => '#/definitions/openEntry'],
-                        ['$ref' => '#/definitions/eventEntry'],
+                        ['$ref' => '#/definitions/record'],
+                        ['$ref' => '#/definitions/orphanClose'],
                     ],
                 ],
-                'openEntry' => $this->generateOpenEntrySchema($contextTypes),
-                'eventEntry' => $this->generateEventEntrySchema($contextTypes),
-                'closeEntry' => $this->generateCloseEntrySchema($contextTypes),
+                'record' => $this->generateRecordSchema($contextTypes),
+                'close' => $this->generateCloseSchema($contextTypes),
+                'orphanClose' => $this->generateOrphanCloseSchema($contextTypes),
             ],
         ];
     }
@@ -126,30 +126,30 @@ final class DynamicSchemaGenerator
     }
 
     /**
-     * Generate open entry schema with dynamic type validation.
+     * Generate record schema (interval/point, non-root) with dynamic type validation.
      *
      * @param SchemaTypeMap $contextTypes
      *
      * @return JsonMap
      */
-    private function generateOpenEntrySchema(array $contextTypes): array
+    private function generateRecordSchema(array $contextTypes): array
     {
         $schema = [
             'type' => 'object',
-            'required' => ['kind', 'id', 'type', 'schemaUrl', 'context', 'children'],
+            'required' => ['type', 'context'],
             'properties' => [
-                'kind' => ['const' => 'open'],
                 'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
-                'children' => [
+                'log' => [
                     'type' => 'array',
-                    'items' => ['$ref' => '#/definitions/entry'],
+                    'items' => ['$ref' => '#/definitions/record'],
                 ],
-                'close' => ['$ref' => '#/definitions/closeEntry'],
+                'close' => ['$ref' => '#/definitions/close'],
+                'profile' => ['type' => 'object', 'additionalProperties' => true],
             ],
-            'additionalProperties' => true,
+            'additionalProperties' => false,
         ];
 
         if (! empty($contextTypes)) {
@@ -160,26 +160,25 @@ final class DynamicSchemaGenerator
     }
 
     /**
-     * Generate close entry schema with dynamic type validation.
+     * Generate close schema (nested on its matching record) with dynamic type validation.
      *
      * @param SchemaTypeMap $contextTypes
      *
      * @return JsonMap
      */
-    private function generateCloseEntrySchema(array $contextTypes): array
+    private function generateCloseSchema(array $contextTypes): array
     {
         $schema = [
             'type' => 'object',
-            'required' => ['id', 'type', 'schemaUrl', 'context'],
+            'required' => ['type', 'context'],
             'properties' => [
                 'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
-                'openId' => ['$ref' => '#/definitions/openIdReference'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
                 'profile' => ['type' => 'object', 'additionalProperties' => true],
             ],
-            'additionalProperties' => true,
+            'additionalProperties' => false,
         ];
 
         if (! empty($contextTypes)) {
@@ -190,25 +189,26 @@ final class DynamicSchemaGenerator
     }
 
     /**
-     * Generate event entry schema with dynamic type validation.
+     * Generate orphan close schema (root-only, carries openId) with dynamic type validation.
      *
      * @param SchemaTypeMap $contextTypes
      *
      * @return JsonMap
      */
-    private function generateEventEntrySchema(array $contextTypes): array
+    private function generateOrphanCloseSchema(array $contextTypes): array
     {
         $schema = [
             'type' => 'object',
-            'required' => ['kind', 'id', 'type', 'schemaUrl', 'context'],
+            'required' => ['type', 'context', 'openId'],
             'properties' => [
-                'kind' => ['const' => 'event'],
                 'id' => ['$ref' => '#/definitions/operationId'],
                 'type' => ['$ref' => '#/definitions/contextType'],
                 'schemaUrl' => ['$ref' => '#/definitions/schemaUrl'],
                 'context' => ['type' => 'object', 'additionalProperties' => true],
+                'openId' => ['$ref' => '#/definitions/openIdReference'],
+                'profile' => ['type' => 'object', 'additionalProperties' => true],
             ],
-            'additionalProperties' => true,
+            'additionalProperties' => false,
         ];
 
         if (! empty($contextTypes)) {

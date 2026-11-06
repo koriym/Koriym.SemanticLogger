@@ -8,21 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- `DevSemanticLogger` could crash the PHP process (SIGSEGV) inside the xhprof extension when closing a nested operation while XHProf profiling was active. `XHProfResult::start()` listed `DevSemanticLogger::close` in `ignored_functions` to keep logger plumbing out of the profile; xhprof segfaults when a name in that list is an ancestor of one segment's `xhprof_enable()` call and, later, an ancestor of a *different* segment's `xhprof_disable()` call — which happens for `close()` once operations nest two or more levels deep (a `close()` call starts the resumed-parent segment, and a separate, later `close()` call stops it). The logger's own stop/teardown frames (`DevSemanticLogger::close()` / `stopAndAttachTo()` / `stopAndAttachToCurrent()`, `XHProfResult::stop()` / `saveToFile()`) are no longer added to `ignored_functions`; they now appear as nodes in the xhprof call graph instead of being excluded from it.
+- `DevSemanticLogger` no longer crashes PHP (SIGSEGV) inside the xhprof extension when nested operations are closed under XHProf profiling. The logger's own close and teardown methods now appear in the xhprof call graph.
+- `stree --full` renders booleans as `true` / `false` instead of `1` / an empty string, matching compact mode. A list of booleans (e.g. `inject: [true, false]`) had the same bug in compact mode via `formatArray()`; fixed there too.
+
+## [0.11.0] - 2026-10-23
+
+### Added
+- **Record limit.** A session records at most 1000 opens, events and rejected closes (`new SemanticLogger($maxRecords)` to change); later ones are dropped, while closes of recorded opens are still written. `flush()` then appends one `semantic_logger_truncated` point `{limit, dropped, firstDroppedType}`, which the validator reports as a warning, not a diagnostic.
+
+### Changed
+- **BREAKING — the document is `log`.** Every list is `log` (was `entries`); `kind` and the root `close[]` array are gone. A record's kind follows from its keys: `close` = completed, `log` without `close` = interrupted, neither = point, a root record with `openId` = orphan close. See [MIGRATION.md](MIGRATION.md).
+- **BREAKING — `schemaUrl` on every record.** The writer never emits a `types` index. Readers still accept one; the validator rejects a `schemaUrl` that disagrees with it.
+- **BREAKING — closes are records.** `new LogJson($schemaUrl, $records, $links = [])`: `$closes` is gone and a close is a `CloseEntry` in `$records`. `OpenCloseEntry` is renamed `OpenEntry`; `EventEntry` drops `profile`.
+- **BREAKING — diagnostic `kind` is `code`** in `semantic_logger_error` and `semantic_logger_invalid_context.errors[]`.
+- **BREAKING — validator.** Paths read `log[i]` / `.close`. New errors: a record without a schema, a duplicate `id`, a double close. An interrupted interval is a warning.
+- **BREAKING (stree)** — `LogDataParser` reads `log`; a document without it throws `Invalid log data: missing log section`.
+
+### Fixed
+- A context with private or protected properties keeps its public properties instead of becoming a `semantic_logger_invalid_context` placeholder. A context with no public properties is recorded as `{}`.
+- `DevSemanticLogger` no longer advances its profiling stack or finalizes timing when `close()` targets a tracked operation that is not the innermost open.
+- `stree --json` no longer rewrites empty JSON objects as `[]` (e.g. `"context": {}`); the passthrough keeps objects and arrays apart.
+- `stree` (tree mode) reports a log whose root is not a JSON object (`123`, `"x"`, `[...]`) as `Error: Invalid log data in <file>: expected a JSON object` with exit 1. A scalar root used to crash with an uncaught `TypeError` (exit 255); a list root used to fail later with `missing log section`. `--json` still passes any valid JSON through.
 
 ## [0.10.0] - 2026-10-20
 
 ### Changed
-- **BREAKING — one ordered `entries` tree.** The public document replaces root `open` / `events` with `entries`, and each open's `open` / `events` lists with a single `children` list in record order. Every entry carries `kind` (`open` | `event`); `close` stays nested on its open and is absent while unclosed; root `close` holds orphan closes only. Nested events and closes no longer carry `openId`. The envelope schema requires `["$schema", "entries"]` and defines `entry` as `oneOf(openEntry, eventEntry)` keyed on `kind`. See [MIGRATION.md](MIGRATION.md).
-- **BREAKING — flat records in `LogJson`.** `new LogJson($schemaUrl, $records, $closes = [], $links = [])`: `$records` is the list of `OpenCloseEntry` / `EventEntry` in record order, `$closes` the list of closes. `OpenCloseEntry` (`id, type, schemaUrl, context, parentId`) and `EventEntry` (`id, type, schemaUrl, context, openId, profile`) are flat value objects; `LogTreeBuilder` builds the public tree from them.
+- **BREAKING — one ordered `entries` tree.** Root `open` / `events` become `entries`, and each open's lists become one `children` list in record order; every entry carries `kind`. See [MIGRATION.md](MIGRATION.md).
+- **BREAKING — flat records in `LogJson`.** `new LogJson($schemaUrl, $records, $closes = [], $links = [])` with flat `OpenCloseEntry` / `EventEntry` values; `LogTreeBuilder` builds the tree.
 - **BREAKING (stree)** — `LogDataParser` reads `entries` / `children` / `kind`; a document without `entries` throws `RuntimeException('Invalid log data: missing entries section')`.
-- stree compact close line now leads with the close TYPE (`└── cache_hit layer=resource`) and is shown even when no signal changed; `--full` mode labels the close branch `close <type>`.
-- **BREAKING (stree)** — `TreeNode::getCloseSignals()` is renamed to `TreeNode::getCloseLine()`. It returns the close type followed by the diff signals and is empty only when the node never closed.
+- stree's compact close line leads with the close type (`└── cache_hit layer=resource`); `--full` labels it `close <type>`.
+- **BREAKING (stree)** — `TreeNode::getCloseSignals()` is renamed `getCloseLine()`.
 
 ### Fixed
-- `ContextFreezer` no longer turns whole-number floats (e.g. `0.0`, `2250.0`) into `int` when freezing a context; `JSON_PRESERVE_ZERO_FRACTION` is now set on the freeze-time `json_encode()` (#44).
-- stree's default (non-`--full`) rendering truncated long context values with a bare `…` and no indication of how much was cut, and cut byte-wise rather than character-wise — a multibyte string (e.g. Japanese text) could be truncated into an invalid UTF-8 sequence, or truncated well short of the intended 40-character limit since byte length overcounts a multibyte string's length. `SignalExtractor::formatValue()` now cuts by character (`preg_match_all('/./su', ...)` to count, `preg_match()` to cut — PCRE's built-in UTF-8 mode, no new `ext-mbstring` dependency, and O(1) extra memory regardless of input size, unlike an earlier `preg_split()`-based version that materialized the whole string as a per-character array) and appends `...(+N)` with the exact count of characters dropped, matching the precedent already set elsewhere for this same class of bug (#52).
-- `SignalExtractor::formatArray()`'s partial-overflow budget (`joinWithOverflow()`) measured the same 40-character limit with `strlen()`, so a list/assoc array of multibyte values hit the overflow cutoff — and rendered "+N items" — far earlier than the character limit implies, same overcount class as the truncation bug above. Now shares the character-counted `charLength()` helper (#52).
+- Whole-number floats (`0.0`, `2250.0`) stay floats when a context is frozen (#44).
+- stree truncates long values by character, not byte, so multibyte text is no longer cut into invalid UTF-8, and shows how much was cut as `...(+N)` (#52).
+- stree's `+N items` overflow for arrays also counts characters, not bytes (#52).
 
 ### Removed
 - `LogJson::toTreeArray()`, `LogJson::$open` / `$events` / `$close`, and the `OpenChildrenByParent` / `EventsByOpenIdMap` / `LogTree` type aliases.
@@ -30,34 +50,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.0] - 2026-08-12
 
 ### Added
-- **`LogRendererInterface`** and **`LogJson::render(LogRendererInterface)`** — a log can render itself with any renderer via double dispatch, without knowing the output format. Implement the interface to add new formats (e.g. Markdown, Mermaid) without touching the logger.
-- **Logger-recorded diagnostics** — two core-owned context types make failures visible as data instead of exceptions: `semantic_logger_error` (with a `kind` of `context_serialization_failed` / `close_without_open` / `close_id_mismatch` / `unclosed_at_flush`) and `semantic_logger_invalid_context`, a placeholder that preserves an entry's position in the tree when its context cannot be serialized. Both ship bundled JSON schemas under `docs/schemas/`.
-- **Static context metadata checks in the validator** (`ContextMetadataChecker`) — entry types must match `^[a-z_]+$` outside the reserved `semantic_logger_*` namespace, and schema URLs must be absolute URIs or `./schemas/<name>.json`. Diagnostic entries are listed with their own severity and validated against the bundled core schemas.
-- **`--fail-on-diagnostics` CLI flag** and `SemanticLogValidatorInterface::validate(..., $failOnDiagnostics)` — turn the presence of logger-recorded diagnostics into a failing CI gate.
+- **`LogRendererInterface`** and **`LogJson::render()`** — render a log in any format by implementing one interface.
+- **Logger-recorded diagnostics.** Failures are recorded as `semantic_logger_error` and `semantic_logger_invalid_context` entries instead of thrown, with bundled schemas.
+- **Validator metadata checks.** `type` must match `^[a-z_]+$` outside `semantic_logger_*`; `schemaUrl` must be absolute or `./schemas/<name>.json`.
+- **`--fail-on-diagnostics`** turns logger-recorded diagnostics into a failing CI gate.
 
 ### Changed
-- **BREAKING — the logger never throws.** `SemanticLogger::open()` / `event()` / `close()` / `flush()` / `toArray()` / `jsonSerialize()` always succeed. Recording failures and protocol misuse are recorded as diagnostic entries (see above). See [MIGRATION.md](MIGRATION.md).
-- **BREAKING — flush contract.** `flush()` on an empty session returns a valid empty log (`"open": []`) instead of throwing; on unclosed opens it returns the live tree with an `unclosed_at_flush` diagnostic. `flush()` always resets the session. `toArray()` / `jsonSerialize()` are total, non-destructive snapshots.
-- **BREAKING — envelope schema relaxed.** `required: ["$schema"]` and the `open` minimum is gone: an empty session is a valid, self-describing document.
-- Contexts are deep-frozen at record time (`ContextFreezer`): later mutation or repeated `JsonSerializable` invocation can never alter a recorded entry, and a serialization failure surfaces at its own operation — the loss radius of one bad context is that entry, never the session.
-- `NullSemanticLogger` returns `noop_N` ids from `open()` and resets its sequence on `flush()`.
-- **BREAKING — `TreeRenderer` API.** The array entry point `TreeRenderer::render(array $logData, RenderConfig $config)` is renamed to `TreeRenderer::renderTree(array $logData)`, and `RenderConfig` now moves to the constructor (`new TreeRenderer($config)`). `TreeRenderer::render()` now implements `LogRendererInterface::render(LogJson $log)`. The CLI (`stree`, `vendor/bin/stree`) and the `Koriym\SemanticLogger\Stree` namespace are unchanged.
-  - Migrate: `(new TreeRenderer())->render($logData, $config)` → `(new TreeRenderer($config))->renderTree($logData)`, or render a log directly with `$log->render(new TreeRenderer($config))`.
-- The tree renderer now lives as a self-contained monorepo subpackage under `src-stree/` (`koriym/stree`), merged into the root autoload and `git subtree split`-able later. The namespace stays `Koriym\SemanticLogger\Stree`, so usage is unchanged.
-- stree accepts event-only and empty logs: an empty `open` section parses into a synthetic forest root instead of throwing. Parser errors now throw `Koriym\SemanticLogger\Stree\Exception\RuntimeException`; the dependency pin moves to `koriym/semantic-logger: ^0.9` with `LogJson` / `LogRendererInterface` as the public contract.
+- **BREAKING — the logger never throws.** Misuse and recording failures become diagnostic entries. See [MIGRATION.md](MIGRATION.md).
+- **BREAKING — flush contract.** `flush()` on an empty session returns an empty log, on unclosed opens the live tree plus `unclosed_at_flush`; it always resets.
+- **BREAKING — envelope schema relaxed.** Only `$schema` is required, so an empty session is valid.
+- Contexts are deep-frozen at record time; a context that fails to serialize loses only its own entry.
+- `NullSemanticLogger` returns `noop_N` ids and resets them on `flush()`.
+- **BREAKING — `TreeRenderer` API.** `render(array $logData, RenderConfig $config)` becomes `(new TreeRenderer($config))->renderTree($logData)`; `render(LogJson $log)` implements `LogRendererInterface`.
+- The tree renderer is a subpackage under `src-stree/` (`koriym/stree`); the namespace `Koriym\SemanticLogger\Stree` is unchanged.
+- stree accepts event-only and empty logs; parser errors throw `Koriym\SemanticLogger\Stree\Exception\RuntimeException`.
 
 ### Fixed
-- stree compact rendering no longer leaks the full ISO `timestamp` onto every node line: `timestamp` is excluded from signal extraction alongside the other timing keys (#39).
-- `JsonSerializable` contexts whose `jsonSerialize()` returns an object (stdClass or a DTO) now record the serialized form; previously they fell back to recording the context's raw properties.
+- stree no longer prints the ISO `timestamp` on every node line (#39).
+- A `JsonSerializable` context whose `jsonSerialize()` returns an object records that object, not the raw properties.
 
 ### Removed
-- **BREAKING — the exception hierarchy.** `NoLogSessionException`, `NoOpenOperationsException`, `InvalidOperationOrderException`, `UnclosedLogicException`, and the package `LogicException` / `RuntimeException` are gone. Remove `catch` blocks and throwable expectations; see [MIGRATION.md](MIGRATION.md).
+- **BREAKING — the exception hierarchy is gone** (`NoLogSessionException`, `NoOpenOperationsException`, `InvalidOperationOrderException`, `UnclosedLogicException`, `LogicException`, `RuntimeException`). Remove the `catch` blocks; see [MIGRATION.md](MIGRATION.md).
 
 ## [0.7.0] - 2026-04-22
 
 ### Changed
-- **BREAKING — profiling payload contract.** `profile` is now omitted when no profiler output was captured. When present, external profiler references are exposed as `xdebugTrace` / `xhprofProfile` arrays of `{path}` entries instead of the previous `xdebug` / `xhprof` payload shape.
-- `stree` compact and `--full` rendering now favor semantic tree output over raw JSON expansion: compact views emphasize operation targets and close results, while full views expand input props, injections, close payloads, and profile data with less wiring noise.
+- **BREAKING — profiling payload.** `profile` is omitted when nothing was captured; otherwise it carries `xdebugTrace` / `xhprofProfile` lists of `{path}` (was `xdebug` / `xhprof`).
+- stree shows operation targets and close results in compact mode, and input, injections, close payload and profile in `--full`.
 
 ### Fixed
 - `DevSemanticLogger` now skips Xdebug trace capture cleanly when Xdebug is unavailable or `trace` mode is not enabled, avoiding noisy runtime notices.
@@ -66,29 +85,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.0] - 2026-04-21
 
 ### Added
-- `LogJson::toTreeArray()` emits a single nested tree for development logs, so each `open` carries its own `events`, nested `open`, and matching `close`.
+- `LogJson::toTreeArray()` emits one nested tree for development logs.
 - `Stree/LogDataParser` accepts both the legacy split `open`/`close` JSON and the new tree-shaped development log format.
 
 ### Changed
-- **BREAKING — DevLogger output shape.** `DevLogger` now writes tree-shaped logs via `toTreeArray()` instead of separate top-level `open` and `close` trees. The emitted JSON now follows the execution nesting model directly.
+- **BREAKING — DevLogger output shape.** `DevLogger` writes the nested tree (`toTreeArray()`) instead of separate `open` and `close` trees.
 
 ### Fixed
 - Tree conversion now preserves orphaned events whose `openId` does not match any `open` by keeping them at the top-level `events` bucket instead of dropping them.
 
 ### Removed
-- **MCP server integration.** Removed the bundled MCP server implementation, CLI entrypoint, setup guides, and related configuration examples from this package. MCP integration now belongs outside the core logging library.
+- **MCP server integration** (server, CLI entrypoint, setup guides). MCP integration now lives outside this package.
 
 ## [0.5.0] - 2026-04-21
 
 ### Fixed
-- **#24 — sibling open/close pairs were falsely nested.** `buildNestedOpen()` reconstructed the hierarchy from completion order alone, so sequential `open/close` pairs at the same level had `open_2` wrapping `open_1` whenever they were siblings. `SemanticLogger` now captures the real parent at `open()` time via the open stack, and completed operations carry their own `parentId` — the flush step groups by `parentId` instead of reconstructing from close order.
+- **#24 — sibling open/close pairs were nested.** The parent is now captured at `open()` time instead of being reconstructed from close order.
 
 ### Changed
-- **BREAKING — on-wire JSON shape.** `open` and `close` are now arrays of entries at every level (top-level and nested). `OpenCloseEntry.open` is `list<OpenCloseEntry>`; `EventEntry.close` is `list<EventEntry>`; `LogJson.open` / `LogJson.close` are top-level lists (multiple roots allowed). `OpenCloseEntry` gained a `parentId: string|null` field.
-- **BREAKING — PHP API.** `LogJson::$open` / `LogJson::$close` are lists; `OpenCloseEntry::$open` is a list; `EventEntry::$close` is a list. `EventEntry::withClose()` takes a list.
-- `DevSemanticLogger` walks the new list shape when attaching profiles (`attachProfilesToCloses` replaces `attachProfilesToCloseChain`).
-- `Stree/LogDataParser` walks the new list shape; the single-root constraint is enforced at render time (multi-root logs throw a clear error for `stree`).
-- Schema (`docs/schemas/semantic-log.json`) factored into `openEntry` / `closeEntry` definitions and updated to array-at-every-level.
+- **BREAKING — `open` and `close` are lists at every level**, in JSON and in `LogJson` / `OpenCloseEntry` / `EventEntry`; `OpenCloseEntry` gains `parentId`.
 
 ### Closes
 
@@ -97,23 +112,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.0] - 2026-04-20
 
 ### Added
-- **Generic `SignalExtractor`** (`src/Stree/SignalExtractor.php`) — domain-agnostic 1-line signal extraction: picks up to 4 meaningful scalars per open context, shortens FQCNs to the basename, truncates long strings at 40 chars, partial-overflow arrays render as `[a, b +N items]`, and timing / id / schemaUrl keys are excluded. Unknown-type contexts now render with useful signals instead of collapsing to a bare type label.
-- **`NodeFormatterInterface` + `FormatterRegistry`** — per-type formatter extension point. `TreeNode::getDisplayLine()` consults `$config->formatters?->get($type)` before the generic fallback, so domain vocabularies (e.g. the Be Framework `becoming_*` family) can supply their own renderer without this repo needing to know about them. A formatter may return a multi-line string; `TreeRenderer` splits on `\n` and places the continuation under the open line with matching indentation.
-- **`⎿` close-line** in `TreeRenderer` — open / event / close structure is visible at a glance: the node's open line, then events and nested opens as `├──` / `└──` children, then a `⎿` continuation with signals that differ from open.
+- **Generic `SignalExtractor`** — any context renders as one line of up to 4 meaningful scalars.
+- **`NodeFormatterInterface` + `FormatterRegistry`** — register a formatter per context type.
+- **`⎿` close line** — a node's close is shown under its events and nested opens, with only the signals that changed.
 - **`--values` / `-V` flag** on `bin/stree` — opt-in signal that registered formatters may consult to render values instead of only keys.
-- **`SemanticLogger::contextToArray()`** now respects `JsonSerializable`, so contexts can emit editorial shapes (e.g. wrap empty maps in `stdClass` so they serialize as `{}` rather than `[]`).
+- `JsonSerializable` contexts are recorded through `jsonSerialize()`.
 - **PHP 8.5** added to the CI build matrix.
 
 ### Changed
-- `TreeNode::extractContextInfo()` no longer dispatches through hardcoded `match` arms; it defers to `SignalExtractor` (or a registered formatter) uniformly.
-- Close-diff signals dropped the leading `→ ` prefix — the renderer now supplies `⎿` as the close marker. The inline `old→new` arrow in changed values is preserved.
+- Close signals drop the leading `→ `; `⎿` marks the close.
 - The session root is rendered flush-left rather than under a synthetic `session` header.
 - Status annotation (`: Failed`, `: unclosed`) propagates upward through the tree.
-- Demo JSON files (`demo/simple-demo.json`, `demo/complex-demo.json`) now validate cleanly against `demo/schemas/`.
+- Demo JSON files validate against `demo/schemas/`.
 
 ### Removed
 - **BREAKING**: `src/Stree/HtmlRenderer.php` and the `--format text|html`, `--depth`, `--expand` CLI flags. The text tree renderer (plus `--json` passthrough) is the sole output path.
-- **BREAKING**: the compact output shape changed (no `session` root, close signals on a `⎿` line instead of inline `→ …` on the open line). Consumers that parsed the old text format must re-adapt.
+- **BREAKING**: compact output has no `session` root and shows close signals on a `⎿` line. Parsers of the old text format must adapt.
 
 ### Closes
 
@@ -134,12 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PHP 8.5 support**: CI now runs tests across PHP 8.2, 8.3, 8.4, and 8.5
 
 ### Changed
-- **Static analysis baselines cleared**: Both `psalm-baseline.xml` and `phpstan-baseline.neon` are now empty; all underlying type issues have been fixed rather than suppressed
-- **Type safety improvements**: Added scalar/numeric guards and helper methods across the Stree package and `SemanticProfilerMcpServer` to replace unsafe `(string) mixed` casts
-- **PHPMD 3.x migration**: Updated to the new Symfony Console subcommand syntax (`phpmd analyze src --format=text --ruleset=./phpmd.xml`)
-- **Types.php**: Refactored relation types to link types for RFC 8288 compliance
-- **Code style**: Eliminated remaining `else` expressions in favor of early returns
-- **AbstractContext**: Added comprehensive `@var` type annotations for constants
+- **Types.php**: relation types renamed to link types (RFC 8288).
 
 ### Fixed
 - **MCP server JSON encoding**: Handle `json_encode` failures gracefully instead of silently emitting empty responses
@@ -149,7 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.1] - 2025-08-07
 
 ### Added
-- **AI-Human Understanding Bridge**: SchemaUrl field bridges AI-human comprehension gap
+- **`schemaUrl` field** on each entry, pointing to the context's schema.
 - **Custom Semantic Log Validator**: `SemanticLogValidator` with detailed error reporting
 - **MCP Server Profile Management**: `/profile list` command for available semantic logs
 - **Profiler Classes**: XdebugTrace, PhpProfile, XHProfResult for performance profiling
@@ -161,11 +170,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MCP Server Independence**: Remove php-dev.ini dependency, use inline PHP options
 - **Graceful Extension Handling**: Continue operation when Xdebug/XHProf unavailable
 - **Demo Output**: Rename `semantic-log.json` to `demo.json` for clarity
-- **Code Style**: Remove else statements following project guidelines
 
 ### Fixed
 - **DevLogger Flush Issue**: Prevent duplicate flush() calls corrupting logger state
-- **Schema Validation**: 26 semantic log files validate successfully with zero errors
 - **Extension Loading**: Smart detection and conditional loading of profiling extensions
 - **Dynamic Directories**: Remove hardcoded /tmp paths, use configurable directories
 

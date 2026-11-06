@@ -86,7 +86,6 @@
         "stree": "php src-stree/bin/stree demo/semantic-log-demo.json",
         "stree:full": "php src-stree/bin/stree --full demo/semantic-log-demo.json",
         "stree:perf": "php src-stree/bin/stree --threshold=5ms --full demo/semantic-log-demo.json",
-        "stree:db": "php src-stree/bin/stree --expand=complex_query --expand=database_connection demo/semantic-log-demo.json",
         "post-install-cmd": "@composer bin all install --ansi",
         "post-update-cmd": "@composer bin all update --ansi"
     },
@@ -111,10 +110,9 @@
         "build": "Build project",
         "demo": "Run semantic logging demonstration with validation",
         "sgen": "Generate combined JSON Schema from individual context schemas",
-        "stree": "Display semantic log tree visualization (default 2-level depth)",
-        "stree:full": "Display complete semantic log tree (all levels)",
-        "stree:perf": "Display performance-focused tree (operations > 5ms)",
-        "stree:db": "Display database-focused tree (expand database operations)"
+        "stree": "Display semantic log tree visualization (compact)",
+        "stree:full": "Display complete semantic log tree (all context keys as leaves)",
+        "stree:perf": "Display performance-focused tree (operations > 5ms)"
     },
     "config": {
         "allow-plugins": {

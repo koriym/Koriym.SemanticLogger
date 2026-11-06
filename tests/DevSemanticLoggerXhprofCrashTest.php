@@ -41,11 +41,11 @@ final class DevSemanticLoggerXhprofCrashTest extends TestCase
         self::assertSame(0, $exitCode, 'child process crashed (exit ' . $exitCode . '): ' . $stderr);
 
         $log = json_decode($stdout, true);
-        if (! is_array($log) || ! isset($log['entries']) || ! is_array($log['entries'])) {
-            self::fail('Expected child process to print a decodable semantic log with an entries list, got: ' . $stdout);
+        if (! is_array($log) || ! isset($log['log']) || ! is_array($log['log'])) {
+            self::fail('Expected child process to print a decodable semantic log with a log list, got: ' . $stdout);
         }
 
-        $closes = $this->collectCloses($log['entries']);
+        $closes = $this->collectCloses($log['log']);
         self::assertCount(4, $closes, 'all four nested closes (l3, l3b, l2, l1) must be present');
 
         foreach ($closes as $close) {
@@ -103,24 +103,24 @@ final class DevSemanticLoggerXhprofCrashTest extends TestCase
     }
 
     /**
-     * @param array<mixed> $entries
+     * @param array<mixed> $records
      *
      * @return list<array<array-key, mixed>>
      */
-    private function collectCloses(array $entries): array
+    private function collectCloses(array $records): array
     {
         $closes = [];
-        foreach ($entries as $entry) {
-            if (! is_array($entry)) {
-                self::fail('Expected each entry to be an array.');
+        foreach ($records as $record) {
+            if (! is_array($record)) {
+                self::fail('Expected each record to be an array.');
             }
 
-            if (isset($entry['close']) && is_array($entry['close'])) {
-                $closes[] = $entry['close'];
+            if (isset($record['close']) && is_array($record['close'])) {
+                $closes[] = $record['close'];
             }
 
-            if (isset($entry['children']) && is_array($entry['children'])) {
-                foreach ($this->collectCloses($entry['children']) as $nested) {
+            if (isset($record['log']) && is_array($record['log'])) {
+                foreach ($this->collectCloses($record['log']) as $nested) {
                     $closes[] = $nested;
                 }
             }

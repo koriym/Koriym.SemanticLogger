@@ -11,4 +11,6 @@ final class CoreSchema
     public const DIAGNOSTIC_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-error.json';
     public const INVALID_CONTEXT_TYPE = 'semantic_logger_invalid_context';
     public const INVALID_CONTEXT_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-invalid-context.json';
+    public const TRUNCATED_TYPE = 'semantic_logger_truncated';
+    public const TRUNCATED_URL = 'https://koriym.github.io/Koriym.SemanticLogger/schemas/semantic-logger-truncated.json';
 }

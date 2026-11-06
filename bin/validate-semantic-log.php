@@ -22,7 +22,7 @@ if (count($args) < 2) {
     echo "Usage: {$argv[0]} [--fail-on-diagnostics] <semantic-log.json> [schema-directory]\n";
     echo "\n";
     echo "Validates semantic log file against individual context schemas\n";
-    echo "Uses schemaUrl properties to find and validate each context\n";
+    echo "Resolves each context's schema via its own schemaUrl, or the document-level types index\n";
     echo "\n";
     echo "Options:\n";
     echo "  --fail-on-diagnostics  Exit non-zero when the log contains diagnostic\n";
