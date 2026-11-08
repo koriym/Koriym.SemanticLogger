@@ -53,7 +53,7 @@ get uri=app://self/user?id=1
 ## Formatters
 
 A package renders its own node types by declaring formatters in its `composer.json`.
-`vendor/bin/stree` reads the declarations of every installed package from Composer's `installed.json`:
+`vendor/bin/stree` reads the declarations from Composer's `installed.json`, which lists the installed packages but not the root project:
 
 ```json
 "extra": {
