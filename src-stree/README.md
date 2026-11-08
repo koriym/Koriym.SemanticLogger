@@ -50,6 +50,26 @@ get uri=app://self/user?id=1
     └── layer: resource
 ```
 
+## Formatters
+
+A package renders its own node types by declaring formatters in its `composer.json`.
+`vendor/bin/stree` reads the declarations of every installed package from Composer's `installed.json`:
+
+```json
+"extra": {
+    "stree": {
+        "formatters": {
+            "resource_request": "Vendor\\Package\\Stree\\ResourceRequestFormatter"
+        }
+    }
+}
+```
+
+The class implements `NodeFormatterInterface`, takes no constructor arguments, and returns the node's
+whole line; its children and close line render as usual. An entry whose class is missing or does not
+implement the interface is skipped. In process, `FormatterRegistry::fromInstalledPackages()` builds the
+same registry for `RenderConfig`.
+
 ## In process
 
 `stree` is a thin CLI over the same renderer you can call directly. `TreeRenderer`

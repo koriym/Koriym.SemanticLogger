@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `stree` renders a node type with the formatter an installed package declares under `extra.stree.formatters` in its `composer.json` (`{"<type>": "<class>"}`), so a library shows its own records in its own form. `StreeCommand` takes the `FormatterRegistry` it renders with.
+
 ### Fixed
 - `stree --full` renders booleans as `true` / `false` instead of `1` / an empty string, matching compact mode. A list of booleans (e.g. `inject: [true, false]`) had the same bug in compact mode via `formatArray()`; fixed there too.
 
