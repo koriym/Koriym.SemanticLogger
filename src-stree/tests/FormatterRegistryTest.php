@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\Stree\Fake\AbstractFakeFormatter;
 use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
+use Koriym\SemanticLogger\Stree\Fake\FakeFormatterWithArgument;
 use PHPUnit\Framework\TestCase;
 
 use function file_exists;
@@ -80,6 +82,8 @@ final class FormatterRegistryTest extends TestCase
                             'formatters' => [
                                 'missing_class' => 'Koriym\SemanticLogger\Stree\Fake\NoSuchFormatter',
                                 'not_a_formatter' => self::class,
+                                'abstract_formatter' => AbstractFakeFormatter::class,
+                                'needs_argument' => FakeFormatterWithArgument::class,
                             ],
                         ],
                     ],
@@ -93,6 +97,8 @@ final class FormatterRegistryTest extends TestCase
         $this->assertInstanceOf(FakeFormatter::class, $registry->get('fake_open'));
         $this->assertNull($registry->get('missing_class'));
         $this->assertNull($registry->get('not_a_formatter'));
+        $this->assertNull($registry->get('abstract_formatter'));
+        $this->assertNull($registry->get('needs_argument'));
     }
 
     public function testFromInstalledPackagesWithoutTheFileIsEmpty(): void

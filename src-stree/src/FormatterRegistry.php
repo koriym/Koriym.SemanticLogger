@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use ReflectionClass;
+
 use function file_get_contents;
 use function is_array;
 use function is_file;
@@ -18,7 +20,7 @@ final class FormatterRegistry
 
     /**
      * Formatters that installed packages declare as `extra.stree.formatters` (`{"<type>": "<class>"}`) in Composer's
-     * installed.json. Each class takes no constructor arguments; one that is missing or not a formatter is skipped.
+     * installed.json. A class that is missing, not a formatter, or not constructible without arguments is skipped.
      */
     public static function fromInstalledPackages(string $installedJson): self
     {
@@ -30,13 +32,26 @@ final class FormatterRegistry
         foreach (self::arrayAt($installed, 'packages') as $package) {
             /** @var mixed $class */
             foreach (self::arrayAt($package, 'extra', 'stree', 'formatters') as $type => $class) {
-                if (is_string($type) && is_string($class) && is_subclass_of($class, NodeFormatterInterface::class)) {
+                if (is_string($type) && is_string($class) && self::isConstructibleFormatter($class)) {
                     $registry->register($type, new $class());
                 }
             }
         }
 
         return $registry;
+    }
+
+    /** @psalm-assert-if-true class-string<NodeFormatterInterface> $class */
+    private static function isConstructibleFormatter(string $class): bool
+    {
+        if (! is_subclass_of($class, NodeFormatterInterface::class)) {
+            return false;
+        }
+
+        $reflection = new ReflectionClass($class);
+        $required = $reflection->getConstructor()?->getNumberOfRequiredParameters() ?? 0;
+
+        return $reflection->isInstantiable() && $required === 0;
     }
 
     public function register(string $type, NodeFormatterInterface $formatter): void

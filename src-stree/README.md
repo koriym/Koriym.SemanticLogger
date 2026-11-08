@@ -66,9 +66,10 @@ A package renders its own node types by declaring formatters in its `composer.js
 ```
 
 The class implements `NodeFormatterInterface`, takes no constructor arguments, and returns the node's
-whole line; its children and close line render as usual. An entry whose class is missing or does not
-implement the interface is skipped. In process, `FormatterRegistry::fromInstalledPackages()` builds the
-same registry for `RenderConfig`.
+whole line; its children and close line render as usual. An entry whose class is missing, does not
+implement the interface, or cannot be constructed without arguments is skipped. In process,
+`FormatterRegistry::fromInstalledPackages('vendor/composer/installed.json')` builds the same registry
+for `RenderConfig`.
 
 ## In process
 
