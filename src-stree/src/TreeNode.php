@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use function explode;
 use function implode;
 use function is_array;
 use function is_string;
@@ -83,7 +84,11 @@ final class TreeNode
         if ($config !== null) {
             $formatter = $config->formatters?->get($this->type);
             if ($formatter !== null) {
-                return $formatter->format($this, $config);
+                // The renderer's markers stay on the open line whatever the formatter writes.
+                $lines = explode("\n", $formatter->format($this, $config), 2);
+                $lines[0] .= $this->markers();
+
+                return implode("\n", $lines);
             }
         }
 
@@ -95,17 +100,18 @@ final class TreeNode
             $line .= ' [' . $timeDisplay . ']';
         }
 
-        if ($this->status !== '') {
-            $line .= ' : ' . $this->status;
-        }
+        return $line . $this->markers();
+    }
 
+    /** The status (`: unclosed`) and the `[event]` / `[orphan close]` marker the renderer assigned. */
+    private function markers(): string
+    {
+        $markers = $this->status === '' ? '' : ' : ' . $this->status;
         if ($this->isEvent) {
-            $line .= ' [event]';
-        } elseif ($this->isOrphanClose) {
-            $line .= ' [orphan close]';
+            return $markers . ' [event]';
         }
 
-        return $line;
+        return $this->isOrphanClose ? $markers . ' [orphan close]' : $markers;
     }
 
     private function genericDisplayLine(SignalExtractor $extractor): string

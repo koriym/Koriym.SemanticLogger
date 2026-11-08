@@ -34,6 +34,11 @@ final class StreeCommand
 {
     private const DEFAULT_MAX_LINES = 5;
 
+    public function __construct(
+        private readonly FormatterRegistry $formatters = new FormatterRegistry(),
+    ) {
+    }
+
     /** @param string[] $argv */
     public function __invoke(array $argv): int
     {
@@ -62,6 +67,7 @@ final class StreeCommand
                 is_numeric($threshold) ? (float) $threshold : 0.0,
                 is_numeric($lines) ? (int) $lines : self::DEFAULT_MAX_LINES,
                 (bool) ($options['values'] ?? false),
+                $this->formatters,
             );
 
             /** @var mixed $fileOption */
