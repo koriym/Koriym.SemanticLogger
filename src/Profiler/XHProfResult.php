@@ -31,43 +31,20 @@ final class XHProfResult implements JsonSerializable
     ) {
     }
 
-    /**
-     * @param list<string> $ignoredFunctions Additional function/method names to exclude from the call graph.
-     *     Unsafe for any name that is an ancestor of one profiling segment's xhprof_enable() call and, later,
-     *     an ancestor of a *different* segment's xhprof_disable() call (the exact shape that crashed xhprof for
-     *     DevSemanticLogger::close() — see the comment below). Do not pass names of methods that themselves call
-     *     XHProfResult::start()/stop() across nested open/close boundaries, such as framework-level logger methods.
-     */
-    public static function start(array $ignoredFunctions = []): self
+    public static function start(): self
     {
         if (! function_exists('xhprof_enable')) {
             return new self(); // @codeCoverageIgnore
         }
 
-        // Deliberately NOT ignoring our own stop/teardown frames (close(),
-        // stopAndAttachTo(), self::stop(), ...): xhprof's ignored_functions
-        // segfaults when a name in the list is both an ancestor of this
-        // xhprof_enable() call and later an ancestor of a *different*
-        // segment's xhprof_disable() call (DevSemanticLogger::close()
-        // starts the resumed-parent segment and a later close() stops it).
-        // Callers can still add their own names via $ignoredFunctions as
-        // long as those names don't span enable/disable boundaries the
-        // same way.
-        $ignored = [
-            XdebugTrace::class . '::stop',
-            XdebugTrace::class . '::canStopTrace',
-            XdebugTrace::class . '::performStopTrace',
-            ...$ignoredFunctions,
-        ];
+        // Never pass ignored_functions: once DevSemanticLogger resumes a parent segment after a nested
+        // close, xhprof's call stack is empty, and calling an ignored function then segfaults PHP.
 
         // NO_BUILTINS drops PHP internal functions (count, array_*, strlen, ...)
         // which otherwise dominate the call graph and drown out application
         // hotspots when this output is fed to AI for analysis.
         /** @psalm-suppress UndefinedConstant, MixedArgument */
-        xhprof_enable(
-            XHPROF_FLAGS_CPU | XHPROF_FLAGS_MEMORY | XHPROF_FLAGS_NO_BUILTINS,
-            ['ignored_functions' => $ignored],
-        );
+        xhprof_enable(XHPROF_FLAGS_CPU | XHPROF_FLAGS_MEMORY | XHPROF_FLAGS_NO_BUILTINS);
 
         return new self();
     }

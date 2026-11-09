@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **BREAKING** — `XHProfResult::start()` no longer takes `$ignoredFunctions`; xhprof crashes when an ignored function runs while `DevSemanticLogger` profiles nested operations. Drop the argument.
+
 ### Fixed
-- `DevSemanticLogger` no longer crashes PHP (SIGSEGV) inside the xhprof extension when nested operations are closed under XHProf profiling. The logger's own close and teardown methods now appear in the xhprof call graph.
+- `DevSemanticLogger` no longer crashes PHP (SIGSEGV) inside the xhprof extension when nested operations are closed under XHProf profiling. The logger's own close and profiler teardown methods now appear in the xhprof call graph.
 - `stree --full` renders booleans as `true` / `false` instead of `1` / an empty string, matching compact mode. A list of booleans (e.g. `inject: [true, false]`) had the same bug in compact mode via `formatArray()`; fixed there too.
 
 ## [0.11.0] - 2026-10-23

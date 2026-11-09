@@ -16,12 +16,7 @@ use function stream_get_contents;
 
 use const PHP_BINARY;
 
-/**
- * Regression test for a segfault that only reproduces as a real OS-level
- * crash in the xhprof extension (SIGSEGV), so the scenario must run in a
- * child PHP process: a segfault here would otherwise kill the PHPUnit
- * process itself instead of failing one assertion.
- */
+/** An xhprof segfault would kill PHPUnit itself, so the scenario runs in a child PHP process. */
 final class DevSemanticLoggerXhprofCrashTest extends TestCase
 {
     public function testNestedCloseUnderXhprofDoesNotSegfault(): void
@@ -34,10 +29,6 @@ final class DevSemanticLoggerXhprofCrashTest extends TestCase
         $fixture = __DIR__ . '/Fake/xhprof-nested-close-smoke.php';
         [$exitCode, $stdout, $stderr] = $this->runChildProcess([PHP_BINARY, ...$xhprofArgs, $fixture]);
 
-        // Exit 139 (128 + SIGSEGV) is the regression this test guards
-        // against: DevSemanticLogger's nested open/close used to crash
-        // xhprof via self-referencing ignored_functions entries in
-        // XHProfResult::start().
         self::assertSame(0, $exitCode, 'child process crashed (exit ' . $exitCode . '): ' . $stderr);
 
         $log = json_decode($stdout, true);
