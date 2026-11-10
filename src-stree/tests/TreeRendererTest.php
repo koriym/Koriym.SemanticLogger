@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\Stree\Exception\RuntimeException;
 use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
 use PHPUnit\Framework\TestCase;
 
@@ -709,5 +710,58 @@ final class TreeRendererTest extends TestCase
         // Close lines carry their type: the child's first, then the root's.
         $this->assertSame('│   └── fake_close', $lines[3]);
         $this->assertSame('└── container_close', $lines[4]);
+    }
+
+    /** @return array<string, mixed> */
+    private static function timedLog(float $executionTime, float $wallTime, string $tracePath): array
+    {
+        return [
+            'log' => [
+                self::openEntry(
+                    'op_1',
+                    'query_open',
+                    ['sql' => 'SELECT 1', 'executionTime' => $executionTime],
+                    [self::eventEntry('ev_1', 'cache_hit', ['key' => 'k', 'duration' => $executionTime])],
+                    self::closeEntry('close_1', 'query_close', ['rows' => 1], [
+                        'wallTime' => $wallTime,
+                        'xdebugTrace' => [['path' => $tracePath]],
+                    ]),
+                ),
+            ],
+        ];
+    }
+
+    public function testSnapshotRendersRunsThatDifferOnlyInTimingIdentically(): void
+    {
+        $first = self::timedLog(0.012, 0.013, '/tmp/profile_a.xt');
+        $second = self::timedLog(0.034, 0.035, '/tmp/profile_b.xt');
+
+        foreach ([false, true] as $full) {
+            $renderer = new TreeRenderer(new RenderConfig($full, 0.0, 5, snapshot: true));
+            $output = $renderer->renderTree($first);
+
+            $this->assertSame($output, $renderer->renderTree($second));
+            $this->assertStringNotContainsString('ms]', $output);
+            $this->assertStringNotContainsString('profile', $output);
+            $this->assertStringNotContainsString('wallTime', $output);
+            $this->assertStringContainsString('SELECT 1', $output);
+        }
+    }
+
+    public function testWithoutSnapshotTimingsAndProfileAreRendered(): void
+    {
+        $compact = (new TreeRenderer(new RenderConfig(false, 0.0, 5)))->renderTree(self::timedLog(0.012, 0.013, '/tmp/profile_a.xt'));
+        $full = (new TreeRenderer(new RenderConfig(true, 0.0, 5)))->renderTree(self::timedLog(0.012, 0.013, '/tmp/profile_a.xt'));
+
+        $this->assertStringContainsString('query sql=SELECT 1 [12.0ms]', $compact);
+        $this->assertStringContainsString('wallTime: 0.013', $full);
+        $this->assertStringContainsString('xdebugTrace[0].path: /tmp/profile_a.xt', $full);
+    }
+
+    public function testSnapshotRejectsTimeThreshold(): void
+    {
+        $this->expectException(RuntimeException::class);
+
+        new RenderConfig(false, 0.01, 5, snapshot: true);
     }
 }

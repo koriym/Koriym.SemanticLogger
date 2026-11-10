@@ -13,6 +13,7 @@ Render [semantic logs](https://github.com/koriym/Koriym.SemanticLogger) as a rea
 vendor/bin/stree debug.json
 vendor/bin/stree --full debug.json
 vendor/bin/stree --threshold=10ms slow.json
+vendor/bin/stree --snapshot --full debug.json
 vendor/bin/stree --json debug.json
 ```
 
@@ -22,6 +23,7 @@ vendor/bin/stree --json debug.json
 | `--lines=N` | `-l` | Maximum lines for multi-line data (`0` means no limit) |
 | `--full` | `-f` | Show the full tree with all context keys as leaves |
 | `--values` | `-V` | Let registered formatters show values instead of only keys |
+| `--snapshot` | | Omit per-run values (execution times, close profiles) for snapshot tests; cannot be combined with `--threshold` |
 | `--json` | | Pretty-print raw JSON |
 | `--help` | `-h` | Display help |
 
@@ -72,6 +74,10 @@ implement the interface, or cannot be constructed without arguments is skipped. 
 `FormatterRegistry::fromInstalledPackages('vendor/composer/installed.json')` builds the same registry
 for `RenderConfig`.
 
+## Snapshot output
+
+`--snapshot` (`RenderConfig::$snapshot`) drops the values that change on every run — the `[12.0ms]` execution time and, in `--full`, the close `profile` (wall time and trace file paths) — so the same operation renders the same bytes. Values your own contexts record, such as generated IDs, are rendered as is. A formatter should read `$config->snapshot` and leave out its own per-run values. A time threshold depends on those timings, so combining it with snapshot is an error.
+
 ## In process
 
 `stree` is a thin CLI over the same renderer you can call directly. `TreeRenderer`
@@ -87,6 +93,7 @@ $log = $logger->flush();
 
 echo $log->render(new TreeRenderer());                              // compact tree
 echo $log->render(new TreeRenderer(new RenderConfig(true, 0.0, 5))); // full tree
+echo $log->render(new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true))); // full tree for a snapshot test
 ```
 
 You can also render a plain `{entries, close}` array directly, without a `LogJson`:

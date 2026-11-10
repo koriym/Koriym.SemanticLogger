@@ -415,4 +415,39 @@ final class StreeCommandTest extends TestCase
             chmod($this->tempFile, 0644);
         }
     }
+
+    public function testSnapshotOptionOmitsTimingsInFullMode(): void
+    {
+        $open = self::simpleOpen(['sql' => 'SELECT 1', 'executionTime' => 0.012]);
+        $open['close'] = [
+            'id' => 'close_1',
+            'type' => 'close',
+            'schemaUrl' => 'test.json',
+            'context' => [],
+            'profile' => ['wallTime' => 0.013, 'xdebugTrace' => [['path' => '/tmp/profile_a.xt']]],
+        ];
+        $logData = ['log' => [$open]];
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode($logData, JSON_THROW_ON_ERROR));
+
+        ob_start();
+        $exitCode = (new StreeCommand())->__invoke(['stree', '--snapshot', '--full', $this->tempFile]);
+        $output = ob_get_clean() ?: '';
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('sql: SELECT 1', $output);
+        $this->assertStringNotContainsString('12.0ms', $output);
+        $this->assertStringNotContainsString('wallTime', $output);
+        $this->assertStringNotContainsString('/tmp/profile_a.xt', $output);
+    }
+
+    public function testSnapshotOptionWithThresholdIsAnError(): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode(['log' => [self::simpleOpen([])]], JSON_THROW_ON_ERROR));
+
+        $exitCode = (new StreeCommand())->__invoke(['stree', '--snapshot', '--threshold=10ms', $this->tempFile]);
+
+        $this->assertSame(1, $exitCode);
+    }
 }

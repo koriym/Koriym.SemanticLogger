@@ -68,6 +68,7 @@ final class StreeCommand
                 is_numeric($lines) ? (int) $lines : self::DEFAULT_MAX_LINES,
                 (bool) ($options['values'] ?? false),
                 $this->formatters,
+                (bool) ($options['snapshot'] ?? false),
             );
 
             /** @var mixed $fileOption */
@@ -143,7 +144,7 @@ final class StreeCommand
     private function parseArgument(string $arg, array $args, int $index): array
     {
         // Handle simple flags
-        $simpleFlags = ['--help' => 'help', '-h' => 'help', '--full' => 'full', '-f' => 'full', '--json' => 'json', '--values' => 'values', '-V' => 'values'];
+        $simpleFlags = ['--help' => 'help', '-h' => 'help', '--full' => 'full', '-f' => 'full', '--json' => 'json', '--values' => 'values', '-V' => 'values', '--snapshot' => 'snapshot'];
         if (isset($simpleFlags[$arg])) {
             return ['option' => [$simpleFlags[$arg] => true], 'consumed' => false, 'index' => $index];
         }
@@ -340,6 +341,8 @@ OPTIONS:
     -l, --lines=N     Maximum lines to show for multi-line data (default: 5, 0 = no limit)
     -f, --full        Show full tree with all context keys as leaves
     -V, --values      Opt-in flag consulted by registered formatters to show values
+    --snapshot        Omit per-run values (execution times, close profiles) for snapshot tests;
+                      cannot be combined with --threshold
     --json            Pass through raw JSON (pretty-printed)
     -h, --help        Display this help message
 
@@ -347,6 +350,7 @@ EXAMPLES:
     stree debug.json                          # Compact tree
     stree --full debug.json                   # Full tree with all context keys
     stree --threshold=10ms slow.json          # Show only operations > 10ms
+    stree --snapshot --full debug.json        # Same output on every run of the same operation
     stree --json debug.json                   # Pretty-print JSON passthrough
 
 HELP;

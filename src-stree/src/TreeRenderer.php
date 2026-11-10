@@ -109,7 +109,7 @@ final class TreeRenderer implements LogRendererInterface
         }
 
         if ($config->showFullTree) {
-            $this->renderFullModeClose($root, $lines, '');
+            $this->renderFullModeClose($root, $lines, '', $config);
         } elseif ($hasCloseLine) {
             $lines[] = self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' ' . $closeLine;
         }
@@ -196,7 +196,7 @@ final class TreeRenderer implements LogRendererInterface
         bool $hasCloseLine,
     ): void {
         if ($config->showFullTree) {
-            $this->renderFullModeClose($node, $lines, $childPrefix);
+            $this->renderFullModeClose($node, $lines, $childPrefix, $config);
 
             return;
         }
@@ -232,7 +232,7 @@ final class TreeRenderer implements LogRendererInterface
      *
      * @param string[] $lines
      */
-    private function renderFullModeClose(TreeNode $node, array &$lines, string $prefix): void
+    private function renderFullModeClose(TreeNode $node, array &$lines, string $prefix, RenderConfig $config): void
     {
         if ($node->closeType === null) {
             return;
@@ -240,7 +240,8 @@ final class TreeRenderer implements LogRendererInterface
 
         $extractor = new SignalExtractor();
         $closeLeaves = $this->extractFullModeCloseLeaves($node);
-        $profileLeaves = $extractor->expandFull($node->closeProfile);
+        // A profile holds the wall time and per-run artifact paths only.
+        $profileLeaves = $config->snapshot ? [] : $extractor->expandFull($node->closeProfile);
 
         $lines[] = $prefix . self::TREE_LAST . self::TREE_HORIZONTAL . self::TREE_HORIZONTAL . ' close ' . $node->closeType;
         $closeChildPrefix = $prefix . self::TREE_SPACE . self::TREE_SPACE . self::TREE_SPACE . self::TREE_SPACE;
