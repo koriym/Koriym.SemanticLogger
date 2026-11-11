@@ -11,6 +11,8 @@ use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
 use PHPUnit\Framework\TestCase;
 
 use function explode;
+use function restore_error_handler;
+use function set_error_handler;
 use function str_starts_with;
 use function trim;
 
@@ -817,6 +819,26 @@ final class TreeRendererTest extends TestCase
         $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas'));
 
         $this->assertStringContainsString('requestId: req_a1', $renderer->renderTree(self::requestLog('req_a1', 'missing.json')));
+    }
+
+    public function testSnapshotKeepsValuesWhoseSchemaUrlResolvesToTheDirectory(): void
+    {
+        $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas'));
+        $notices = [];
+        set_error_handler(static function (int $errno, string $message) use (&$notices): bool {
+            $notices[] = $message;
+
+            return true;
+        });
+
+        try {
+            $output = $renderer->renderTree(self::requestLog('req_a1', ''));
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame([], $notices);
+        $this->assertStringContainsString('requestId: req_a1', $output);
     }
 
     public function testSnapshotWithoutSchemaDirKeepsVolatileValues(): void

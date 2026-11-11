@@ -15,7 +15,9 @@ use function array_values;
 use function count;
 use function file_get_contents;
 use function is_array;
+use function is_file;
 use function is_numeric;
+use function is_readable;
 use function is_scalar;
 use function is_string;
 use function json_decode;
@@ -262,7 +264,7 @@ final class LogDataParser
     private function loadSchema(string $schemaUrl, string $schemaDir): array|null
     {
         $path = (new SchemaResolver())->resolveSchemaPath($schemaUrl, $schemaDir);
-        $json = $path === null ? false : file_get_contents($path);
+        $json = $path === null || ! is_file($path) || ! is_readable($path) ? false : file_get_contents($path);
         /** @var mixed $schema */
         $schema = $json === false ? null : json_decode($json, true);
 
