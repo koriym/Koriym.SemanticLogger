@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- `$log->render(new TreeRenderer(...))` renders a context's nested objects (`headers.X-Request-ID: …`), as `stree` does; it left them out. A snapshot rendered in process needs regenerating once: the nested values get their own lines and appear in the summary line.
+
 ## [0.11.1] - 2026-11-11
 
 ### Added

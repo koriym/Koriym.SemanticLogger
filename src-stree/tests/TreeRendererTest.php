@@ -4,17 +4,28 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\SemanticLogger;
 use Koriym\SemanticLogger\Stree\Exception\SchemaDirNotFound;
 use Koriym\SemanticLogger\Stree\Exception\SchemaDirWithoutSnapshot;
 use Koriym\SemanticLogger\Stree\Exception\SnapshotWithThreshold;
 use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
+use Koriym\SemanticLogger\Stree\Fake\FakeNestedContext;
 use PHPUnit\Framework\TestCase;
 
 use function explode;
+use function file_put_contents;
+use function json_encode;
+use function ob_get_clean;
+use function ob_start;
 use function restore_error_handler;
 use function set_error_handler;
 use function str_starts_with;
+use function sys_get_temp_dir;
+use function tempnam;
 use function trim;
+use function unlink;
+
+use const JSON_THROW_ON_ERROR;
 
 final class TreeRendererTest extends TestCase
 {
@@ -387,6 +398,48 @@ final class TreeRendererTest extends TestCase
         $this->assertStringContainsString('input: data', $result);
         $this->assertStringContainsString('└── close some_op_close', $result);
         $this->assertStringContainsString('result: ok', $result);
+    }
+
+    public function testRenderingALogShowsNestedContextValues(): void
+    {
+        $logger = new SemanticLogger();
+        $context = new FakeNestedContext(['X-Request-ID' => 'r-1']);
+        $logger->close($context, $logger->open($context));
+
+        $result = $logger->flush()->render(new TreeRenderer(new RenderConfig(true, 0.0, 5)));
+
+        $this->assertStringContainsString('headers.X-Request-ID: r-1', $result);
+    }
+
+    public function testRenderingALogMatchesStreeForTheSameLog(): void
+    {
+        $logger = new SemanticLogger();
+        $outer = new FakeNestedContext(['X-Request-ID' => 'r-1']);
+        $outerId = $logger->open($outer);
+        $inner = new FakeNestedContext(['Accept' => 'text/html']);
+        $logger->close($inner, $logger->open($inner));
+        $logger->close(new FakeNestedContext(['Status' => 'done']), $outerId);
+        $log = $logger->flush();
+        $file = (string) tempnam(sys_get_temp_dir(), 'stree_parity_');
+        file_put_contents($file, json_encode($log, JSON_THROW_ON_ERROR));
+
+        ob_start();
+        (new StreeCommand())->__invoke(['stree', '--snapshot', '--full', $file]);
+        $cli = (string) ob_get_clean();
+        unlink($file);
+
+        $this->assertSame($cli, $log->render(new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true))) . "\n");
+    }
+
+    public function testRenderingALogIgnoresAMalformedLink(): void
+    {
+        $logger = new SemanticLogger();
+        $context = new FakeNestedContext(['X-Request-ID' => 'r-1']);
+        $logger->close($context, $logger->open($context));
+
+        $result = $logger->flush([['rel' => 'related', 'href' => '/a', 'title' => "bad \xB1\x31"]])->render(new TreeRenderer(new RenderConfig(true, 0.0, 5)));
+
+        $this->assertStringContainsString('headers.X-Request-ID: r-1', $result);
     }
 
     public function testFullModeShowsProfileUnderCloseBranch(): void
