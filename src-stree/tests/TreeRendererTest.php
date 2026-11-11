@@ -814,6 +814,21 @@ final class TreeRendererTest extends TestCase
         $this->assertStringContainsString('requestId: [volatile]', $output);
     }
 
+    /** A null value is the same on every run; masking it would turn a success into a failure. */
+    public function testSnapshotKeepsANullVolatileErrorFromMarkingTheCloseFailed(): void
+    {
+        $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas'));
+        $job = static fn (array $close): array => ['log' => [self::openEntry('job_1', 'job', ['name' => 'import'], [], ['id' => 'done_1', 'type' => 'job_done', 'schemaUrl' => 'https://example.com/schemas/job_done.json', 'context' => $close])]];
+
+        $succeeded = $renderer->renderTree($job(['status' => 'ok', 'error' => null]));
+        $failed = $renderer->renderTree($job(['status' => 'failed', 'error' => 'timeout after 3021ms']));
+
+        $this->assertStringNotContainsString('Failed', $succeeded);
+        $this->assertStringNotContainsString('[volatile]', $succeeded);
+        $this->assertStringContainsString('Failed', $failed);
+        $this->assertStringContainsString('error: [volatile]', $failed);
+    }
+
     public function testSnapshotKeepsValuesWhoseSchemaIsNotFound(): void
     {
         $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas'));
