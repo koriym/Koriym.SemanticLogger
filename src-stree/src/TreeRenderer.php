@@ -39,8 +39,10 @@ final class TreeRenderer implements LogRendererInterface
     public function render(LogJson $log): string
     {
         // Decoded as stree decodes a log file: toArray() keeps a context's nested objects as
-        // stdClass, which the tree does not walk.
-        $logData = json_decode(json_encode($log, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+        // stdClass, which the tree does not walk. Links are not drawn, so a malformed one stays out.
+        $document = $log->jsonSerialize();
+        unset($document['links']);
+        $logData = json_decode(json_encode($document, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
         assert(is_array($logData));
 
         return $this->renderTree($logData);
