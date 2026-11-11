@@ -289,7 +289,7 @@ final class LogDataParser
         /** @var mixed $propertySchema */
         foreach ($properties as $key => $propertySchema) {
             $key = (string) $key;
-            if (! array_key_exists($key, $context) || ! is_array($propertySchema)) {
+            if (! array_key_exists($key, $context) || $context[$key] === null || ! is_array($propertySchema)) {
                 continue;
             }
 

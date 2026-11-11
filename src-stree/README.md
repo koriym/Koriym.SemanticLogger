@@ -80,7 +80,7 @@ for `RenderConfig`.
 
 `--snapshot` (`RenderConfig::$snapshot`) drops the values that change on every run — the `[12.0ms]` execution time and, in `--full`, the close `profile` (wall time and trace file paths) — so the same operation renders the same bytes. A time threshold depends on those timings, so combining it with snapshot is an error, as is `--json`, which passes the log through unrendered.
 
-A context schema marks its own per-run properties with `"x-volatile": true`. With `--schema-dir` (`RenderConfig::$schemaDir`), those values render as `[volatile]` and no longer differ between runs. A schema is found by the file name of the record's `schemaUrl`, as the validator does; nested `properties` are followed, `$ref`, `allOf` and `items` are not:
+A context schema marks its own per-run properties with `"x-volatile": true`. With `--schema-dir` (`RenderConfig::$schemaDir`), those values render as `[volatile]` and no longer differ between runs; a null value stays null, so it still renders as absent. A schema is found by the file name of the record's `schemaUrl`, as the validator does; nested `properties` are followed, `$ref`, `allOf` and `items` are not:
 
 ```json
 "requestId": { "type": "string", "x-volatile": true },

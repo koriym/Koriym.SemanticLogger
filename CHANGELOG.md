@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `$log->render(new TreeRenderer(...))` renders a context's nested objects (`headers.X-Request-ID: …`), as `stree` does; it left them out. A snapshot rendered in process needs regenerating once: the nested values get their own lines and appear in the summary line.
+- `--schema-dir` (`RenderConfig::$schemaDir`) no longer masks a null value its schema marks `"x-volatile": true`, so a close whose volatile `error` is null is no longer rendered as failed. A snapshot that showed such a null as `[volatile]` loses that line and needs regenerating once.
 
 ## [0.11.1] - 2026-11-11
 
