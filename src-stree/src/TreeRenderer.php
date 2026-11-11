@@ -9,11 +9,16 @@ use Koriym\SemanticLogger\LogRendererInterface;
 use Override;
 
 use function array_key_exists;
+use function assert;
 use function count;
 use function explode;
 use function implode;
 use function in_array;
 use function is_array;
+use function json_decode;
+use function json_encode;
+
+use const JSON_THROW_ON_ERROR;
 
 final class TreeRenderer implements LogRendererInterface
 {
@@ -31,7 +36,12 @@ final class TreeRenderer implements LogRendererInterface
     #[Override]
     public function render(LogJson $log): string
     {
-        return $this->renderTree($log->toArray());
+        // Decoded as stree decodes a log file: toArray() keeps a context's nested objects as
+        // stdClass, which the tree does not walk.
+        $logData = json_decode(json_encode($log, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+        assert(is_array($logData));
+
+        return $this->renderTree($logData);
     }
 
     /** @param array<array-key, mixed> $logData A decoded JSON object; numeric property names arrive as int keys. */

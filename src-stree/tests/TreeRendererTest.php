@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\SemanticLogger;
 use Koriym\SemanticLogger\Stree\Exception\SchemaDirNotFound;
 use Koriym\SemanticLogger\Stree\Exception\SchemaDirWithoutSnapshot;
 use Koriym\SemanticLogger\Stree\Exception\SnapshotWithThreshold;
 use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
+use Koriym\SemanticLogger\Stree\Fake\FakeNestedContext;
 use PHPUnit\Framework\TestCase;
 
 use function explode;
@@ -387,6 +389,17 @@ final class TreeRendererTest extends TestCase
         $this->assertStringContainsString('input: data', $result);
         $this->assertStringContainsString('└── close some_op_close', $result);
         $this->assertStringContainsString('result: ok', $result);
+    }
+
+    public function testRenderingALogShowsNestedContextValues(): void
+    {
+        $logger = new SemanticLogger();
+        $context = new FakeNestedContext(['X-Request-ID' => 'r-1']);
+        $logger->close($context, $logger->open($context));
+
+        $result = $logger->flush()->render(new TreeRenderer(new RenderConfig(true, 0.0, 5)));
+
+        $this->assertStringContainsString('headers.X-Request-ID: r-1', $result);
     }
 
     public function testFullModeShowsProfileUnderCloseBranch(): void
