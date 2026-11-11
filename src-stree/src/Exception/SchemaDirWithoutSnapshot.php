@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree\Exception;
 
-use RuntimeException;
-
 /**
  * A schema directory was given without snapshot output.
  *

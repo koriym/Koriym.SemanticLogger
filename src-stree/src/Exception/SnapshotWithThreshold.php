@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree\Exception;
 
-use RuntimeException;
-
 /**
  * Snapshot output was asked for together with a time threshold.
  *
