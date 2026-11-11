@@ -24,7 +24,7 @@ A flushed semantic log is a record of what a scenario did: every operation, its 
 3. Mark per-run context values in the schema, not in the test.
 - In the context's JSON Schema, add `"x-volatile": true` to a property whose value changes on every run (a request ID, a generated token, a path with a generated name). With `schemaDir`, it renders as `[volatile]`.
 - The schema is found by the file name of the record's `schemaUrl`. Nested `properties` are followed; `$ref`, `allOf` and `items` are not.
-- A marked value that still renders as is: check that `schemaDir` holds a file with that name. A missing schema is not reported.
+- A marked value that still renders as is: check that `schemaDir` holds a file named after the record's `schemaUrl`. A missing schema is not reported.
 - A formatter that adds its own per-run values reads `$config->snapshot` and leaves them out.
 
 4. Normalize the rendered text only for what neither the schema nor the scenario can fix.
