@@ -14,9 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `stree` error lines start with the exception's short class name (`Error: SchemaDirNotFound: schemas`); the snapshot option conflicts throw their own exceptions under `Koriym\SemanticLogger\Stree\Exception`.
-
-### Changed
-- **BREAKING** — `XHProfResult::start()` no longer takes `$ignoredFunctions`; xhprof crashes when an ignored function runs while `DevSemanticLogger` profiles nested operations. Drop the argument.
+- **BREAKING** — `XHProfResult::start()` no longer takes `$ignoredFunctions`. Drop the argument.
 
 ### Fixed
 - `DevSemanticLogger` no longer crashes PHP (SIGSEGV) inside the xhprof extension when nested operations are closed under XHProf profiling. The logger's own close and profiler teardown methods now appear in the xhprof call graph.
