@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use JsonException;
 use Koriym\SemanticLogger\LogJson;
 use Koriym\SemanticLogger\LogRendererInterface;
 use Override;
 
 use function array_key_exists;
+use function assert;
 use function count;
 use function explode;
 use function implode;
 use function in_array;
 use function is_array;
+use function json_decode;
+use function json_encode;
+
+use const JSON_THROW_ON_ERROR;
 
 final class TreeRenderer implements LogRendererInterface
 {
@@ -28,10 +34,18 @@ final class TreeRenderer implements LogRendererInterface
     ) {
     }
 
+    /** @throws JsonException A log nested deeper than the 512 levels stree reads a log file with. */
     #[Override]
     public function render(LogJson $log): string
     {
-        return $this->renderTree($log->toArray());
+        // Decoded as stree decodes a log file: toArray() keeps a context's nested objects as
+        // stdClass, which the tree does not walk. Links are not drawn, so a malformed one stays out.
+        $document = $log->jsonSerialize();
+        unset($document['links']);
+        $logData = json_decode(json_encode($document, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+        assert(is_array($logData));
+
+        return $this->renderTree($logData);
     }
 
     /** @param array<array-key, mixed> $logData A decoded JSON object; numeric property names arrive as int keys. */
