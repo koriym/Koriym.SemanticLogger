@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- `--schema-dir` (`RenderConfig::$schemaDir`) no longer masks a null value its schema marks `"x-volatile": true`, so a close whose volatile `error` is null is no longer rendered as failed.
+- `--schema-dir` (`RenderConfig::$schemaDir`) no longer masks a null value its schema marks `"x-volatile": true`, so a close whose volatile `error` is null is no longer rendered as failed. A snapshot that showed such a null as `[volatile]` loses that line and needs regenerating once.
 
 ## [0.11.1] - 2026-11-11
 
