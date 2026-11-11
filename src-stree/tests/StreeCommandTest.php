@@ -7,6 +7,7 @@ namespace Koriym\SemanticLogger\Stree;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+use function array_map;
 use function chmod;
 use function dirname;
 use function escapeshellarg;
@@ -453,9 +454,7 @@ final class StreeCommandTest extends TestCase
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
         file_put_contents($this->tempFile, json_encode(['log' => [self::simpleOpen([])]], JSON_THROW_ON_ERROR));
 
-        $exitCode = (new StreeCommand())->__invoke(['stree', '--snapshot', $threshold, $this->tempFile]);
-
-        $this->assertSame(1, $exitCode);
+        $this->assertCliError('SnapshotWithThreshold', ['--snapshot', $threshold, $this->tempFile]);
     }
 
     public function testSnapshotOptionWithJsonIsAnError(): void
@@ -463,12 +462,7 @@ final class StreeCommandTest extends TestCase
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
         file_put_contents($this->tempFile, json_encode(['log' => [self::simpleOpen([])]], JSON_THROW_ON_ERROR));
 
-        ob_start();
-        $exitCode = (new StreeCommand())->__invoke(['stree', '--snapshot', '--json', $this->tempFile]);
-        $output = ob_get_clean() ?: '';
-
-        $this->assertSame(1, $exitCode);
-        $this->assertSame('', $output);
+        $this->assertCliError('SnapshotWithJson', ['--snapshot', '--json', $this->tempFile]);
     }
 
     public function testSchemaDirOptionMasksVolatileValues(): void
@@ -491,10 +485,19 @@ final class StreeCommandTest extends TestCase
     {
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
         file_put_contents($this->tempFile, json_encode(['log' => [self::simpleOpen([])]], JSON_THROW_ON_ERROR));
-        $command = new StreeCommand();
 
-        $this->assertSame(1, $command->__invoke(['stree', '--schema-dir=' . __DIR__ . '/Fake/schemas', $this->tempFile]));
-        $this->assertSame(1, $command->__invoke(['stree', '--snapshot', '--schema-dir=' . __DIR__ . '/Fake/no-such-dir', $this->tempFile]));
-        $this->assertSame(1, $command->__invoke(['stree', '--snapshot', $this->tempFile, '--schema-dir']));
+        $this->assertCliError('SchemaDirWithoutSnapshot', ['--schema-dir=' . __DIR__ . '/Fake/schemas', $this->tempFile]);
+        $this->assertCliError('SchemaDirNotFound', ['--snapshot', '--schema-dir=' . __DIR__ . '/Fake/no-such-dir', $this->tempFile]);
+        $this->assertCliError('OptionValueMissing', ['--snapshot', $this->tempFile, '--schema-dir']);
+    }
+
+    /** @param list<string> $args */
+    private function assertCliError(string $exception, array $args): void
+    {
+        $command = implode(' ', array_map('escapeshellarg', [PHP_BINARY, dirname(__DIR__) . '/bin/stree', ...$args]));
+        exec($command . ' 2>&1', $output, $exitCode);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringStartsWith('Error: ' . $exception, implode("\n", $output));
     }
 }

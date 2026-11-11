@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Stree;
 
 use JsonException;
+use Koriym\SemanticLogger\Stree\Exception\OptionValueMissing;
+use Koriym\SemanticLogger\Stree\Exception\SnapshotWithJson;
+use Koriym\SemanticLogger\Stree\Exception\SnapshotWithThreshold;
+use ReflectionClass;
 use RuntimeException;
 
 use function array_slice;
@@ -58,12 +62,12 @@ final class StreeCommand
                 return 1;
             }
 
-            if (isset($options['snapshot'], $options['threshold'])) {
-                throw new RuntimeException('Snapshot output cannot be combined with a time threshold');
-            }
-
             /** @var mixed $threshold */
             $threshold = $options['threshold'] ?? 0.0;
+            if (isset($options['snapshot'], $options['threshold'])) {
+                throw new SnapshotWithThreshold(is_numeric($threshold) ? (float) $threshold : 0.0);
+            }
+
             /** @var mixed $lines */
             $lines = $options['lines'] ?? self::DEFAULT_MAX_LINES;
             $config = new RenderConfig(
@@ -86,7 +90,7 @@ final class StreeCommand
 
             if (isset($options['json'])) {
                 if (isset($options['snapshot'])) {
-                    throw new RuntimeException('--snapshot applies to the tree output and cannot be combined with --json');
+                    throw new SnapshotWithJson();
                 }
 
                 // Decoded as objects so `{}` is not re-encoded as `[]`.
@@ -107,7 +111,8 @@ final class StreeCommand
 
             return 0;
         } catch (RuntimeException $e) {
-            fprintf(STDERR, "Error: %s\n", $e->getMessage());
+            $name = (new ReflectionClass($e))->getShortName();
+            fprintf(STDERR, "Error: %s\n", $e->getMessage() === '' ? $name : $name . ': ' . $e->getMessage());
 
             return 1;
         }
@@ -168,7 +173,7 @@ final class StreeCommand
 
         if ($arg === '--schema-dir') {
             if (! isset($args[$index + 1])) {
-                throw new RuntimeException('--schema-dir requires a value');
+                throw new OptionValueMissing('--schema-dir');
             }
 
             return ['option' => ['schema-dir' => $args[$index + 1]], 'consumed' => true, 'index' => $index + 1];

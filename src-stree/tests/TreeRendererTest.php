@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
-use Koriym\SemanticLogger\Stree\Exception\RuntimeException;
+use Koriym\SemanticLogger\Stree\Exception\SchemaDirNotFound;
+use Koriym\SemanticLogger\Stree\Exception\SchemaDirWithoutSnapshot;
+use Koriym\SemanticLogger\Stree\Exception\SnapshotWithThreshold;
 use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
 use PHPUnit\Framework\TestCase;
 
@@ -760,7 +762,7 @@ final class TreeRendererTest extends TestCase
 
     public function testSnapshotRejectsTimeThreshold(): void
     {
-        $this->expectException(RuntimeException::class);
+        $this->expectException(SnapshotWithThreshold::class);
 
         new RenderConfig(false, 0.01, 5, snapshot: true);
     }
@@ -826,14 +828,14 @@ final class TreeRendererTest extends TestCase
 
     public function testSchemaDirRequiresSnapshot(): void
     {
-        $this->expectException(RuntimeException::class);
+        $this->expectException(SchemaDirWithoutSnapshot::class);
 
         new RenderConfig(true, 0.0, 5, schemaDir: __DIR__ . '/Fake/schemas');
     }
 
     public function testSchemaDirMustExist(): void
     {
-        $this->expectException(RuntimeException::class);
+        $this->expectException(SchemaDirNotFound::class);
 
         new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/no-such-dir');
     }

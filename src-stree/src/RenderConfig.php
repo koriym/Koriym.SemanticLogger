@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
-use Koriym\SemanticLogger\Stree\Exception\RuntimeException;
+use Koriym\SemanticLogger\Stree\Exception\SchemaDirNotFound;
+use Koriym\SemanticLogger\Stree\Exception\SchemaDirWithoutSnapshot;
+use Koriym\SemanticLogger\Stree\Exception\SnapshotWithThreshold;
 
 use function is_dir;
-use function sprintf;
 
 final class RenderConfig
 {
@@ -20,7 +21,9 @@ final class RenderConfig
      * @param bool                   $snapshot      Omit per-run values (execution times, close profiles) so the same operation renders byte-identical output; formatters should honor it too
      * @param string|null            $schemaDir     Context schemas whose `"x-volatile": true` values render as `[volatile]` in snapshot output
      *
-     * @throws RuntimeException When $snapshot is combined with a time threshold, whose filtering depends on per-run timings, or $schemaDir is given without $snapshot or does not exist.
+     * @throws SnapshotWithThreshold
+     * @throws SchemaDirWithoutSnapshot
+     * @throws SchemaDirNotFound
      *
      * @SuppressWarnings("PHPMD.BooleanArgumentFlag")
      */
@@ -34,7 +37,7 @@ final class RenderConfig
         public readonly string|null $schemaDir = null,
     ) {
         if ($snapshot && $timeThreshold > 0) {
-            throw new RuntimeException('Snapshot output cannot be combined with a time threshold');
+            throw new SnapshotWithThreshold($timeThreshold);
         }
 
         if ($schemaDir === null) {
@@ -42,11 +45,11 @@ final class RenderConfig
         }
 
         if (! $snapshot) {
-            throw new RuntimeException('A schema directory is only read for snapshot output');
+            throw new SchemaDirWithoutSnapshot($schemaDir);
         }
 
         if (! is_dir($schemaDir)) {
-            throw new RuntimeException(sprintf('Schema directory not found: %s', $schemaDir));
+            throw new SchemaDirNotFound($schemaDir);
         }
     }
 }
