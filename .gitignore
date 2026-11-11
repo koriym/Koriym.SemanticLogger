@@ -7,3 +7,4 @@
 /.phpcs-cache
 /.claude/settings.local.json
 .claude/
+/demo/xdebug_trace*
