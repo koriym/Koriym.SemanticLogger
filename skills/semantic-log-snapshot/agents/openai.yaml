@@ -1,0 +1,4 @@
+interface:
+  display_name: "Semantic Log Snapshot"
+  short_description: "Pin a scenario's semantic log as a stable snapshot test"
+  default_prompt: "Use $semantic-log-snapshot to add a snapshot test over this scenario's semantic log."
