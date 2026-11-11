@@ -25,6 +25,7 @@
       "description": "File size in bytes"
     },
     "processingTime": {
+      "x-volatile": true,
       "type": "number",
       "minimum": 0,
       "description": "File processing time in seconds"

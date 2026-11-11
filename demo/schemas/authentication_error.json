@@ -33,6 +33,7 @@
           "description": "Authentication method that failed"
         },
         "timestamp": {
+          "x-volatile": true,
           "type": "string",
           "format": "date-time",
           "description": "ISO 8601 timestamp of the authentication failure"

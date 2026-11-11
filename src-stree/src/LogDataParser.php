@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\SchemaResolver;
 use Koriym\SemanticLogger\Stree\Exception\RuntimeException;
 
 use function array_combine;
@@ -12,9 +13,12 @@ use function array_keys;
 use function array_map;
 use function array_values;
 use function count;
+use function file_get_contents;
 use function is_array;
 use function is_numeric;
 use function is_scalar;
+use function is_string;
+use function json_decode;
 
 /**
  * Builds the render tree from the public log shape. A log with exactly one
@@ -23,12 +27,28 @@ use function is_scalar;
  */
 final class LogDataParser
 {
+    /** Stands in for a value its schema marks `"x-volatile": true`. */
+    public const VOLATILE_MARK = '[volatile]';
+
     private int $orphanCloseSequence = 0;
+
+    /** @var array<string, string> */
+    private array $types = [];
+
+    /** @var array<string, array<array-key, mixed>|null> */
+    private array $schemas = [];
+
+    /** @param string|null $schemaDir Where to look up context schemas whose `x-volatile` values are masked; null masks nothing */
+    public function __construct(
+        private readonly string|null $schemaDir = null,
+    ) {
+    }
 
     /** @param array<array-key, mixed> $logData */
     public function parseLogData(array $logData): TreeNode
     {
         $this->orphanCloseSequence = 0;
+        $this->types = $this->typesOf($logData);
 
         if (! array_key_exists('log', $logData) || ! is_array($logData['log'])) {
             throw new RuntimeException('Invalid log data: missing log section');
@@ -184,8 +204,105 @@ final class LogDataParser
     {
         /** @var mixed $context */
         $context = $entry['context'] ?? [];
+        if (! is_array($context)) {
+            return [];
+        }
 
-        return is_array($context) ? $this->normalizeMap($context) : [];
+        $context = $this->normalizeMap($context);
+        $schema = $this->schemaOf($entry);
+
+        return $schema === null ? $context : $this->maskVolatile($context, $schema);
+    }
+
+    /**
+     * @param array<array-key, mixed> $logData
+     *
+     * @return array<string, string>
+     */
+    private function typesOf(array $logData): array
+    {
+        $types = [];
+        /** @var array<array-key, mixed> $declared */
+        $declared = is_array($logData['types'] ?? null) ? $logData['types'] : [];
+        /** @var mixed $schemaUrl */
+        foreach ($declared as $type => $schemaUrl) {
+            if (is_string($schemaUrl)) {
+                $types[(string) $type] = $schemaUrl;
+            }
+        }
+
+        return $types;
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     *
+     * @return array<array-key, mixed>|null
+     */
+    private function schemaOf(array $entry): array|null
+    {
+        if ($this->schemaDir === null) {
+            return null;
+        }
+
+        /** @var mixed $schemaUrl */
+        $schemaUrl = $entry['schemaUrl'] ?? $this->types[self::stringifyScalar($entry['type'] ?? null, '')] ?? null;
+        if (! is_string($schemaUrl)) {
+            return null;
+        }
+
+        if (! array_key_exists($schemaUrl, $this->schemas)) {
+            $this->schemas[$schemaUrl] = $this->loadSchema($schemaUrl, $this->schemaDir);
+        }
+
+        return $this->schemas[$schemaUrl];
+    }
+
+    /** @return array<array-key, mixed>|null */
+    private function loadSchema(string $schemaUrl, string $schemaDir): array|null
+    {
+        $path = (new SchemaResolver())->resolveSchemaPath($schemaUrl, $schemaDir);
+        $json = $path === null ? false : file_get_contents($path);
+        /** @var mixed $schema */
+        $schema = $json === false ? null : json_decode($json, true);
+
+        return is_array($schema) ? $schema : null;
+    }
+
+    /**
+     * Follows nested `properties` only; `$ref`, `allOf` and `items` are not resolved.
+     *
+     * @param array<string, mixed>    $context
+     * @param array<array-key, mixed> $schema
+     *
+     * @return array<string, mixed>
+     */
+    private function maskVolatile(array $context, array $schema): array
+    {
+        $properties = $schema['properties'] ?? null;
+        if (! is_array($properties)) {
+            return $context;
+        }
+
+        /** @var mixed $propertySchema */
+        foreach ($properties as $key => $propertySchema) {
+            $key = (string) $key;
+            if (! array_key_exists($key, $context) || ! is_array($propertySchema)) {
+                continue;
+            }
+
+            if (($propertySchema['x-volatile'] ?? false) === true) {
+                $context[$key] = self::VOLATILE_MARK;
+
+                continue;
+            }
+
+            if (is_array($context[$key])) {
+                $context[$key] = $this->maskVolatile($this->normalizeMap($context[$key]), $propertySchema);
+            }
+        }
+
+        return $context;
     }
 
     /**

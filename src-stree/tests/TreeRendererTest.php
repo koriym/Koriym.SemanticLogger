@@ -764,4 +764,77 @@ final class TreeRendererTest extends TestCase
 
         new RenderConfig(false, 0.01, 5, snapshot: true);
     }
+
+    /** @return array<string, mixed> */
+    private static function requestRecord(string $requestId, string $schemaUrl): array
+    {
+        $context = ['uri' => '/orders', 'requestId' => $requestId, 'headers' => ['X-Request-ID' => $requestId, 'Accept' => 'text/html']];
+
+        return [
+            'id' => 'req_1',
+            'type' => 'request',
+            'schemaUrl' => $schemaUrl,
+            'context' => $context,
+            'log' => [],
+            'close' => ['id' => 'res_1', 'type' => 'response', 'schemaUrl' => $schemaUrl, 'context' => $context],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private static function requestLog(string $requestId, string $schemaUrl = 'https://example.com/schemas/request.json'): array
+    {
+        return ['log' => [self::requestRecord($requestId, $schemaUrl)]];
+    }
+
+    public function testSnapshotMasksValuesTheSchemaMarksVolatile(): void
+    {
+        $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas'));
+        $output = $renderer->renderTree(self::requestLog('req_a1'));
+
+        $this->assertSame($output, $renderer->renderTree(self::requestLog('req_b2')));
+        $this->assertStringNotContainsString('req_a1', $output);
+        $this->assertStringContainsString('requestId: [volatile]', $output);
+        $this->assertStringContainsString('headers.X-Request-ID: [volatile]', $output);
+        $this->assertStringContainsString('headers.Accept: text/html', $output);
+        $this->assertStringContainsString('uri: /orders', $output);
+    }
+
+    public function testSnapshotMasksThroughTheDocumentTypesIndex(): void
+    {
+        $record = self::requestRecord('req_a1', 'unused.json');
+        unset($record['schemaUrl']);
+        $log = ['types' => ['request' => 'request.json'], 'log' => [$record]];
+
+        $output = (new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas')))->renderTree($log);
+
+        $this->assertStringContainsString('requestId: [volatile]', $output);
+    }
+
+    public function testSnapshotKeepsValuesWhoseSchemaIsNotFound(): void
+    {
+        $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas'));
+
+        $this->assertStringContainsString('requestId: req_a1', $renderer->renderTree(self::requestLog('req_a1', 'missing.json')));
+    }
+
+    public function testSnapshotWithoutSchemaDirKeepsVolatileValues(): void
+    {
+        $output = (new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true)))->renderTree(self::requestLog('req_a1'));
+
+        $this->assertStringContainsString('requestId: req_a1', $output);
+    }
+
+    public function testSchemaDirRequiresSnapshot(): void
+    {
+        $this->expectException(RuntimeException::class);
+
+        new RenderConfig(true, 0.0, 5, schemaDir: __DIR__ . '/Fake/schemas');
+    }
+
+    public function testSchemaDirMustExist(): void
+    {
+        $this->expectException(RuntimeException::class);
+
+        new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/no-such-dir');
+    }
 }

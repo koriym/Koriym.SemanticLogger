@@ -73,6 +73,7 @@ final class StreeCommand
                 (bool) ($options['values'] ?? false),
                 $this->formatters,
                 (bool) ($options['snapshot'] ?? false),
+                $this->stringOption($options, 'schema-dir'),
             );
 
             /** @var mixed $fileOption */
@@ -165,6 +166,18 @@ final class StreeCommand
             return $this->parseLinesOption($args, $index);
         }
 
+        if ($arg === '--schema-dir') {
+            if (! isset($args[$index + 1])) {
+                throw new RuntimeException('--schema-dir requires a value');
+            }
+
+            return ['option' => ['schema-dir' => $args[$index + 1]], 'consumed' => true, 'index' => $index + 1];
+        }
+
+        if (str_starts_with($arg, '--schema-dir=')) {
+            return ['option' => ['schema-dir' => substr($arg, 13)], 'consumed' => false, 'index' => $index];
+        }
+
         // Handle assignment format
         if (str_starts_with($arg, '--threshold=')) {
             return $this->parseThresholdAssignment($arg);
@@ -214,6 +227,15 @@ final class StreeCommand
         }
 
         return (float) $numericValue;
+    }
+
+    /** @param array<string, mixed> $options */
+    private function stringOption(array $options, string $name): string|null
+    {
+        /** @var mixed $value */
+        $value = $options[$name] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 
     private function readLogFile(string $file): string
@@ -351,6 +373,8 @@ OPTIONS:
     -V, --values      Opt-in flag consulted by registered formatters to show values
     --snapshot        Omit per-run values (execution times, close profiles) for snapshot tests;
                       cannot be combined with --threshold or --json
+    --schema-dir=DIR  With --snapshot, render values the context schemas in DIR mark
+                      "x-volatile": true as [volatile]
     --json            Pass through raw JSON (pretty-printed)
     -h, --help        Display this help message
 
@@ -359,6 +383,7 @@ EXAMPLES:
     stree --full debug.json                   # Full tree with all context keys
     stree --threshold=10ms slow.json          # Show only operations > 10ms
     stree --snapshot --full debug.json        # Same output on every run of the same operation
+    stree --snapshot --schema-dir=schemas debug.json  # Also mask x-volatile context values
     stree --json debug.json                   # Pretty-print JSON passthrough
 
 HELP;

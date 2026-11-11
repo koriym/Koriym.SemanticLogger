@@ -38,7 +38,7 @@ final class TreeRenderer implements LogRendererInterface
     public function renderTree(array $logData): string
     {
         $config = $this->config;
-        $parser = new LogDataParser();
+        $parser = new LogDataParser($config->schemaDir);
         $root = $parser->parseLogData($logData);
 
         // Propagate status up the tree

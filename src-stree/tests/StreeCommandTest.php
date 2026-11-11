@@ -470,4 +470,31 @@ final class StreeCommandTest extends TestCase
         $this->assertSame(1, $exitCode);
         $this->assertSame('', $output);
     }
+
+    public function testSchemaDirOptionMasksVolatileValues(): void
+    {
+        $open = self::simpleOpen(['uri' => '/orders', 'requestId' => 'req_a1']);
+        $open['schemaUrl'] = 'request.json';
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode(['log' => [$open]], JSON_THROW_ON_ERROR));
+
+        ob_start();
+        $exitCode = (new StreeCommand())->__invoke(['stree', '--snapshot', '--full', '--schema-dir', __DIR__ . '/Fake/schemas', $this->tempFile]);
+        $output = ob_get_clean() ?: '';
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('requestId: [volatile]', $output);
+        $this->assertStringContainsString('uri: /orders', $output);
+    }
+
+    public function testSchemaDirOptionErrors(): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode(['log' => [self::simpleOpen([])]], JSON_THROW_ON_ERROR));
+        $command = new StreeCommand();
+
+        $this->assertSame(1, $command->__invoke(['stree', '--schema-dir=' . __DIR__ . '/Fake/schemas', $this->tempFile]));
+        $this->assertSame(1, $command->__invoke(['stree', '--snapshot', '--schema-dir=' . __DIR__ . '/Fake/no-such-dir', $this->tempFile]));
+        $this->assertSame(1, $command->__invoke(['stree', '--snapshot', $this->tempFile, '--schema-dir']));
+    }
 }
