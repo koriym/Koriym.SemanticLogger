@@ -35,7 +35,7 @@ A flushed semantic log is a record of what a scenario did: every operation, its 
 
 5. Store and compare.
 - Keep one snapshot file per scenario next to it (for example `tests/snapshots/{name}.log`).
-- Compare with `assertStringEqualsFile($snapshot, $rendered)`, which also fails when the snapshot file is missing.
+- Compare with `assertSame(file_get_contents($snapshot), $rendered)`, without a cast: a missing or unreadable snapshot reads as `false`, which never equals a rendering.
 - The tree leaves out a context's `id` and its null values. When one of those matters, assert it on the log itself.
 
 6. Update deliberately.
@@ -72,7 +72,7 @@ final class ScenarioSnapshotTest extends TestCase
         $log = runScenario($name); // runs the operations and returns $logger->flush()
         $rendered = $log->render(new TreeRenderer(new RenderConfig(true, 0.0, 0, snapshot: true, schemaDir: __DIR__ . '/../docs/schemas')));
 
-        $this->assertStringEqualsFile(__DIR__ . "/snapshots/{$name}.log", $rendered);
+        $this->assertSame(file_get_contents(__DIR__ . "/snapshots/{$name}.log"), $rendered);
     }
 }
 ```
