@@ -17,6 +17,7 @@ A flushed semantic log is a record of what a scenario did: every operation, its 
 
 2. Render in snapshot mode.
 - In process: `$log->render(new TreeRenderer(new RenderConfig(true, 0.0, 0, snapshot: true, schemaDir: $schemaDir)))`. `true` is the full tree and `0.0` no time threshold.
+- Installed packages can declare formatters for their own record types; `stree` loads them. To render those records the same way in process, pass `formatters: FormatterRegistry::fromInstalledPackages('vendor/composer/installed.json')` to `RenderConfig`.
 - From a file: `vendor/bin/stree --snapshot --full --schema-dir=<schemas> log.json`.
 - Snapshot mode drops execution times and close profiles. It cannot be combined with a time threshold or `--json`.
 - Write a snapshot through the same path the test renders with: `stree` ends its output with a newline that `render()` does not add.
@@ -33,7 +34,8 @@ A flushed semantic log is a record of what a scenario did: every operation, its 
 
 5. Store and compare.
 - Keep one snapshot file per scenario next to it (for example `tests/snapshots/{name}.log`).
-- The test is one assertion: `assertSame(file_get_contents($snapshot), $rendered)`.
+- Compare with `assertStringEqualsFile($snapshot, $rendered)`, which also fails when the snapshot file is missing.
+- The tree leaves out a context's `id` and its null values. When one of those matters, assert it on the log itself.
 
 6. Update deliberately.
 - Provide one command that reruns every scenario and overwrites its snapshot (a `composer` script).
@@ -69,7 +71,7 @@ final class ScenarioSnapshotTest extends TestCase
         $log = runScenario($name); // runs the operations and returns $logger->flush()
         $rendered = $log->render(new TreeRenderer(new RenderConfig(true, 0.0, 0, snapshot: true, schemaDir: __DIR__ . '/../docs/schemas')));
 
-        $this->assertSame((string) file_get_contents(__DIR__ . "/snapshots/{$name}.log"), $rendered);
+        $this->assertStringEqualsFile(__DIR__ . "/snapshots/{$name}.log", $rendered);
     }
 }
 ```
