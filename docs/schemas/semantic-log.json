@@ -217,6 +217,7 @@
     },
     "operationProfile": {
       "type": "object",
+      "x-volatile": true,
       "description": "Observed profiling data for a single operation (open/close pair). The profile object is emitted only when external profiler output was captured.",
       "required": [
         "wallTime"

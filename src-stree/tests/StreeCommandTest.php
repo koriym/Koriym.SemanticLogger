@@ -7,6 +7,7 @@ namespace Koriym\SemanticLogger\Stree;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+use function array_map;
 use function chmod;
 use function dirname;
 use function escapeshellarg;
@@ -414,5 +415,89 @@ final class StreeCommandTest extends TestCase
             // Restore permissions for cleanup
             chmod($this->tempFile, 0644);
         }
+    }
+
+    public function testSnapshotOptionOmitsTimingsInFullMode(): void
+    {
+        $open = self::simpleOpen(['sql' => 'SELECT 1', 'executionTime' => 0.012]);
+        $open['close'] = [
+            'id' => 'close_1',
+            'type' => 'close',
+            'schemaUrl' => 'test.json',
+            'context' => [],
+            'profile' => ['wallTime' => 0.013, 'xdebugTrace' => [['path' => '/tmp/profile_a.xt']]],
+        ];
+        $logData = ['log' => [$open]];
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode($logData, JSON_THROW_ON_ERROR));
+
+        ob_start();
+        $exitCode = (new StreeCommand())->__invoke(['stree', '--snapshot', '--full', $this->tempFile]);
+        $output = ob_get_clean() ?: '';
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('sql: SELECT 1', $output);
+        $this->assertStringNotContainsString('12.0ms', $output);
+        $this->assertStringNotContainsString('wallTime', $output);
+        $this->assertStringNotContainsString('/tmp/profile_a.xt', $output);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function thresholds(): array
+    {
+        return ['10ms' => ['--threshold=10ms'], '0ms' => ['--threshold=0ms']];
+    }
+
+    #[DataProvider('thresholds')]
+    public function testSnapshotOptionWithThresholdIsAnError(string $threshold): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode(['log' => [self::simpleOpen([])]], JSON_THROW_ON_ERROR));
+
+        $this->assertCliError('SnapshotWithThreshold', ['--snapshot', $threshold, $this->tempFile]);
+    }
+
+    public function testSnapshotOptionWithJsonIsAnError(): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode(['log' => [self::simpleOpen([])]], JSON_THROW_ON_ERROR));
+
+        $this->assertCliError('SnapshotWithJson', ['--snapshot', '--json', $this->tempFile]);
+    }
+
+    public function testSchemaDirOptionMasksVolatileValues(): void
+    {
+        $open = self::simpleOpen(['uri' => '/orders', 'requestId' => 'req_a1']);
+        $open['schemaUrl'] = 'request.json';
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode(['log' => [$open]], JSON_THROW_ON_ERROR));
+
+        ob_start();
+        $exitCode = (new StreeCommand())->__invoke(['stree', '--snapshot', '--full', '--schema-dir', __DIR__ . '/Fake/schemas', $this->tempFile]);
+        $output = ob_get_clean() ?: '';
+
+        $this->assertSame(0, $exitCode);
+        $this->assertStringContainsString('requestId: [volatile]', $output);
+        $this->assertStringContainsString('uri: /orders', $output);
+    }
+
+    public function testSchemaDirOptionErrors(): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode(['log' => [self::simpleOpen([])]], JSON_THROW_ON_ERROR));
+
+        $this->assertCliError('SchemaDirWithoutSnapshot', ['--schema-dir=' . __DIR__ . '/Fake/schemas', $this->tempFile]);
+        $this->assertCliError('SchemaDirNotFound', ['--snapshot', '--schema-dir=' . __DIR__ . '/Fake/no-such-dir', $this->tempFile]);
+        $this->assertCliError('OptionValueMissing', ['--snapshot', $this->tempFile, '--schema-dir']);
+    }
+
+    /** @param list<string> $args */
+    private function assertCliError(string $exception, array $args): void
+    {
+        $command = implode(' ', array_map('escapeshellarg', [PHP_BINARY, dirname(__DIR__) . '/bin/stree', ...$args]));
+        exec($command . ' 2>&1', $output, $exitCode);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringStartsWith('Error: ' . $exception, implode("\n", $output));
     }
 }

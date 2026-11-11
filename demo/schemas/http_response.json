@@ -13,6 +13,16 @@
     },
     "headers": {
       "type": "object",
+      "properties": {
+        "X-Response-Time": {
+          "type": "string",
+          "x-volatile": true
+        },
+        "X-Request-ID": {
+          "type": "string",
+          "x-volatile": true
+        }
+      },
       "additionalProperties": {
         "type": "string"
       },
@@ -28,6 +38,7 @@
       "description": "Response content type"
     },
     "responseTime": {
+      "x-volatile": true,
       "type": "number",
       "minimum": 0,
       "description": "Total response time in seconds"

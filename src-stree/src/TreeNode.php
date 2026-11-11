@@ -96,7 +96,7 @@ final class TreeNode
         $timeDisplay = $this->formatExecutionTime();
         $line = $this->semanticDisplayLine($extractor) ?? $this->genericDisplayLine($extractor);
 
-        if ($this->executionTime > 0.0) {
+        if ($this->executionTime > 0.0 && $config?->snapshot !== true) {
             $line .= ' [' . $timeDisplay . ']';
         }
 

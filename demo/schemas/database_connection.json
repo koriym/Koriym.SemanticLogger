@@ -19,6 +19,7 @@
       "description": "Database name"
     },
     "connectionTime": {
+      "x-volatile": true,
       "type": "number",
       "minimum": 0,
       "description": "Connection establishment time in seconds"
