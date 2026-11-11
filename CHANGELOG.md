@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- `$log->render(new TreeRenderer(...))` renders a context's nested objects (`headers.X-Request-ID: …`), as `stree` does; it left them out. A snapshot rendered in process gains those lines once.
+- `$log->render(new TreeRenderer(...))` renders a context's nested objects (`headers.X-Request-ID: …`), as `stree` does; it left them out. A snapshot rendered in process needs regenerating once: the nested values get their own lines and appear in the summary line.
 
 ## [0.11.1] - 2026-11-11
 

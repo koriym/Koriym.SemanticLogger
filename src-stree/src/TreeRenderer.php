@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use JsonException;
 use Koriym\SemanticLogger\LogJson;
 use Koriym\SemanticLogger\LogRendererInterface;
 use Override;
@@ -33,6 +34,7 @@ final class TreeRenderer implements LogRendererInterface
     ) {
     }
 
+    /** @throws JsonException A log nested deeper than the 512 levels stree reads a log file with. */
     #[Override]
     public function render(LogJson $log): string
     {
