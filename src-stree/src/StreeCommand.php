@@ -58,6 +58,10 @@ final class StreeCommand
                 return 1;
             }
 
+            if (isset($options['snapshot'], $options['threshold'])) {
+                throw new RuntimeException('Snapshot output cannot be combined with a time threshold');
+            }
+
             /** @var mixed $threshold */
             $threshold = $options['threshold'] ?? 0.0;
             /** @var mixed $lines */

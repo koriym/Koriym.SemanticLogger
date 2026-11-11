@@ -441,12 +441,19 @@ final class StreeCommandTest extends TestCase
         $this->assertStringNotContainsString('/tmp/profile_a.xt', $output);
     }
 
-    public function testSnapshotOptionWithThresholdIsAnError(): void
+    /** @return array<string, array{string}> */
+    public static function thresholds(): array
+    {
+        return ['10ms' => ['--threshold=10ms'], '0ms' => ['--threshold=0ms']];
+    }
+
+    #[DataProvider('thresholds')]
+    public function testSnapshotOptionWithThresholdIsAnError(string $threshold): void
     {
         $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
         file_put_contents($this->tempFile, json_encode(['log' => [self::simpleOpen([])]], JSON_THROW_ON_ERROR));
 
-        $exitCode = (new StreeCommand())->__invoke(['stree', '--snapshot', '--threshold=10ms', $this->tempFile]);
+        $exitCode = (new StreeCommand())->__invoke(['stree', '--snapshot', $threshold, $this->tempFile]);
 
         $this->assertSame(1, $exitCode);
     }
