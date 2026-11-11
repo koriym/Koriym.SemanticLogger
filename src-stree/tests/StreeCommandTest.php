@@ -457,4 +457,17 @@ final class StreeCommandTest extends TestCase
 
         $this->assertSame(1, $exitCode);
     }
+
+    public function testSnapshotOptionWithJsonIsAnError(): void
+    {
+        $this->tempFile = tempnam(sys_get_temp_dir(), 'stree_test_');
+        file_put_contents($this->tempFile, json_encode(['log' => [self::simpleOpen([])]], JSON_THROW_ON_ERROR));
+
+        ob_start();
+        $exitCode = (new StreeCommand())->__invoke(['stree', '--snapshot', '--json', $this->tempFile]);
+        $output = ob_get_clean() ?: '';
+
+        $this->assertSame(1, $exitCode);
+        $this->assertSame('', $output);
+    }
 }

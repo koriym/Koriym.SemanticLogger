@@ -84,6 +84,10 @@ final class StreeCommand
             $content = $this->readLogFile($fileOption);
 
             if (isset($options['json'])) {
+                if (isset($options['snapshot'])) {
+                    throw new RuntimeException('--snapshot applies to the tree output and cannot be combined with --json');
+                }
+
                 // Decoded as objects so `{}` is not re-encoded as `[]`.
                 echo json_encode($this->decodeLog($content, false), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
 
@@ -346,7 +350,7 @@ OPTIONS:
     -f, --full        Show full tree with all context keys as leaves
     -V, --values      Opt-in flag consulted by registered formatters to show values
     --snapshot        Omit per-run values (execution times, close profiles) for snapshot tests;
-                      cannot be combined with --threshold
+                      cannot be combined with --threshold or --json
     --json            Pass through raw JSON (pretty-printed)
     -h, --help        Display this help message
 

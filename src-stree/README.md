@@ -23,7 +23,7 @@ vendor/bin/stree --json debug.json
 | `--lines=N` | `-l` | Maximum lines for multi-line data (`0` means no limit) |
 | `--full` | `-f` | Show the full tree with all context keys as leaves |
 | `--values` | `-V` | Let registered formatters show values instead of only keys |
-| `--snapshot` | | Omit per-run values (execution times, close profiles) for snapshot tests; cannot be combined with `--threshold` |
+| `--snapshot` | | Omit per-run values (execution times, close profiles) for snapshot tests; cannot be combined with `--threshold` or `--json` |
 | `--json` | | Pretty-print raw JSON |
 | `--help` | `-h` | Display help |
 
@@ -76,7 +76,7 @@ for `RenderConfig`.
 
 ## Snapshot output
 
-`--snapshot` (`RenderConfig::$snapshot`) drops the values that change on every run — the `[12.0ms]` execution time and, in `--full`, the close `profile` (wall time and trace file paths) — so the same operation renders the same bytes. Values your own contexts record, such as generated IDs, are rendered as is. A formatter should read `$config->snapshot` and leave out its own per-run values. A time threshold depends on those timings, so combining it with snapshot is an error.
+`--snapshot` (`RenderConfig::$snapshot`) drops the values that change on every run — the `[12.0ms]` execution time and, in `--full`, the close `profile` (wall time and trace file paths) — so the same operation renders the same bytes. Values your own contexts record, such as generated IDs or measured times, are rendered as is: make them fixed in the test (inject a fixed clock or ID generator) or replace them in the rendered text before comparing. A formatter should read `$config->snapshot` and leave out its own per-run values. A time threshold depends on those timings, so combining it with snapshot is an error, as is `--json`, which passes the log through unrendered.
 
 ## In process
 

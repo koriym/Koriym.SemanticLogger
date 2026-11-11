@@ -314,7 +314,7 @@ vendor/bin/stree --json debug.json
 | `--lines=N` | `-l` | Maximum lines for multi-line data (`0` means no limit) |
 | `--full` | `-f` | Show the full tree |
 | `--values` | `-V` | Let registered formatters show values instead of only keys |
-| `--snapshot` | | Omit per-run values (execution times, close profiles) for snapshot tests; cannot be combined with `--threshold` |
+| `--snapshot` | | Omit per-run values (execution times, close profiles) for snapshot tests; cannot be combined with `--threshold` or `--json` |
 | `--json` | | Pretty-print raw JSON |
 | `--help` | `-h` | Display help |
 
