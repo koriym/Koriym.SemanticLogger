@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Koriym\SemanticLogger\Stree;
 
 use JsonException;
+use Koriym\SemanticLogger\Stree\Exception\OptionValueMissing;
+use Koriym\SemanticLogger\Stree\Exception\SnapshotWithJson;
+use Koriym\SemanticLogger\Stree\Exception\SnapshotWithThreshold;
+use ReflectionClass;
 use RuntimeException;
 
 use function array_slice;
@@ -34,6 +38,11 @@ final class StreeCommand
 {
     private const DEFAULT_MAX_LINES = 5;
 
+    public function __construct(
+        private readonly FormatterRegistry $formatters = new FormatterRegistry(),
+    ) {
+    }
+
     /** @param string[] $argv */
     public function __invoke(array $argv): int
     {
@@ -55,6 +64,10 @@ final class StreeCommand
 
             /** @var mixed $threshold */
             $threshold = $options['threshold'] ?? 0.0;
+            if (isset($options['snapshot'], $options['threshold'])) {
+                throw new SnapshotWithThreshold(is_numeric($threshold) ? (float) $threshold : 0.0);
+            }
+
             /** @var mixed $lines */
             $lines = $options['lines'] ?? self::DEFAULT_MAX_LINES;
             $config = new RenderConfig(
@@ -62,6 +75,9 @@ final class StreeCommand
                 is_numeric($threshold) ? (float) $threshold : 0.0,
                 is_numeric($lines) ? (int) $lines : self::DEFAULT_MAX_LINES,
                 (bool) ($options['values'] ?? false),
+                $this->formatters,
+                (bool) ($options['snapshot'] ?? false),
+                $this->stringOption($options, 'schema-dir'),
             );
 
             /** @var mixed $fileOption */
@@ -73,6 +89,10 @@ final class StreeCommand
             $content = $this->readLogFile($fileOption);
 
             if (isset($options['json'])) {
+                if (isset($options['snapshot'])) {
+                    throw new SnapshotWithJson();
+                }
+
                 // Decoded as objects so `{}` is not re-encoded as `[]`.
                 echo json_encode($this->decodeLog($content, false), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
 
@@ -91,7 +111,8 @@ final class StreeCommand
 
             return 0;
         } catch (RuntimeException $e) {
-            fprintf(STDERR, "Error: %s\n", $e->getMessage());
+            $name = (new ReflectionClass($e))->getShortName();
+            fprintf(STDERR, "Error: %s\n", $e->getMessage() === '' ? $name : $name . ': ' . $e->getMessage());
 
             return 1;
         }
@@ -137,7 +158,7 @@ final class StreeCommand
     private function parseArgument(string $arg, array $args, int $index): array
     {
         // Handle simple flags
-        $simpleFlags = ['--help' => 'help', '-h' => 'help', '--full' => 'full', '-f' => 'full', '--json' => 'json', '--values' => 'values', '-V' => 'values'];
+        $simpleFlags = ['--help' => 'help', '-h' => 'help', '--full' => 'full', '-f' => 'full', '--json' => 'json', '--values' => 'values', '-V' => 'values', '--snapshot' => 'snapshot'];
         if (isset($simpleFlags[$arg])) {
             return ['option' => [$simpleFlags[$arg] => true], 'consumed' => false, 'index' => $index];
         }
@@ -148,6 +169,18 @@ final class StreeCommand
 
         if ($arg === '--lines' || $arg === '-l') {
             return $this->parseLinesOption($args, $index);
+        }
+
+        if ($arg === '--schema-dir') {
+            if (! isset($args[$index + 1])) {
+                throw new OptionValueMissing('--schema-dir');
+            }
+
+            return ['option' => ['schema-dir' => $args[$index + 1]], 'consumed' => true, 'index' => $index + 1];
+        }
+
+        if (str_starts_with($arg, '--schema-dir=')) {
+            return ['option' => ['schema-dir' => substr($arg, 13)], 'consumed' => false, 'index' => $index];
         }
 
         // Handle assignment format
@@ -199,6 +232,15 @@ final class StreeCommand
         }
 
         return (float) $numericValue;
+    }
+
+    /** @param array<string, mixed> $options */
+    private function stringOption(array $options, string $name): string|null
+    {
+        /** @var mixed $value */
+        $value = $options[$name] ?? null;
+
+        return is_string($value) ? $value : null;
     }
 
     private function readLogFile(string $file): string
@@ -334,6 +376,10 @@ OPTIONS:
     -l, --lines=N     Maximum lines to show for multi-line data (default: 5, 0 = no limit)
     -f, --full        Show full tree with all context keys as leaves
     -V, --values      Opt-in flag consulted by registered formatters to show values
+    --snapshot        Omit per-run values (execution times, close profiles) for snapshot tests;
+                      cannot be combined with --threshold or --json
+    --schema-dir=DIR  With --snapshot, render values the context schemas in DIR mark
+                      "x-volatile": true as [volatile]
     --json            Pass through raw JSON (pretty-printed)
     -h, --help        Display this help message
 
@@ -341,6 +387,8 @@ EXAMPLES:
     stree debug.json                          # Compact tree
     stree --full debug.json                   # Full tree with all context keys
     stree --threshold=10ms slow.json          # Show only operations > 10ms
+    stree --snapshot --full debug.json        # Same output on every run of the same operation
+    stree --snapshot --schema-dir=schemas debug.json  # Also mask x-volatile context values
     stree --json debug.json                   # Pretty-print JSON passthrough
 
 HELP;

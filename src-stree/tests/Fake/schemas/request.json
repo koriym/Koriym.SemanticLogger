@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "uri": {
+      "type": "string"
+    },
+    "requestId": {
+      "type": "string",
+      "x-volatile": true
+    },
+    "headers": {
+      "type": "object",
+      "properties": {
+        "X-Request-ID": {
+          "type": "string",
+          "x-volatile": true
+        }
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}

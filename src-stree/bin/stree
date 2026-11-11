@@ -24,8 +24,9 @@ if (! is_string($autoload) || ! is_readable($autoload)) {
 /** @psalm-suppress UnresolvableInclude */
 require_once $autoload;
 
+use Koriym\SemanticLogger\Stree\FormatterRegistry;
 use Koriym\SemanticLogger\Stree\StreeCommand;
 
-$command = new StreeCommand();
+$command = new StreeCommand(FormatterRegistry::fromInstalledPackages(dirname($autoload) . '/composer/installed.json'));
 $exitCode = $command($argv);
 exit($exitCode);

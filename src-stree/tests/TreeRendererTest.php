@@ -4,10 +4,15 @@ declare(strict_types=1);
 
 namespace Koriym\SemanticLogger\Stree;
 
+use Koriym\SemanticLogger\Stree\Exception\SchemaDirNotFound;
+use Koriym\SemanticLogger\Stree\Exception\SchemaDirWithoutSnapshot;
+use Koriym\SemanticLogger\Stree\Exception\SnapshotWithThreshold;
 use Koriym\SemanticLogger\Stree\Fake\FakeFormatter;
 use PHPUnit\Framework\TestCase;
 
 use function explode;
+use function restore_error_handler;
+use function set_error_handler;
 use function str_starts_with;
 use function trim;
 
@@ -709,5 +714,151 @@ final class TreeRendererTest extends TestCase
         // Close lines carry their type: the child's first, then the root's.
         $this->assertSame('│   └── fake_close', $lines[3]);
         $this->assertSame('└── container_close', $lines[4]);
+    }
+
+    /** @return array<string, mixed> */
+    private static function timedLog(float $executionTime, float $wallTime, string $tracePath): array
+    {
+        return [
+            'log' => [
+                self::openEntry(
+                    'op_1',
+                    'query_open',
+                    ['sql' => 'SELECT 1', 'executionTime' => $executionTime],
+                    [self::eventEntry('ev_1', 'cache_hit', ['key' => 'k', 'duration' => $executionTime])],
+                    self::closeEntry('close_1', 'query_close', ['rows' => 1], [
+                        'wallTime' => $wallTime,
+                        'xdebugTrace' => [['path' => $tracePath]],
+                    ]),
+                ),
+            ],
+        ];
+    }
+
+    public function testSnapshotRendersRunsThatDifferOnlyInTimingIdentically(): void
+    {
+        $first = self::timedLog(0.012, 0.013, '/tmp/profile_a.xt');
+        $second = self::timedLog(0.034, 0.035, '/tmp/profile_b.xt');
+
+        foreach ([false, true] as $full) {
+            $renderer = new TreeRenderer(new RenderConfig($full, 0.0, 5, snapshot: true));
+            $output = $renderer->renderTree($first);
+
+            $this->assertSame($output, $renderer->renderTree($second));
+            $this->assertStringNotContainsString('ms]', $output);
+            $this->assertStringNotContainsString('profile', $output);
+            $this->assertStringNotContainsString('wallTime', $output);
+            $this->assertStringContainsString('SELECT 1', $output);
+        }
+    }
+
+    public function testWithoutSnapshotTimingsAndProfileAreRendered(): void
+    {
+        $compact = (new TreeRenderer(new RenderConfig(false, 0.0, 5)))->renderTree(self::timedLog(0.012, 0.013, '/tmp/profile_a.xt'));
+        $full = (new TreeRenderer(new RenderConfig(true, 0.0, 5)))->renderTree(self::timedLog(0.012, 0.013, '/tmp/profile_a.xt'));
+
+        $this->assertStringContainsString('query sql=SELECT 1 [12.0ms]', $compact);
+        $this->assertStringContainsString('wallTime: 0.013', $full);
+        $this->assertStringContainsString('xdebugTrace[0].path: /tmp/profile_a.xt', $full);
+    }
+
+    public function testSnapshotRejectsTimeThreshold(): void
+    {
+        $this->expectException(SnapshotWithThreshold::class);
+
+        new RenderConfig(false, 0.01, 5, snapshot: true);
+    }
+
+    /** @return array<string, mixed> */
+    private static function requestRecord(string $requestId, string $schemaUrl): array
+    {
+        $context = ['uri' => '/orders', 'requestId' => $requestId, 'headers' => ['X-Request-ID' => $requestId, 'Accept' => 'text/html']];
+
+        return [
+            'id' => 'req_1',
+            'type' => 'request',
+            'schemaUrl' => $schemaUrl,
+            'context' => $context,
+            'log' => [],
+            'close' => ['id' => 'res_1', 'type' => 'response', 'schemaUrl' => $schemaUrl, 'context' => $context],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private static function requestLog(string $requestId, string $schemaUrl = 'https://example.com/schemas/request.json'): array
+    {
+        return ['log' => [self::requestRecord($requestId, $schemaUrl)]];
+    }
+
+    public function testSnapshotMasksValuesTheSchemaMarksVolatile(): void
+    {
+        $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas'));
+        $output = $renderer->renderTree(self::requestLog('req_a1'));
+
+        $this->assertSame($output, $renderer->renderTree(self::requestLog('req_b2')));
+        $this->assertStringNotContainsString('req_a1', $output);
+        $this->assertStringContainsString('requestId: [volatile]', $output);
+        $this->assertStringContainsString('headers.X-Request-ID: [volatile]', $output);
+        $this->assertStringContainsString('headers.Accept: text/html', $output);
+        $this->assertStringContainsString('uri: /orders', $output);
+    }
+
+    public function testSnapshotMasksThroughTheDocumentTypesIndex(): void
+    {
+        $record = self::requestRecord('req_a1', 'unused.json');
+        unset($record['schemaUrl']);
+        $log = ['types' => ['request' => 'request.json'], 'log' => [$record]];
+
+        $output = (new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas')))->renderTree($log);
+
+        $this->assertStringContainsString('requestId: [volatile]', $output);
+    }
+
+    public function testSnapshotKeepsValuesWhoseSchemaIsNotFound(): void
+    {
+        $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas'));
+
+        $this->assertStringContainsString('requestId: req_a1', $renderer->renderTree(self::requestLog('req_a1', 'missing.json')));
+    }
+
+    public function testSnapshotKeepsValuesWhoseSchemaUrlResolvesToTheDirectory(): void
+    {
+        $renderer = new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/schemas'));
+        $notices = [];
+        set_error_handler(static function (int $errno, string $message) use (&$notices): bool {
+            $notices[] = $message;
+
+            return true;
+        });
+
+        try {
+            $output = $renderer->renderTree(self::requestLog('req_a1', ''));
+        } finally {
+            restore_error_handler();
+        }
+
+        $this->assertSame([], $notices);
+        $this->assertStringContainsString('requestId: req_a1', $output);
+    }
+
+    public function testSnapshotWithoutSchemaDirKeepsVolatileValues(): void
+    {
+        $output = (new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true)))->renderTree(self::requestLog('req_a1'));
+
+        $this->assertStringContainsString('requestId: req_a1', $output);
+    }
+
+    public function testSchemaDirRequiresSnapshot(): void
+    {
+        $this->expectException(SchemaDirWithoutSnapshot::class);
+
+        new RenderConfig(true, 0.0, 5, schemaDir: __DIR__ . '/Fake/schemas');
+    }
+
+    public function testSchemaDirMustExist(): void
+    {
+        $this->expectException(SchemaDirNotFound::class);
+
+        new RenderConfig(true, 0.0, 5, snapshot: true, schemaDir: __DIR__ . '/Fake/no-such-dir');
     }
 }

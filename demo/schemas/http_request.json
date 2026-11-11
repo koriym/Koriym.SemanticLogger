@@ -17,6 +17,12 @@
     },
     "headers": {
       "type": "object",
+      "properties": {
+        "X-Request-ID": {
+          "type": "string",
+          "x-volatile": true
+        }
+      },
       "additionalProperties": {
         "type": "string"
       },

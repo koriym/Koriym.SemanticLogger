@@ -302,6 +302,8 @@ vendor/bin/validate-semantic-log.php --fail-on-diagnostics path/to/semantic-log.
 vendor/bin/stree debug.json
 vendor/bin/stree --full debug.json
 vendor/bin/stree --threshold=10ms slow.json
+vendor/bin/stree --snapshot --full debug.json
+vendor/bin/stree --snapshot --schema-dir=schemas debug.json
 vendor/bin/stree --json debug.json
 ```
 
@@ -313,8 +315,14 @@ vendor/bin/stree --json debug.json
 | `--lines=N` | `-l` | Maximum lines for multi-line data (`0` means no limit) |
 | `--full` | `-f` | Show the full tree |
 | `--values` | `-V` | Let registered formatters show values instead of only keys |
+| `--snapshot` | | Omit per-run values (execution times, close profiles) for snapshot tests; cannot be combined with `--threshold` or `--json` |
+| `--schema-dir=DIR` | | With `--snapshot`, render the values the context schemas in `DIR` mark `"x-volatile": true` as `[volatile]` |
 | `--json` | | Pretty-print raw JSON |
 | `--help` | `-h` | Display help |
+
+### Snapshot output
+
+`--snapshot` renders the same bytes for every run of the same operation: it drops execution times and close profiles, and with `--schema-dir` renders as `[volatile]` the context values whose schema property is marked `"x-volatile": true`. See [src-stree/README.md](src-stree/README.md#snapshot-output).
 
 ### Rendering in process
 
@@ -328,6 +336,7 @@ $log = $logger->flush();
 
 echo $log->render(new TreeRenderer());                              // compact tree
 echo $log->render(new TreeRenderer(new RenderConfig(true, 0.0, 5))); // full tree
+echo $log->render(new TreeRenderer(new RenderConfig(true, 0.0, 5, snapshot: true))); // full tree for a snapshot test
 ```
 
 This keeps the tree compact for both humans (visual parent/child structure) and AI consumers (far fewer tokens than the raw JSON). Implement `LogRendererInterface` to add your own output format (e.g. Markdown or Mermaid) without changing the logger.

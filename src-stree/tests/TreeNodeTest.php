@@ -380,6 +380,31 @@ final class TreeNodeTest extends TestCase
         $this->assertStringContainsString('└── close=fake_close', $line);
     }
 
+    public function testFormattedLineKeepsTheStatusOnItsOpenLine(): void
+    {
+        $node = new TreeNode('n1', 'fake_open', []);
+        $node->setClose('fake_close', []);
+        $node->status = 'Failed';
+        $registry = new FormatterRegistry();
+        $registry->register('fake_open', new FakeFormatter());
+        $config = new RenderConfig(false, 0.0, 5, false, $registry);
+
+        $line = $node->getDisplayLine($config);
+
+        $this->assertSame("fake open=fake_open : Failed\n└── close=fake_close", $line);
+    }
+
+    public function testFormattedLineKeepsTheEventMarker(): void
+    {
+        $node = new TreeNode('n1', 'fake_open', []);
+        $node->isEvent = true;
+        $registry = new FormatterRegistry();
+        $registry->register('fake_open', new FakeFormatter());
+        $config = new RenderConfig(false, 0.0, 5, false, $registry);
+
+        $this->assertSame('fake open=fake_open [event]', $node->getDisplayLine($config));
+    }
+
     public function testFormatterReceivesShowValuesFlag(): void
     {
         $node = new TreeNode('n1', 'fake_open', []);

@@ -25,6 +25,7 @@
       "description": "HTTP response status code (0 for request initiation)"
     },
     "responseTime": {
+      "x-volatile": true,
       "type": "number",
       "minimum": 0,
       "description": "Response time in seconds"

@@ -24,6 +24,7 @@
       "description": "Number of fields affected"
     },
     "executionTime": {
+      "x-volatile": true,
       "type": "number",
       "minimum": 0,
       "description": "Query execution time in seconds"
