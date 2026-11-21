@@ -23,7 +23,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ inputs.php_version }}
+          php-version: ${{ inputs.php_version || '8.4' }}
           tools: cs2pr
           coverage: none
 
@@ -56,7 +56,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ inputs.php_version }}
+          php-version: ${{ inputs.php_version || '8.4' }}
           tools: cs2pr
           coverage: none
 
@@ -82,7 +82,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ inputs.php_version }}
+          php-version: ${{ inputs.php_version || '8.4' }}
 
       - name: Get composer cache directory
         id: composer-cache
@@ -113,7 +113,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ inputs.php_version }}
+          php-version: ${{ inputs.php_version || '8.4' }}
           coverage: none
 
       - name: Get composer cache directory
