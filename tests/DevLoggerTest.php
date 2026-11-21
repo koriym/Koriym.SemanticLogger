@@ -139,7 +139,7 @@ final class DevLoggerTest extends TestCase
     public function testConstructorWithSpecificLogDirectory(): void
     {
         // Test constructor with specific log directory
-        $customDir = '/tmp';
+        $customDir = sys_get_temp_dir();
         $devLogger = new DevLogger($customDir);
 
         $openId = $this->logger->open(new FakeContext('test'));
