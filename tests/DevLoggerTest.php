@@ -138,8 +138,8 @@ final class DevLoggerTest extends TestCase
 
     public function testConstructorWithSpecificLogDirectory(): void
     {
-        // Test constructor with specific log directory
-        $customDir = sys_get_temp_dir();
+        $customDir = sys_get_temp_dir() . '/semantic-dev-' . uniqid('', true);
+        mkdir($customDir);
         $devLogger = new DevLogger($customDir);
 
         $openId = $this->logger->open(new FakeContext('test'));
@@ -147,15 +147,15 @@ final class DevLoggerTest extends TestCase
 
         $devLogger->log($this->logger);
 
-        // Verify files were created in custom directory
         $jsonFiles = glob($customDir . '/semantic-dev-*.json');
         $this->assertIsArray($jsonFiles);
         $this->assertNotEmpty($jsonFiles);
 
-        // Cleanup
         foreach ($jsonFiles as $file) {
             unlink($file);
         }
+
+        rmdir($customDir);
     }
 
     public function testFilenamingWithUniqueIdentifiers(): void
