@@ -10,7 +10,10 @@ use function file_get_contents;
 use function glob;
 use function is_file;
 use function json_decode;
+use function mkdir;
+use function rmdir;
 use function sys_get_temp_dir;
+use function uniqid;
 use function unlink;
 
 final class DevLoggerTest extends TestCase
